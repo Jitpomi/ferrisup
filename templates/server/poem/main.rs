@@ -1,7 +1,8 @@
 use poem::{
     get, handler, Route, Server, EndpointExt, 
     web::Json, IntoResponse, Response, Result,
-    http::StatusCode
+    http::StatusCode,
+    listener::TcpListener
 };
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -35,19 +36,11 @@ async fn main() -> Result<(), std::io::Error> {
 
     let app = Route::new()
         .at("/", get(hello))
-        .at("/api/info", get(api_info))
-        .catch_error(|err| async move {
-            tracing::error!("Error: {:?}", err);
-            Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .content_type("text/plain")
-                .body("Internal server error")
-                .into_response()
-        });
+        .at("/api/info", get(api_info));
 
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
     tracing::info!("Listening on {}", addr);
 
-    Server::new(addr.parse()?).run(app).await
+    Server::new(TcpListener::bind(addr)).run(app).await
 }
