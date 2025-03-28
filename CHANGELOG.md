@@ -5,6 +5,19 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-03-28
+
+### Added
+- Enhanced database configuration with support for multiple database types:
+  - Primary databases (PostgreSQL, MySQL, SQLite, MongoDB, TypeDB, CockroachDB, TimescaleDB, ScyllaDB)
+  - Cache databases (Redis, Memcached, Hazelcast, Aerospike, Ignite)
+  - Vector databases (Pinecone, Qdrant, Milvus, Chroma, Weaviate, Vespa, Faiss, OpenSearch)
+  - Graph databases (Neo4j, TypeDB, ArangoDB, JanusGraph, DGraph, TigerGraph, Amazon Neptune)
+
+### Fixed
+- Fixed remaining index out of bounds errors in client and server setup functions
+- Removed unused imports and variables to eliminate compiler warnings
+
 ## [0.1.2] - 2025-03-28
 
 ### Fixed

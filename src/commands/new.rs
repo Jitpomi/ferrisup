@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use colored::*;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
-use std::env;
 use std::path::Path;
 use std::process::Command;
 
@@ -564,9 +563,9 @@ Cargo.lock
         if !client.apps.is_empty() {
             println!("\n2. Run client applications:");
             
-            for (i, app) in client.apps.iter().enumerate() {
-                let framework = if i < client.frameworks.len() {
-                    &client.frameworks[i]
+            for (_i, app) in client.apps.iter().enumerate() {
+                let framework = if _i < client.frameworks.len() {
+                    &client.frameworks[_i]
                 } else if !client.frameworks.is_empty() {
                     // If we have at least one framework, use the first one
                     &client.frameworks[0]
@@ -577,7 +576,7 @@ Cargo.lock
                 
                 match framework {
                     "dioxus" => {
-                        let port = 8080 + i;
+                        let port = 8080 + _i;
                         println!("   # For {} (Dioxus web app):", app);
                         println!("   cargo install dioxus-cli  # Only needed once");
                         println!("   cd client/{} && dx serve --platform web --port {}", app, port);
@@ -732,7 +731,7 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
         let client_path = project_path.join("client");
         create_directory(client_path.to_str().unwrap())?;
         
-        for (i, app) in client.apps.iter().enumerate() {
+        for (_i, app) in client.apps.iter().enumerate() {
             let app_path = client_path.join(app);
             create_directory(app_path.to_str().unwrap())?;
             
@@ -740,12 +739,11 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
             std::fs::create_dir_all(app_path.join("src"))?;
             
             // Create app Cargo.toml
-            // Fix for index out of bounds: safely get framework or use default
-            let framework = if i < client.frameworks.len() {
-                client.frameworks[i].as_str()
+            let framework = if _i < client.frameworks.len() {
+                &client.frameworks[_i]
             } else if !client.frameworks.is_empty() {
                 // If we have at least one framework, use the first one
-                client.frameworks[0].as_str()
+                &client.frameworks[0]
             } else {
                 // Default to empty string if no frameworks are defined
                 ""
@@ -865,7 +863,7 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
         let server_path = project_path.join("server");
         create_directory(server_path.to_str().unwrap())?;
         
-        for (i, service) in server.services.iter().enumerate() {
+        for (_i, service) in server.services.iter().enumerate() {
             let service_path = server_path.join(service);
             create_directory(service_path.to_str().unwrap())?;
             
@@ -873,12 +871,11 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(service_path.join("src").to_str().unwrap())?;
             
             // Create service Cargo.toml
-            // Fix for index out of bounds: safely get framework or use default
-            let framework = if i < server.frameworks.len() {
-                server.frameworks[i].as_str()
+            let framework = if _i < server.frameworks.len() {
+                &server.frameworks[_i]
             } else if !server.frameworks.is_empty() {
                 // If we have at least one framework, use the first one
-                server.frameworks[0].as_str()
+                &server.frameworks[0]
             } else {
                 // Default to empty string if no frameworks are defined
                 ""
@@ -1199,8 +1196,8 @@ This is a full-stack Rust project with the following components:
     if let Some(client) = &config.components.client {
         content.push_str("### Client Applications\n\n");
         
-        for (i, app) in client.apps.iter().enumerate() {
-            content.push_str(&format!("- `client/{}`", app));
+        for (_i, app) in client.apps.iter().enumerate() {
+            content.push_str(&format!("- {}", app));
             
             if let Some(i) = client.apps.iter().position(|a| a == app) {
                 if i < client.frameworks.len() {
@@ -1217,7 +1214,7 @@ This is a full-stack Rust project with the following components:
         content.push_str("### Server Services\n\n");
         
         for service in &server.services {
-            content.push_str(&format!("- `server/{}`", service));
+            content.push_str(&format!("- {}", service));
             
             if let Some(i) = server.services.iter().position(|s| s == service) {
                 if i < server.frameworks.len() {
@@ -1263,11 +1260,11 @@ This project is set up as a Rust workspace with multiple binary targets. Here's 
     if let Some(client) = &config.components.client {
         content.push_str("### Running Client Applications\n\n");
         
-        for (i, app) in client.apps.iter().enumerate() {
+        for (_i, app) in client.apps.iter().enumerate() {
             content.push_str(&format!("#### {}\n\n", app));
             
-            let framework = if i < client.frameworks.len() {
-                &client.frameworks[i]
+            let framework = if _i < client.frameworks.len() {
+                &client.frameworks[_i]
             } else if !client.frameworks.is_empty() {
                 // If we have at least one framework, use the first one
                 &client.frameworks[0]
@@ -1278,7 +1275,7 @@ This project is set up as a Rust workspace with multiple binary targets. Here's 
             
             match framework {
                 "dioxus" => {
-                    let port = 8080 + i;
+                    let port = 8080 + _i;
                     content.push_str(&format!(r#"This is a Dioxus web application. To run it:
 
 1. Install the Dioxus CLI if you haven't already:
@@ -1351,9 +1348,9 @@ Create a `Procfile` in the project root with the following content:
     
     // Add client apps to Procfile
     if let Some(client) = &config.components.client {
-        for (i, app) in client.apps.iter().enumerate() {
-            let framework = if i < client.frameworks.len() {
-                &client.frameworks[i]
+        for (_i, app) in client.apps.iter().enumerate() {
+            let framework = if _i < client.frameworks.len() {
+                &client.frameworks[_i]
             } else if !client.frameworks.is_empty() {
                 // If we have at least one framework, use the first one
                 &client.frameworks[0]
@@ -1363,7 +1360,7 @@ Create a `Procfile` in the project root with the following content:
             };
             
             if framework == "dioxus" {
-                let port = 8080 + i;
+                let port = 8080 + _i;
                 content.push_str(&format!("{}: cd client/{} && dx serve --platform web --port {}\n", 
                     app, 
                     app,
