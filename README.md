@@ -19,7 +19,7 @@ FerrisUp CLI is a versatile command-line tool for creating and managing Rust pro
 
 ```bash
 # Install from crates.io
-cargo install jitpomi-ferrisup
+cargo install ferrisup
 
 # Or install from source
 git clone https://github.com/Jitpomi/ferrisup.git
@@ -31,19 +31,19 @@ cargo install --path .
 
 ```bash
 # Create a new minimal project
-jitpomi-ferrisup new my_project
+ferrisup new my_project
 
 # Create a full-stack project
-jitpomi-ferrisup new my_fullstack --template=full-stack
+ferrisup new my_fullstack --template=full-stack
 
 # Create an AI project
-jitpomi-ferrisup new my_ai_app --template=gen-ai
+ferrisup new my_ai_app --template=gen-ai
 
 # Create an edge computing project
-jitpomi-ferrisup new my_edge_app --template=edge-app
+ferrisup new my_edge_app --template=edge-app
 
 # Create an embedded systems project
-jitpomi-ferrisup new my_embedded --template=embedded
+ferrisup new my_embedded --template=embedded
 ```
 
 ## Available Templates
@@ -51,7 +51,7 @@ jitpomi-ferrisup new my_embedded --template=embedded
 View all available templates:
 
 ```bash
-jitpomi-ferrisup list
+ferrisup list
 ```
 
 Current templates include:
@@ -69,7 +69,7 @@ Current templates include:
 ## Usage
 
 ```bash
-jitpomi-ferrisup [OPTIONS]
+ferrisup [OPTIONS]
 ```
 
 ### Commands
@@ -81,7 +81,7 @@ FerrisUp offers a variety of commands to help you bootstrap, transform, and mana
 Create a new Rust project with a predefined structure.
 
 ```bash
-jitpomi-ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build] [--no-interactive]
+ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build] [--no-interactive]
 ```
 
 - `PROJECT_NAME`: Optional name for your project
@@ -95,7 +95,7 @@ jitpomi-ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build]
 Transform an existing project into a FerrisUp template structure.
 
 ```bash
-jitpomi-ferrisup transform [--project PATH] [--template TEMPLATE_NAME]
+ferrisup transform [--project PATH] [--template TEMPLATE_NAME]
 ```
 
 - `--project`: Path to existing project
@@ -106,7 +106,7 @@ jitpomi-ferrisup transform [--project PATH] [--template TEMPLATE_NAME]
 List available templates.
 
 ```bash
-jitpomi-ferrisup list
+ferrisup list
 ```
 
 ### `scale`
@@ -114,7 +114,7 @@ jitpomi-ferrisup list
 Interactively scale a project with custom components.
 
 ```bash
-jitpomi-ferrisup scale
+ferrisup scale
 ```
 
 ### `preview`
@@ -122,7 +122,7 @@ jitpomi-ferrisup scale
 Preview a template without creating any files.
 
 ```bash
-jitpomi-ferrisup preview [--template TEMPLATE_NAME]
+ferrisup preview [--template TEMPLATE_NAME]
 ```
 
 - `--template`: Template to preview
@@ -132,7 +132,7 @@ jitpomi-ferrisup preview [--template TEMPLATE_NAME]
 Manage project components (add/remove).
 
 ```bash
-jitpomi-ferrisup component [--action ACTION] [--component-type TYPE] [--project PATH]
+ferrisup component [--action ACTION] [--component-type TYPE] [--project PATH]
 ```
 
 - `--action`: Action to perform: add, remove, or list
@@ -144,7 +144,7 @@ jitpomi-ferrisup component [--action ACTION] [--component-type TYPE] [--project 
 Manage configurations (export/import).
 
 ```bash
-jitpomi-ferrisup config [--export] [--import FILE] [--path PATH]
+ferrisup config [--export] [--import FILE] [--path PATH]
 ```
 
 - `--export`: Export current configuration to a file
@@ -156,7 +156,7 @@ jitpomi-ferrisup config [--export] [--import FILE] [--path PATH]
 Manage a Cargo workspace structure for your Rust projects. This command helps you create and maintain modular projects with multiple crates organized in a workspace.
 
 ```bash
-jitpomi-ferrisup workspace <SUBCOMMAND> [OPTIONS]
+ferrisup workspace <SUBCOMMAND> [OPTIONS]
 ```
 
 Subcommands:
@@ -171,25 +171,25 @@ Examples:
 
 ```bash
 # Initialize a new workspace
-jitpomi-ferrisup workspace init my_workspace
+ferrisup workspace init my_workspace
 
 # Add a library crate to the workspace
-jitpomi-ferrisup workspace add libs/core my_workspace
+ferrisup workspace add libs/core my_workspace
 
 # Add a binary crate
-jitpomi-ferrisup workspace add bin/cli my_workspace
+ferrisup workspace add bin/cli my_workspace
 
 # Add a service
-jitpomi-ferrisup workspace add services/api my_workspace
+ferrisup workspace add services/api my_workspace
 
 # List all workspace members
-jitpomi-ferrisup workspace list my_workspace
+ferrisup workspace list my_workspace
 
 # Remove a crate from the workspace
-jitpomi-ferrisup workspace remove libs/core my_workspace
+ferrisup workspace remove libs/core my_workspace
 
 # Optimize workspace dependencies
-jitpomi-ferrisup workspace optimize my_workspace
+ferrisup workspace optimize my_workspace
 ```
 
 This command supports the "Start Anywhere, Scale Anywhere" philosophy by allowing you to:
@@ -206,7 +206,7 @@ FerrisUp provides comprehensive workspace management capabilities through the `w
 ### Initialize a Workspace
 
 ```bash
-jitpomi-ferrisup workspace --action init
+ferrisup workspace --action init
 ```
 
 This command will:
@@ -217,7 +217,7 @@ This command will:
 ### Add a Crate to Workspace
 
 ```bash
-jitpomi-ferrisup workspace --action add
+ferrisup workspace --action add
 ```
 
 Add a new crate to your workspace:
@@ -228,7 +228,7 @@ Add a new crate to your workspace:
 ### Remove a Crate
 
 ```bash
-jitpomi-ferrisup workspace --action remove
+ferrisup workspace --action remove
 ```
 
 Remove a crate from your workspace with the option to:
@@ -238,7 +238,7 @@ Remove a crate from your workspace with the option to:
 ### List Workspace Members
 
 ```bash
-jitpomi-ferrisup workspace --action list
+ferrisup workspace --action list
 ```
 
 Show all workspace members and discovered crates.
@@ -246,7 +246,7 @@ Show all workspace members and discovered crates.
 ### Optimize Workspace
 
 ```bash
-jitpomi-ferrisup workspace --action optimize
+ferrisup workspace --action optimize
 ```
 
 Optimize your workspace by:
@@ -420,7 +420,7 @@ FerrisUp is designed with maximum flexibility in mind, allowing you to:
 Use the `--minimal` flag to create a bare-bones Rust project:
 
 ```bash
-jitpomi-ferrisup new my_project --minimal
+ferrisup new my_project --minimal
 ```
 
 This creates a simple "Hello, World!" application with a clean workspace structure that's ready to expand.
@@ -483,7 +483,7 @@ All templates can be fully customized during the interactive setup process. You'
 When you're ready to scale, use the `--scale` flag to generate deployment configurations:
 
 ```bash
-jitpomi-ferrisup new my_enterprise_app --scale
+ferrisup new my_enterprise_app --scale
 ```
 
 This adds:
@@ -501,19 +501,19 @@ FerrisUp truly embodies the "start anywhere, scale anywhere" philosophy with its
 
 ```bash
 # Start with a minimal project
-jitpomi-ferrisup new my_project
+ferrisup new my_project
 
 # Later transform it to a library
-jitpomi-ferrisup transform --project=my_project --template=library
+ferrisup transform --project=my_project --template=library
 
 # Add AI capabilities when needed
-jitpomi-ferrisup transform --project=my_project --template=gen-ai
+ferrisup transform --project=my_project --template=gen-ai
 
 # Eventually scale to a full-stack application
-jitpomi-ferrisup transform --project=my_project --template=full-stack
+ferrisup transform --project=my_project --template=full-stack
 
 # Add enterprise scaling when ready for production
-jitpomi-ferrisup scale --project=my_project
+ferrisup scale --project=my_project
 ```
 
 This transformation feature intelligently:
