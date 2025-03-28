@@ -444,6 +444,59 @@ Cargo.lock
     println!("\n{}", "Project successfully created!".bold().green());
     println!("Your new Rust project is ready at: {}", project_path.display().to_string().cyan());
     
+    // Add instructions for running the project
+    println!("\n{}", "Getting Started:".bold().yellow());
+    println!("1. Navigate to your project directory:");
+    println!("   cd {}", project_name);
+    
+    // Add instructions based on project components
+    if let Some(client) = &project_config.components.client {
+        if !client.apps.is_empty() {
+            println!("\n2. Run client applications:");
+            
+            for (i, app) in client.apps.iter().enumerate() {
+                let framework = if i < client.frameworks.len() {
+                    &client.frameworks[i]
+                } else if !client.frameworks.is_empty() {
+                    &client.frameworks[0]
+                } else {
+                    ""
+                };
+                
+                match framework {
+                    "dioxus" => {
+                        println!("   # For {} (Dioxus web app):", app);
+                        println!("   cargo install dioxus-cli  # Only needed once");
+                        println!("   dx serve --path client/{}", app);
+                        println!("   # Then open http://localhost:8080 in your browser");
+                    },
+                    "tauri" => {
+                        println!("   # For {} (Tauri desktop app):", app);
+                        println!("   cd client/{} && cargo run", app);
+                    },
+                    _ => {
+                        println!("   # For {}:", app);
+                        println!("   cargo run --bin {}", app);
+                    }
+                }
+            }
+        }
+    }
+    
+    if let Some(server) = &project_config.components.server {
+        if !server.services.is_empty() {
+            println!("\n3. Run server services:");
+            
+            for service in &server.services {
+                println!("   # For {}:", service);
+                println!("   cargo run --bin {}", service);
+                println!("   # Service will be available at http://localhost:3000");
+            }
+        }
+    }
+    
+    println!("\nFor more detailed instructions, see the README.md file in your project directory.");
+    
     Ok(())
 }
 
