@@ -656,8 +656,8 @@ path = "src/main.rs"
 "#,
                 app,
                 match framework {
-                    "dioxus" => "dioxus = { version = \"0.4\", features = [\"web\"] }\ndioxus-web = \"0.4\"\n\n# Optional: Uncomment to add the Dioxus CLI tools as a dev dependency\n# [dev-dependencies]\n# dioxus-cli = \"0.4\"",
-                    "tauri" => "tauri = \"1.4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
+                    "dioxus" => "dioxus = { version = \"0.5\" }\ndioxus-web = \"0.5\"\n\n# Optional: Uncomment to add the Dioxus CLI tools as a dev dependency\n# [dev-dependencies]\n# dioxus-cli = \"0.5\"",
+                    "tauri" => "tauri = \"2.0\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
                 },
                 app
@@ -782,9 +782,6 @@ edition = "2021"
 
 [dependencies]
 {}
-serde = {{ version = "1.0", features = ["derive"] }}
-tracing = "0.1"
-tracing-subscriber = "0.3"
 
 [[bin]]
 name = "{}"
@@ -792,9 +789,8 @@ path = "src/main.rs"
 "#,
                 service,
                 match framework {
-                    "poem" => "poem = \"2.0\"\ntokio = { version = \"1\", features = [\"full\"] }",
-                    "axum" => "axum = \"0.7\"\ntokio = { version = \"1\", features = [\"full\"] }",
-                    "rocket" => "rocket = \"0.5\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
+                    "poem" => "poem = \"2.0\"\ntokio = { version = \"1.36\", features = [\"full\"] }\ntracing = \"0.1\"\ntracing-subscriber = \"0.3\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
+                    "axum" => "axum = \"0.7\"\ntokio = { version = \"1.36\", features = [\"full\"] }\ntracing = \"0.1\"\ntracing-subscriber = \"0.3\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
                 },
                 service
