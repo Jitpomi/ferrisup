@@ -191,6 +191,7 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
 }
 
 /// Recursively copy a directory and all its contents
+#[allow(dead_code)]
 pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
     // Create the destination directory if it doesn't exist
     create_directory(dst.to_str().unwrap())?;

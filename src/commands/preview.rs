@@ -35,7 +35,7 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
     };
     
     // Get template metadata
-    let template_content = get_template(&selected_template)
+    let _template_content = get_template(&selected_template)
         .context(format!("Failed to find template '{}'", selected_template))?;
     
     // Create a temporary representation of the project structure
@@ -237,7 +237,7 @@ fn generate_project_tree(config: &Config) -> String {
         }
         
         // Database
-        if let Some(database) = &config.components.database {
+        if let Some(_database) = &config.components.database {
             tree.push_str("├── database/\n");
             tree.push_str("│   ├── Cargo.toml\n");
             tree.push_str("│   ├── migrations/\n");

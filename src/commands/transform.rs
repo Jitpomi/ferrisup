@@ -218,11 +218,13 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
 
 #[derive(Debug)]
 struct ProjectStructure {
-    has_client: bool,
-    has_server: bool,
-    has_database: bool,
+    root_path: PathBuf,
+    project_name: String,
+    _has_database: bool,
     has_libs: bool,
-    has_binaries: bool,
+    _has_binaries: bool,
+    has_server: bool,
+    has_client: bool,
     has_ai: bool,
     has_edge: bool,
     has_embedded: bool,
@@ -252,11 +254,13 @@ fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
     let is_library = src_dir.join("lib.rs").exists();
     
     Ok(ProjectStructure {
-        has_client,
-        has_server,
-        has_database,
+        root_path: project_dir.to_path_buf(),
+        project_name: project_dir.file_name().unwrap().to_str().unwrap().to_string(),
+        _has_database: has_database,
         has_libs,
-        has_binaries,
+        _has_binaries: has_binaries,
+        has_server,
+        has_client,
         has_ai,
         has_edge,
         has_embedded,

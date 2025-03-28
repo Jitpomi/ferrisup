@@ -691,8 +691,8 @@ edition = "2021"
     Ok(())
 }
 
-/// Prompt for database components
-fn select_database_components() -> Result<Vec<String>> {
+#[allow(dead_code)]
+fn _select_database_components() -> Result<Vec<String>> {
     let options = vec![
         "PostgreSQL".to_string(),
         "MySQL".to_string(),
@@ -713,8 +713,8 @@ fn select_database_components() -> Result<Vec<String>> {
     Ok(selections.into_iter().map(|i| options[i].clone()).collect())
 }
 
-/// Prompt for client components
-fn select_client_components() -> Result<Vec<String>> {
+#[allow(dead_code)]
+fn _select_client_components() -> Result<Vec<String>> {
     let options = vec![
         "Dioxus (Desktop)".to_string(),
         "Tauri".to_string(),
