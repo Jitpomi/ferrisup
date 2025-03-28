@@ -112,42 +112,152 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
         };
         
         if use_database {
-            let db_options = vec![
+            // Primary database selection
+            let primary_db_options = vec![
                 "PostgreSQL",
                 "MySQL",
                 "SQLite",
                 "MongoDB",
-                "Redis",
-                "DynamoDB",
+                "TypeDB",
+                "CockroachDB",
+                "TimescaleDB",
+                "ScyllaDB",
                 "None (will configure later)",
             ];
             
-            let db_idx: usize = if no_interactive {
+            let primary_db_idx: usize = if no_interactive {
                 0
             } else {
                 Select::new()
-                    .with_prompt("Select database type")
-                    .items(&db_options)
+                    .with_prompt("Select primary database type")
+                    .items(&primary_db_options)
                     .default(0)
                     .interact()?
             };
             
-            let db_type = match db_idx {
+            let primary_db_type = match primary_db_idx {
                 0 => "postgres",
                 1 => "mysql",
                 2 => "sqlite",
                 3 => "mongodb",
-                4 => "redis",
-                5 => "dynamodb",
+                4 => "typedb",
+                5 => "cockroachdb",
+                6 => "timescaledb",
+                7 => "scylladb",
                 _ => "none",
             };
             
-            // Add database component if selected, but only for SQL databases for now
-            if db_idx <= 5 {  // Any valid database selection (not "None")
+            // Cache database selection
+            let cache_db_options = vec![
+                "None",
+                "Redis",
+                "Memcached",
+                "Hazelcast",
+                "Aerospike",
+                "Ignite",
+            ];
+            
+            let cache_db_idx: usize = if no_interactive {
+                0
+            } else {
+                Select::new()
+                    .with_prompt("Select cache database")
+                    .items(&cache_db_options)
+                    .default(0)
+                    .interact()?
+            };
+            
+            let cache_db_type = match cache_db_idx {
+                1 => "redis",
+                2 => "memcached",
+                3 => "hazelcast",
+                4 => "aerospike",
+                5 => "ignite",
+                _ => "none",
+            };
+            
+            // Vector database selection
+            let vector_db_options = vec![
+                "None",
+                "Pinecone",
+                "Qdrant",
+                "Milvus",
+                "Chroma",
+                "Weaviate",
+                "Vespa",
+                "Faiss",
+                "OpenSearch",
+            ];
+            
+            let vector_db_idx: usize = if no_interactive {
+                0
+            } else {
+                Select::new()
+                    .with_prompt("Select vector database for LLM embeddings")
+                    .items(&vector_db_options)
+                    .default(0)
+                    .interact()?
+            };
+            
+            let vector_db_type = match vector_db_idx {
+                1 => "pinecone",
+                2 => "qdrant",
+                3 => "milvus",
+                4 => "chroma",
+                5 => "weaviate",
+                6 => "vespa",
+                7 => "faiss",
+                8 => "opensearch",
+                _ => "none",
+            };
+            
+            // Graph database selection
+            let graph_db_options = vec![
+                "None",
+                "Neo4j",
+                "TypeDB",
+                "ArangoDB",
+                "JanusGraph",
+                "DGraph",
+                "TigerGraph",
+                "Amazon Neptune",
+            ];
+            
+            let graph_db_idx: usize = if no_interactive {
+                0
+            } else {
+                Select::new()
+                    .with_prompt("Select graph database (optional)")
+                    .items(&graph_db_options)
+                    .default(0)
+                    .interact()?
+            };
+            
+            let graph_db_type = match graph_db_idx {
+                1 => "neo4j",
+                2 => "typedb",
+                3 => "arangodb",
+                4 => "janusgraph",
+                5 => "dgraph",
+                6 => "tigergraph",
+                7 => "neptune",
+                _ => "none",
+            };
+            
+            // Add database component if any database was selected
+            if primary_db_idx < 8 || cache_db_idx > 0 || vector_db_idx > 0 || graph_db_idx > 0 {
+                let mut engines = Vec::new();
+                if primary_db_idx < 8 {
+                    engines.push(primary_db_type.to_string());
+                }
+                
                 project_config.components.database = Some(config::Database {
                     enabled: true,
-                    engines: vec![db_type.to_string()],
+                    engines,
                     migration_tool: "sqlx".to_string(), // Default migration tool
+                    cache_engine: if cache_db_idx > 0 { Some(cache_db_type.to_string()) } else { None },
+                    vector_engine: if vector_db_idx > 0 { Some(vector_db_type.to_string()) } else { None },
+                    graph_engine: if graph_db_idx > 0 { Some(graph_db_type.to_string()) } else { None },
                 });
             }
         }
@@ -1126,6 +1236,15 @@ This is a full-stack Rust project with the following components:
             content.push_str(&format!("- Engines: {}\n", database.engines.join(", ")));
             if !database.migration_tool.is_empty() {
                 content.push_str(&format!("- Migration Tool: {}\n", database.migration_tool));
+            }
+            if let Some(cache_engine) = &database.cache_engine {
+                content.push_str(&format!("- Cache Engine: {}\n", cache_engine));
+            }
+            if let Some(vector_engine) = &database.vector_engine {
+                content.push_str(&format!("- Vector Engine: {}\n", vector_engine));
+            }
+            if let Some(graph_engine) = &database.graph_engine {
+                content.push_str(&format!("- Graph Engine: {}\n", graph_engine));
             }
         } else {
             content.push_str("- Database is configured but not enabled\n");

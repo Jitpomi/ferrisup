@@ -87,6 +87,12 @@ pub struct Database {
     pub engines: Vec<String>,
     #[serde(default)]
     pub migration_tool: String,
+    #[serde(default)]
+    pub cache_engine: Option<String>,
+    #[serde(default)]
+    pub vector_engine: Option<String>,
+    #[serde(default)]
+    pub graph_engine: Option<String>,
 }
 
 impl Default for Database {
@@ -95,6 +101,9 @@ impl Default for Database {
             enabled: false,
             engines: vec![],
             migration_tool: "".to_string(),
+            cache_engine: None,
+            vector_engine: None,
+            graph_engine: None,
         }
     }
 }
@@ -225,6 +234,9 @@ pub fn get_default_config() -> Config {
                 enabled: true,
                 engines: vec!["postgres".to_string()],
                 migration_tool: "sea-orm".to_string(),
+                cache_engine: Some("redis".to_string()),
+                vector_engine: Some("pinecone".to_string()),
+                graph_engine: Some("neo4j".to_string()),
             }),
             libs: Some(Libs {
                 modules: vec!["core".to_string(), "models".to_string(), "utils".to_string()],
@@ -300,6 +312,9 @@ mod tests {
         assert_eq!(db.engines.len(), 1);
         assert_eq!(db.engines[0], "postgres");
         assert_eq!(db.migration_tool, "sea-orm");
+        assert_eq!(db.cache_engine.unwrap(), "redis");
+        assert_eq!(db.vector_engine.unwrap(), "pinecone");
+        assert_eq!(db.graph_engine.unwrap(), "neo4j");
         
         // Check libs component
         let libs = config.components.libs.unwrap();

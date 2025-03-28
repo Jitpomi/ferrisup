@@ -97,6 +97,9 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
                 enabled: true,
                 engines: vec!["postgresql".to_string()],
                 migration_tool: "diesel".to_string(),
+                cache_engine: Some("redis".to_string()),
+                vector_engine: None,
+                graph_engine: None,
             });
         },
         "gen-ai" => {
@@ -130,6 +133,9 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
                 enabled: true,
                 engines: vec!["dynamodb".to_string()],
                 migration_tool: "aws-sdk".to_string(),
+                cache_engine: None,
+                vector_engine: None,
+                graph_engine: None,
             });
         },
         "embedded" | "iot-device" => {
@@ -148,6 +154,9 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
                 enabled: true,
                 engines: vec!["dynamodb".to_string()],
                 migration_tool: "aws-sdk".to_string(),
+                cache_engine: None,
+                vector_engine: None,
+                graph_engine: None,
             });
         },
         "ml-pipeline" => {
@@ -165,6 +174,9 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
                 enabled: true,
                 engines: vec!["postgresql".to_string()],
                 migration_tool: "sqlx".to_string(),
+                cache_engine: None,
+                vector_engine: None,
+                graph_engine: None,
             });
         },
         "data-science" => {
@@ -182,6 +194,9 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
                 enabled: true,
                 engines: vec!["postgresql".to_string(), "duckdb".to_string()],
                 migration_tool: "sqlx".to_string(),
+                cache_engine: None,
+                vector_engine: None,
+                graph_engine: None,
             });
         },
         _ => {

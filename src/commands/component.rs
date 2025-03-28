@@ -357,25 +357,69 @@ edition = "2021"
 }
 
 fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
-    // Get database type
-    let db_types = vec!["postgresql", "mysql", "sqlite", "mongodb", "redis"];
-    let selection = Select::new()
-        .with_prompt("Select database type")
-        .items(&db_types)
-        .default(0)
-        .interact()?;
+    // Use the enhanced database selection
+    let selections = _select_database_components()?;
     
-    let db_type = db_types[selection];
+    // Parse the selections to determine which database types were selected
+    let mut primary_db = None;
+    let mut cache_db = None;
+    let mut vector_db = None;
+    let mut graph_db = None;
+    let mut custom_db = false;
     
-    // Get ORM
-    let orms = vec!["diesel", "sqlx", "sea-orm", "mongodb"];
-    let selection = Select::new()
-        .with_prompt("Select ORM/driver")
-        .items(&orms)
-        .default(0)
-        .interact()?;
+    for selection in &selections {
+        if selection.starts_with("Primary: ") {
+            primary_db = Some(selection.trim_start_matches("Primary: ").to_lowercase());
+        } else if selection.starts_with("Cache: ") {
+            cache_db = Some(selection.trim_start_matches("Cache: ").to_lowercase());
+        } else if selection.starts_with("Vector: ") {
+            vector_db = Some(selection.trim_start_matches("Vector: ").to_lowercase());
+        } else if selection.starts_with("Graph: ") {
+            graph_db = Some(selection.trim_start_matches("Graph: ").to_lowercase());
+        } else if selection == "Custom..." {
+            custom_db = true;
+        }
+    }
     
-    let orm = orms[selection];
+    // If custom is selected, prompt for the database name
+    if custom_db || (primary_db.is_none() && cache_db.is_none() && vector_db.is_none() && graph_db.is_none()) {
+        let db_name = Input::<String>::new()
+            .with_prompt("Enter custom database name")
+            .interact()?;
+        
+        primary_db = Some(db_name.to_lowercase());
+    }
+    
+    // Get ORM/driver selection based on the primary database
+    let mut orm = String::new();
+    
+    if let Some(primary) = &primary_db {
+        let orm_options = match primary.as_str() {
+            "postgresql" | "postgres" | "mysql" | "sqlite" | "cockroachdb" | "timescaledb" => {
+                vec!["diesel", "sqlx", "sea-orm", "tokio-postgres", "sqlalchemy-rs"]
+            },
+            "mongodb" => {
+                vec!["mongodb", "wither"]
+            },
+            "typedb" => {
+                vec!["typedb-client", "custom"]
+            },
+            "scylladb" => {
+                vec!["scylla-rs", "cassandra-rs"]
+            },
+            _ => {
+                vec!["custom"]
+            }
+        };
+        
+        let selection = Select::new()
+            .with_prompt("Select ORM/driver for primary database")
+            .items(&orm_options)
+            .default(0)
+            .interact()?;
+        
+        orm = orm_options[selection].to_string();
+    }
     
     // Create database directory structure
     let db_dir = if is_workspace {
@@ -386,9 +430,26 @@ fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
     
     create_directory(db_dir.to_str().unwrap())?;
     
-    // Create migrations directory if using Diesel
-    if orm == "diesel" {
-        create_directory(db_dir.join("migrations").to_str().unwrap())?;
+    // Create subdirectories for different database types
+    if primary_db.is_some() {
+        create_directory(db_dir.join("primary").to_str().unwrap())?;
+        
+        // Create migrations directory if using Diesel or Sea-ORM
+        if orm == "diesel" || orm == "sea-orm" {
+            create_directory(db_dir.join("migrations").to_str().unwrap())?;
+        }
+    }
+    
+    if cache_db.is_some() {
+        create_directory(db_dir.join("cache").to_str().unwrap())?;
+    }
+    
+    if vector_db.is_some() {
+        create_directory(db_dir.join("vector").to_str().unwrap())?;
+    }
+    
+    if graph_db.is_some() {
+        create_directory(db_dir.join("graph").to_str().unwrap())?;
     }
     
     // Create schema file
@@ -399,22 +460,180 @@ fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
     
     // Create Cargo.toml if workspace
     if is_workspace {
+        let mut dependencies = String::new();
+        
+        // Add dependencies based on selected databases
+        if let Some(primary) = &primary_db {
+            match primary.as_str() {
+                "postgresql" | "postgres" => {
+                    if orm == "diesel" {
+                        dependencies.push_str("diesel = { version = \"2.1.0\", features = [\"postgres\"] }\n");
+                    } else if orm == "sqlx" {
+                        dependencies.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"postgres\"] }\n");
+                    } else if orm == "sea-orm" {
+                        dependencies.push_str("sea-orm = { version = \"0.12.10\", features = [\"sqlx-postgres\", \"runtime-tokio-rustls\"] }\n");
+                    }
+                },
+                "mysql" => {
+                    if orm == "diesel" {
+                        dependencies.push_str("diesel = { version = \"2.1.0\", features = [\"mysql\"] }\n");
+                    } else if orm == "sqlx" {
+                        dependencies.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"mysql\"] }\n");
+                    } else if orm == "sea-orm" {
+                        dependencies.push_str("sea-orm = { version = \"0.12.10\", features = [\"sqlx-mysql\", \"runtime-tokio-rustls\"] }\n");
+                    }
+                },
+                "sqlite" => {
+                    if orm == "diesel" {
+                        dependencies.push_str("diesel = { version = \"2.1.0\", features = [\"sqlite\"] }\n");
+                    } else if orm == "sqlx" {
+                        dependencies.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"sqlite\"] }\n");
+                    } else if orm == "sea-orm" {
+                        dependencies.push_str("sea-orm = { version = \"0.12.10\", features = [\"sqlx-sqlite\", \"runtime-tokio-rustls\"] }\n");
+                    }
+                },
+                "mongodb" => {
+                    dependencies.push_str("mongodb = \"2.8.0\"\n");
+                    dependencies.push_str("bson = \"2.9.0\"\n");
+                },
+                "typedb" => {
+                    dependencies.push_str("typedb-client = \"2.24.0\"\n");
+                },
+                "cockroachdb" => {
+                    // CockroachDB uses the PostgreSQL driver
+                    dependencies.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"postgres\"] }\n");
+                },
+                "timescaledb" => {
+                    // TimescaleDB uses the PostgreSQL driver
+                    dependencies.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"postgres\"] }\n");
+                },
+                "scylladb" => {
+                    dependencies.push_str("scylla = \"0.12.0\"\n");
+                },
+                _ => {}
+            }
+        }
+        
+        if let Some(cache) = &cache_db {
+            match cache.as_str() {
+                "redis" => {
+                    dependencies.push_str("redis = { version = \"0.24.0\", features = [\"tokio-comp\"] }\n");
+                },
+                "memcached" => {
+                    dependencies.push_str("memcache = \"0.17.0\"\n");
+                },
+                "hazelcast" => {
+                    dependencies.push_str("hazelcast-client = \"0.3.0\"\n");
+                },
+                "aerospike" => {
+                    dependencies.push_str("aerospike = \"1.0.1\"\n");
+                },
+                "ignite" => {
+                    dependencies.push_str("ignite-rs = \"0.1.0\"\n");
+                },
+                _ => {}
+            }
+        }
+        
+        if let Some(vector) = &vector_db {
+            match vector.as_str() {
+                "pinecone" => {
+                    dependencies.push_str("pinecone-client = \"0.2.0\"\n");
+                    dependencies.push_str("reqwest = { version = \"0.11.27\", features = [\"json\"] }\n");
+                },
+                "qdrant" => {
+                    dependencies.push_str("qdrant-client = \"1.8.0\"\n");
+                },
+                "milvus" => {
+                    dependencies.push_str("milvus-sdk-rust = \"0.1.0\"\n");
+                },
+                "chroma" => {
+                    dependencies.push_str("chromadb = \"0.1.0\"\n");
+                    dependencies.push_str("reqwest = { version = \"0.11.27\", features = [\"json\"] }\n");
+                },
+                "weaviate" => {
+                    dependencies.push_str("weaviate-client = \"0.1.0\"\n");
+                    dependencies.push_str("reqwest = { version = \"0.11.27\", features = [\"json\"] }\n");
+                },
+                "vespa" => {
+                    dependencies.push_str("vespa-rs = \"0.1.0\"\n");
+                    dependencies.push_str("reqwest = { version = \"0.11.27\", features = [\"json\"] }\n");
+                },
+                "faiss" => {
+                    dependencies.push_str("faiss-rs = \"0.1.0\"\n");
+                },
+                "opensearch" => {
+                    dependencies.push_str("opensearch = \"2.1.0\"\n");
+                },
+                _ => {}
+            }
+        }
+        
+        if let Some(graph) = &graph_db {
+            match graph.as_str() {
+                "neo4j" => {
+                    dependencies.push_str("neo4rs = \"0.8.0\"\n");
+                },
+                "typedb" => {
+                    if !dependencies.contains("typedb-client") {
+                        dependencies.push_str("typedb-client = \"2.24.0\"\n");
+                    }
+                },
+                "arangodb" => {
+                    dependencies.push_str("arangors = \"0.5.4\"\n");
+                },
+                "janusgraph" => {
+                    dependencies.push_str("gremlin-client = \"0.8.1\"\n");
+                },
+                "dgraph" => {
+                    dependencies.push_str("dgraph-rs = \"0.1.0\"\n");
+                },
+                "tigergraph" => {
+                    dependencies.push_str("reqwest = { version = \"0.11.27\", features = [\"json\"] }\n");
+                },
+                "neptune" => {
+                    dependencies.push_str("gremlin-client = \"0.8.1\"\n");
+                    dependencies.push_str("aws-sdk-neptune = \"0.40.0\"\n");
+                },
+                _ => {}
+            }
+        }
+        
+        // Common dependencies for all database types
+        dependencies.push_str("tokio = { version = \"1.36.0\", features = [\"full\"] }\n");
+        dependencies.push_str("serde = { version = \"1.0.197\", features = [\"derive\"] }\n");
+        dependencies.push_str("anyhow = \"1.0.80\"\n");
+        
         let cargo_content = format!(r#"[package]
 name = "{}-database"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"));
+{}
+"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), dependencies);
         
         fs::write(db_dir.join("Cargo.toml"), cargo_content)?;
     }
     
-    println!("{} {} {} {}", 
-        "Added".green(),
-        db_type.green(),
-        "database with".green(),
-        orm.green());
+    // Print summary of what was added
+    println!("{} Database components:", "Added".green());
+    
+    if let Some(primary) = &primary_db {
+        println!("  - {} {} {}", "Primary:".green(), primary.green(), format!("with {}", orm).green());
+    }
+    
+    if let Some(cache) = &cache_db {
+        println!("  - {} {}", "Cache:".green(), cache.green());
+    }
+    
+    if let Some(vector) = &vector_db {
+        println!("  - {} {}", "Vector:".green(), vector.green());
+    }
+    
+    if let Some(graph) = &graph_db {
+        println!("  - {} {}", "Graph:".green(), graph.green());
+    }
     
     Ok(())
 }
@@ -693,24 +912,64 @@ edition = "2021"
 
 #[allow(dead_code)]
 fn _select_database_components() -> Result<Vec<String>> {
-    let options = vec![
+    let primary_options = vec![
         "PostgreSQL".to_string(),
         "MySQL".to_string(),
         "SQLite".to_string(),
         "MongoDB".to_string(),
-        "Custom...".to_string(),
+        "TypeDB".to_string(),
+        "CockroachDB".to_string(),
+        "TimescaleDB".to_string(),
+        "ScyllaDB".to_string(),
     ];
 
-    let mut selections = MultiSelect::new()
-        .with_prompt("Select database components to include")
-        .items(&options)
+    let cache_options = vec![
+        "Redis".to_string(),
+        "Memcached".to_string(),
+        "Hazelcast".to_string(),
+        "Aerospike".to_string(),
+        "Ignite".to_string(),
+    ];
+
+    let vector_options = vec![
+        "Pinecone".to_string(),
+        "Qdrant".to_string(),
+        "Milvus".to_string(),
+        "Chroma".to_string(),
+        "Weaviate".to_string(),
+        "Vespa".to_string(),
+        "Faiss".to_string(),
+        "OpenSearch".to_string(),
+    ];
+
+    let graph_options = vec![
+        "Neo4j".to_string(),
+        "TypeDB".to_string(),
+        "ArangoDB".to_string(),
+        "JanusGraph".to_string(),
+        "DGraph".to_string(),
+        "TigerGraph".to_string(),
+        "Amazon Neptune".to_string(),
+    ];
+
+    // Combine all options
+    let mut all_options = Vec::new();
+    all_options.extend(primary_options.iter().map(|db| format!("Primary: {}", db)));
+    all_options.extend(cache_options.iter().map(|db| format!("Cache: {}", db)));
+    all_options.extend(vector_options.iter().map(|db| format!("Vector: {}", db)));
+    all_options.extend(graph_options.iter().map(|db| format!("Graph: {}", db)));
+    all_options.push("Custom...".to_string());
+
+    let selections = MultiSelect::new()
+        .with_prompt("Select database components to include (you can select multiple types)")
+        .items(&all_options)
         .interact()?;
     
     if selections.is_empty() {
-        selections.push(4); // custom
+        return Ok(vec!["Custom...".to_string()]);
     }
 
-    Ok(selections.into_iter().map(|i| options[i].clone()).collect())
+    Ok(selections.into_iter().map(|i| all_options[i].clone()).collect())
 }
 
 #[allow(dead_code)]
