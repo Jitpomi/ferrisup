@@ -470,7 +470,7 @@ Cargo.lock
                         let port = 8080 + i;
                         println!("   # For {} (Dioxus web app):", app);
                         println!("   cargo install dioxus-cli  # Only needed once");
-                        println!("   cd client/{} && dx serve --port {}", app, port);
+                        println!("   cd client/{} && dx serve --platform web --port {}", app, port);
                         println!("   # Then open http://localhost:{} in your browser", port);
                     },
                     "tauri" => {
@@ -656,7 +656,7 @@ path = "src/main.rs"
 "#,
                 app,
                 match framework {
-                    "dioxus" => "dioxus = \"0.4\"\ndioxus-web = \"0.4\"\n\n# Optional: Uncomment to add the Dioxus CLI tools as a dev dependency\n# [dev-dependencies]\n# dioxus-cli = \"0.4\"",
+                    "dioxus" => "dioxus = { version = \"0.4\", features = [\"web\"] }\ndioxus-web = \"0.4\"\n\n# Optional: Uncomment to add the Dioxus CLI tools as a dev dependency\n# [dev-dependencies]\n# dioxus-cli = \"0.4\"",
                     "tauri" => "tauri = \"1.4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
                 },
@@ -716,6 +716,32 @@ For the best development experience, use the Dioxus CLI as described above.
             };
             
             std::fs::write(app_path.join("src").join("main.rs"), main_rs)?;
+            
+            // Create Dioxus configuration file
+            if framework == "dioxus" {
+                let dioxus_config = r#"[application]
+name = "dioxus-app"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "public"
+
+[web.app]
+title = "Dioxus App"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "public"]
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+script = []
+"#;
+                std::fs::create_dir_all(app_path.join("public"))?;
+                std::fs::write(app_path.join("Dioxus.toml"), dioxus_config)?;
+            }
             
             workspace_members.push(format!("client/{}", app));
         }
@@ -1148,7 +1174,7 @@ This project is set up as a Rust workspace with multiple binary targets. Here's 
 2. Run the development server:
    ```bash
    # From the project root
-   cd client/{} && dx serve --port {}
+   cd client/{} && dx serve --platform web --port {}
    ```
 
 3. Open your browser at http://localhost:{}
@@ -1223,7 +1249,7 @@ Create a `Procfile` in the project root with the following content:
             
             if framework == "dioxus" {
                 let port = 8080 + i;
-                content.push_str(&format!("{}: cd client/{} && dx serve --port {}\n", 
+                content.push_str(&format!("{}: cd client/{} && dx serve --platform web --port {}\n", 
                     app, 
                     app,
                     port
