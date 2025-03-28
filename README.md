@@ -74,69 +74,239 @@ ferrisup [OPTIONS]
 
 ### Commands
 
-All FerrisUp commands now feature a fully interactive mode:
+FerrisUp offers a variety of commands to help you bootstrap, transform, and manage your Rust projects:
 
-- `new [name] [--template TEMPLATE] [--git] [--build]` - Create a new project 
-- `transform [--project PATH] [--template TEMPLATE]` - Transform an existing project
-- `list` - List available templates with descriptions
-- `scale` - Interactive project builder with guided prompts
+### `new`
 
-### Interactive Features
-
-All commands in FerrisUp now support an interactive approach, allowing you to customize your project without memorizing command-line options:
-
-#### Creating a New Project
+Create a new Rust project with a predefined structure.
 
 ```bash
-# Fully interactive - prompts for all options
-ferrisup new
-
-# Semi-interactive - specify some options, prompt for others
-ferrisup new my_project --template full-stack
-
-# Non-interactive - specify all options
-ferrisup new my_project --template full-stack --git --build
+ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build]
 ```
 
-#### Transforming an Existing Project
+- `PROJECT_NAME`: Optional name for your project
+- `--template`: Specify a template (web, api, full-stack, etc.)
+- `--git`: Initialize a git repository
+- `--build`: Run cargo build after creation
+
+### `transform`
+
+Transform an existing project into a FerrisUp template structure.
 
 ```bash
-# Fully interactive - prompts for all options
-ferrisup transform
-
-# Semi-interactive - prompt for template selection
-ferrisup transform --project ./my_project
+ferrisup transform [--project PATH] [--template TEMPLATE_NAME]
 ```
 
-#### Interactive Project Builder (Scale Command)
+- `--project`: Path to existing project
+- `--template`: Template to transform to
 
-The `scale` command provides a complete guided experience:
+### `list`
+
+List available templates.
+
+```bash
+ferrisup list
+```
+
+### `scale`
+
+Interactively scale a project with custom components.
 
 ```bash
 ferrisup scale
 ```
 
-This walks you through:
+### `preview`
 
-1. **Project location** - Use current directory or specify a new one
-2. **Template selection** - Choose from predefined templates or customize from scratch
-3. **Project type** - Select between binary, library, or workspace
-4. **Component selection** - For workspaces, choose components to include:
-   - Client applications (with framework selection: Dioxus, Tauri, Leptos, Yew)
-   - Server services (with framework selection: Poem, Axum, Actix Web, Rocket, Warp)
-   - Shared libraries 
-   - Database support (PostgreSQL, MySQL, SQLite, MongoDB, Redis, DynamoDB)
-   - AI components (Text Generation, Image Generation, Speech Recognition, etc.)
-   - Edge computing (WebAssembly, Cloudflare Workers, Deno Deploy, etc.)
-   - Embedded systems (RP2040, ESP32, STM32, Arduino)
+Preview a template without creating any files.
 
-### Freedom of Choice
+```bash
+ferrisup preview [--template TEMPLATE_NAME]
+```
 
-FerrisUp is designed to be flexible. Whether you're using templates or starting from scratch:
+- `--template`: Template to preview
 
-- You're never locked into any specific tech stack
-- All components and features are customizable
-- You can always add, remove, or modify components later using the `transform` command
+### `component`
+
+Manage project components (add/remove).
+
+```bash
+ferrisup component [--action ACTION] [--component-type TYPE] [--project PATH]
+```
+
+- `--action`: Action to perform: add, remove, or list
+- `--component-type`: Component type: client, server, database, ai, edge, embedded, etc.
+- `--project`: Path to the project
+
+### `config`
+
+Manage configurations (export/import).
+
+```bash
+ferrisup config [--export] [--import FILE] [--path PATH]
+```
+
+- `--export`: Export current configuration to a file
+- `--import`: Import configuration from a file
+- `--path`: Path to export/import configuration
+
+### `workspace`
+
+Manage a Cargo workspace structure for your Rust projects. This command helps you create and maintain modular projects with multiple crates organized in a workspace.
+
+```bash
+ferrisup workspace <SUBCOMMAND> [OPTIONS]
+```
+
+Subcommands:
+
+- `init [PATH]`: Initialize a new workspace with standard directory structure (bin, libs, services, apps)
+- `add <CRATE> [PATH]`: Add a new crate to the workspace
+- `remove <CRATE> [PATH]`: Remove a crate from the workspace
+- `list [PATH]`: List all workspace members
+- `optimize [PATH]`: Find common dependencies and move them to workspace-level
+
+Examples:
+
+```bash
+# Initialize a new workspace
+ferrisup workspace init my_workspace
+
+# Add a library crate to the workspace
+ferrisup workspace add libs/core my_workspace
+
+# Add a binary crate
+ferrisup workspace add bin/cli my_workspace
+
+# Add a service
+ferrisup workspace add services/api my_workspace
+
+# List all workspace members
+ferrisup workspace list my_workspace
+
+# Remove a crate from the workspace
+ferrisup workspace remove libs/core my_workspace
+
+# Optimize workspace dependencies
+ferrisup workspace optimize my_workspace
+```
+
+This command supports the "Start Anywhere, Scale Anywhere" philosophy by allowing you to:
+- Begin with a small modular project
+- Gradually add components as your application grows
+- Maintain clean boundaries between different parts of your system
+- Share code through internal libraries
+- Optimize dependency management across crates
+
+## Workspace Management
+
+FerrisUp provides comprehensive workspace management capabilities through the `workspace` command:
+
+### Initialize a Workspace
+
+```bash
+ferrisup workspace --action init
+```
+
+This command will:
+- Create a Cargo workspace configuration
+- Discover existing crates or create new workspace structure
+- Set up common dependencies in the workspace
+
+### Add a Crate to Workspace
+
+```bash
+ferrisup workspace --action add
+```
+
+Add a new crate to your workspace:
+- Select crate type (client, server, shared, custom)
+- Specify crate name
+- Choose between binary or library crate
+
+### Remove a Crate
+
+```bash
+ferrisup workspace --action remove
+```
+
+Remove a crate from your workspace with the option to:
+- Just remove it from workspace members
+- Also delete the crate files
+
+### List Workspace Members
+
+```bash
+ferrisup workspace --action list
+```
+
+Show all workspace members and discovered crates.
+
+### Optimize Workspace
+
+```bash
+ferrisup workspace --action optimize
+```
+
+Optimize your workspace by:
+- Ensuring all crates are included in workspace members
+- Adding workspace.dependencies for common dependencies
+- Applying best practices for workspace structure
+
+## Workflow
+
+FerrisUp follows a simple workflow:
+
+```
+┌─────────────────────┐
+│  Command Selection  │
+│  new, transform,    │
+│  scale, list        │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  Project Location   │
+│  Current dir or     │
+│  specified path     │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  Template Selection │
+│  Choose template or │
+│  customize          │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Component Selection │
+│ Client, Server,     │
+│ Database, etc.      │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Technology Stack    │
+│ Framework, language │
+│ and tools           │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   Configuration     │
+│   Git, CI/CD,       │
+│   Dependencies      │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   Project Created   │
+│   or Transformed    │
+└─────────────────────┘
+```
+
+Each step is optional and can be skipped if you provide the information via command-line parameters. FerrisUp only prompts for what it needs to complete your task.
 
 ## Configuration
 
@@ -238,24 +408,45 @@ Perfect for command-line tools, background workers, or microservices.
 
 ### Template Selection
 
-Choose the right starting point for your project:
+FerrisUp offers a variety of templates to match your project needs:
 
-- **minimal**: Just a binary application with "Hello World"
-- **hello-world**: Minimal binary plus shared libraries
-- **full-stack**: Complete client-server application with database
-- **backend-only**: Server services with database support
-- **frontend-only**: Client applications with shared libraries
-- **api-service**: API-focused server with database
-- **library**: Pure library crate
-- **cli-app**: Command-line application
-- **gen-ai**: AI components with server and libraries
-- **edge-app**: Edge computing application with libraries
-- **iot-device**: Embedded systems for IoT use cases
-- **ml-pipeline**: Complete machine learning pipeline with AI, server and database
-- **serverless**: Serverless functions with database
-- **data-science**: Data analysis components with AI and database
+#### Core Templates
+- **minimal** - Simple binary with a single main.rs file
+- **library** - Rust library crate with a lib.rs file
+- **full-stack** - Complete application with client, server, and shared libraries
 
-### Enterprise Scaling
+#### Specialized Templates
+- **gen-ai** - AI-focused project with inference and model components
+  - LLaMA, BERT, Whisper, and Stable Diffusion integration options
+  - Model serving and inference optimization
+  
+- **edge-app** - WebAssembly-based application for edge computing
+  - Cloudflare Workers, Deno Deploy support
+  - WASM optimized components
+  
+- **embedded** - Embedded systems firmware for microcontrollers
+  - Support for RP2040, ESP32, STM32, Arduino
+  - HAL abstraction and peripheral management
+  
+- **serverless** - Serverless functions for cloud deployment
+  - AWS Lambda, Azure Functions, Google Cloud Functions
+  - Local development and testing support
+  
+- **iot-device** - IoT device firmware with connectivity features
+  - MQTT, HTTP, and Bluetooth connectivity
+  - Secure boot and OTA update support
+  
+- **ml-pipeline** - Machine learning data processing pipeline
+  - Data ingestion, transformation, and model training
+  - Result visualization and export
+  
+- **data-science** - Data science project with analysis tools
+  - Data loading and preprocessing
+  - Analysis, visualization, and reporting
+
+All templates can be fully customized during the interactive setup process. You're never locked into any specific technology stack or architecture.
+
+## Enterprise Scaling
 
 When you're ready to scale, use the `--scale` flag to generate deployment configurations:
 
