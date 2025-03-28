@@ -458,17 +458,20 @@ Cargo.lock
                 let framework = if i < client.frameworks.len() {
                     &client.frameworks[i]
                 } else if !client.frameworks.is_empty() {
+                    // If we have at least one framework, use the first one
                     &client.frameworks[0]
                 } else {
+                    // Default to empty string if no frameworks are defined
                     ""
                 };
                 
                 match framework {
                     "dioxus" => {
+                        let port = 8080 + i;
                         println!("   # For {} (Dioxus web app):", app);
                         println!("   cargo install dioxus-cli  # Only needed once");
-                        println!("   dx serve --path client/{}", app);
-                        println!("   # Then open http://localhost:8080 in your browser");
+                        println!("   cd client/{} && dx serve --port {}", app, port);
+                        println!("   # Then open http://localhost:{} in your browser", port);
                     },
                     "tauri" => {
                         println!("   # For {} (Tauri desktop app):", app);
@@ -1134,6 +1137,7 @@ This project is set up as a Rust workspace with multiple binary targets. Here's 
             
             match framework {
                 "dioxus" => {
+                    let port = 8080 + i;
                     content.push_str(&format!(r#"This is a Dioxus web application. To run it:
 
 1. Install the Dioxus CLI if you haven't already:
@@ -1144,18 +1148,17 @@ This project is set up as a Rust workspace with multiple binary targets. Here's 
 2. Run the development server:
    ```bash
    # From the project root
-   dx serve --path client/{}
+   cd client/{} && dx serve --port {}
    ```
 
-3. Open your browser at http://localhost:8080
-"#, app));
+3. Open your browser at http://localhost:{}
+"#, app, port, port));
                 },
                 "tauri" => {
                     content.push_str(&format!(r#"This is a Tauri desktop application. To run it:
 
 ```bash
-cd client/{}
-cargo run
+cd client/{} && cargo run
 ```
 "#, app));
                 },
@@ -1220,10 +1223,10 @@ Create a `Procfile` in the project root with the following content:
             
             if framework == "dioxus" {
                 let port = 8080 + i;
-                content.push_str(&format!("{}: cd client/{} && dx serve{}\n", 
+                content.push_str(&format!("{}: cd client/{} && dx serve --port {}\n", 
                     app, 
                     app,
-                    if i > 0 { format!(" --port {}", port) } else { String::new() }
+                    port
                 ));
             } else {
                 content.push_str(&format!("{}: cd client/{} && cargo run\n", app, app));
