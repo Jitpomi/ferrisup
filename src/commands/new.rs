@@ -590,13 +590,18 @@ edition = "2021"
 
 [dependencies]
 {}
+
+[[bin]]
+name = "{}"
+path = "src/main.rs"
 "#,
                 app,
                 match framework {
                     "dioxus" => "dioxus = \"0.4\"\ndioxus-web = \"0.4\"",
                     "tauri" => "tauri = \"1.4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
-                }
+                },
+                app
             );
             
             std::fs::write(app_path.join("Cargo.toml"), app_cargo)?;
@@ -649,6 +654,13 @@ edition = "2021"
 
 [dependencies]
 {}
+serde = {{ version = "1.0", features = ["derive"] }}
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[[bin]]
+name = "{}"
+path = "src/main.rs"
 "#,
                 service,
                 match framework {
@@ -656,7 +668,8 @@ edition = "2021"
                     "axum" => "axum = \"0.7\"\ntokio = { version = \"1\", features = [\"full\"] }",
                     "rocket" => "rocket = \"0.5\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
-                }
+                },
+                service
             );
             
             std::fs::write(service_path.join("Cargo.toml"), service_cargo)?;
@@ -899,6 +912,7 @@ fn update_workspace_toml(project_path: &Path, workspace_members: &[String]) -> R
 members = [
 {}
 ]
+resolver = "2"
 
 [workspace.dependencies]
 serde = {{ version = "1.0", features = ["derive"] }}

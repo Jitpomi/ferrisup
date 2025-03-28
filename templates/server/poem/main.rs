@@ -1,6 +1,7 @@
 use poem::{
     get, handler, Route, Server, EndpointExt, 
-    web::Json, IntoResponse, Response, Result
+    web::Json, IntoResponse, Response, Result,
+    http::StatusCode
 };
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -38,7 +39,7 @@ async fn main() -> Result<(), std::io::Error> {
         .catch_error(|err| async move {
             tracing::error!("Error: {:?}", err);
             Response::builder()
-                .status(500)
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .content_type("text/plain")
                 .body("Internal server error")
                 .into_response()
