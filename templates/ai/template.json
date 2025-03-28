@@ -1,0 +1,45 @@
+{
+  "name": "gen-ai",
+  "description": "A Rust AI application template with inference capabilities",
+  "type": "library",
+  "files": [
+    {
+      "source": "lib.rs",
+      "target": "src/lib.rs"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "anyhow = \"1.0\"",
+      "tracing = \"0.1\"",
+      "ndarray = \"0.15\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ],
+    "llama": [
+      "llm-base = \"0.2\"",
+      "tokenizers = \"0.14\"",
+      "candle-core = \"0.3\"",
+      "candle-nn = \"0.3\""
+    ],
+    "bert": [
+      "rust-bert = \"0.21\"",
+      "tokenizers = \"0.14\""
+    ],
+    "whisper": [
+      "whisper-rs = \"0.8\"",
+      "hound = \"3.5\""
+    ],
+    "stable-diffusion": [
+      "diffusers-rs = \"0.4\"",
+      "image = \"0.24\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "criterion = \"0.5\"",
+      "tempfile = \"3.8\"",
+      "tokio = { version = \"1.36\", features = [\"rt\", \"macros\"] }"
+    ]
+  }
+}

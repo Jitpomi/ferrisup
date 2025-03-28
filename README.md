@@ -1,75 +1,142 @@
-# FerrisUp 
+# FerrisUp CLI
 
-Flexible Rust workspace initializer for modular applications, now with enhancements for GenAI, edge computing, and embedded systems.
+A powerful Rust project bootstrapping tool - Start Anywhere, Scale Anywhere
 
 ## Overview
 
-FerrisUp bootstraps Rust projects with a well-organized workspace structure, supporting various templates and customization options. With the latest updates, FerrisUp now includes features for GenAI, edge computing, and embedded systems, making it a versatile tool for a wide range of applications.
+FerrisUp CLI is a versatile command-line tool for creating and managing Rust projects with flexible templates. Like Create React App for React, FerrisUp makes it easy to start new Rust projects with the right structure and dependencies.
 
 ## Features
 
-- **Multiple Templates**: full-stack, backend-only, frontend-only, api-service, library, gen-ai, edge-app, iot-device, ml-pipeline, serverless, data-science
-- **Flexible Configuration**: JSON config or environment variables
-- **Framework Support**: 
-  - Frontend: Dioxus, Tauri, Yew, Leptos
-  - Backend: Poem, Axum, Actix-web, Rocket, Tide
-  - AI: LLaMA, BERT, Whisper, Stable Diffusion
-  - Edge Computing: WASM, Cloudflare Workers, Deno Deploy, Netlify Functions
-  - Embedded Systems: RP2040, ESP32, STM32, Arduino
-- **Database Integration**:
-  - Engines: PostgreSQL, MySQL, SQLite, Redis, Milvus, Qdrant, Neo4j, DGraph, ArangoDB, ScyllaDB, TypeDB, Iroh, Hypercore
-  - ORM/Query Builders: SQLx, Diesel, SeaORM
-  - Migration tools and sample schemas
-- **Modular Structure**: client apps, server services, database, shared libraries, AI components, edge computing components, embedded systems components
-- **Git Integration**: Automatic repository initialization
+- **Multiple Templates**: From minimal binaries to full-stack applications
+- **Transform Capability**: Start with a simple project and scale as you grow
+- **GenAI Integration**: Ready-made AI model templates
+- **Edge Computing**: WebAssembly and serverless-ready templates
+- **Embedded Systems**: Support for RP2040, ESP32, STM32, and Arduino
+- **Interactive CLI**: User-friendly command interface
+
+## Installation
+
+```bash
+# Install from crates.io
+cargo install ferrisup
+
+# Or install from source
+git clone https://github.com/jermsam/ferrisup.git
+cd ferrisup
+cargo install --path .
+```
+
+## Quick Start
+
+```bash
+# Create a new minimal project
+ferrisup new my_project
+
+# Create a full-stack project
+ferrisup new my_fullstack --template=full-stack
+
+# Create an AI project
+ferrisup new my_ai_app --template=gen-ai
+
+# Create an edge computing project
+ferrisup new my_edge_app --template=edge-app
+
+# Create an embedded systems project
+ferrisup new my_embedded --template=embedded
+```
+
+## Available Templates
+
+View all available templates:
+
+```bash
+ferrisup list
+```
+
+Current templates include:
+- `minimal` - Simple binary with a single main.rs file
+- `library` - Rust library crate with a lib.rs file
+- `full-stack` - Complete application with client, server, and shared libraries
+- `gen-ai` - AI-focused project with inference and model components
+- `edge-app` - WebAssembly-based application for edge computing
+- `embedded` - Embedded systems firmware for microcontrollers
+- `serverless` - Serverless functions for cloud deployment
+- `iot-device` - IoT device firmware with connectivity features
+- `ml-pipeline` - Machine learning data processing pipeline
+- `data-science` - Data science project with analysis tools
 
 ## Usage
 
 ```bash
-./ferrisup.sh [OPTIONS]
+ferrisup [OPTIONS]
 ```
 
-### Options
+### Commands
 
-- `-h, --help`: Show help
-- `-c, --config FILE`: Use config file (default: config.json)
-- `-t, --template NAME`: Select template
-- `-n, --name NAME`: Set project name
-- `--skip-git`: Skip Git initialization
-- `--list-templates`: List templates
-- `--minimal`: Create a bare-bones Rust project
-- `--scale`: Generate deployment configurations
-- `--gen-ai`: Create a project with AI capabilities
-- `--edge-app`: Create a project for edge computing
-- `--iot-device`: Create a project for embedded systems
+All FerrisUp commands now feature a fully interactive mode:
 
-### Examples
+- `new [name] [--template TEMPLATE] [--git] [--build]` - Create a new project 
+- `transform [--project PATH] [--template TEMPLATE]` - Transform an existing project
+- `list` - List available templates with descriptions
+- `scale` - Interactive project builder with guided prompts
+
+### Interactive Features
+
+All commands in FerrisUp now support an interactive approach, allowing you to customize your project without memorizing command-line options:
+
+#### Creating a New Project
 
 ```bash
-# Default full-stack project
-./ferrisup.sh
+# Fully interactive - prompts for all options
+ferrisup new
 
-# Backend-only project named "api-server"
-./ferrisup.sh -t backend-only -n api-server
+# Semi-interactive - specify some options, prompt for others
+ferrisup new my_project --template full-stack
 
-# Custom configuration file
-./ferrisup.sh -c my-config.json
-
-# Minimal hello world application
-./ferrisup.sh --minimal -n my_project
-
-# Enterprise-scale application
-./ferrisup.sh --scale -n my_enterprise_app
-
-# Project with AI capabilities
-./ferrisup.sh --gen-ai -n my_ai_project
-
-# Edge computing project
-./ferrisup.sh --edge-app -n my_edge_project
-
-# Embedded systems project
-./ferrisup.sh --iot-device -n my_iot_project
+# Non-interactive - specify all options
+ferrisup new my_project --template full-stack --git --build
 ```
+
+#### Transforming an Existing Project
+
+```bash
+# Fully interactive - prompts for all options
+ferrisup transform
+
+# Semi-interactive - prompt for template selection
+ferrisup transform --project ./my_project
+```
+
+#### Interactive Project Builder (Scale Command)
+
+The `scale` command provides a complete guided experience:
+
+```bash
+ferrisup scale
+```
+
+This walks you through:
+
+1. **Project location** - Use current directory or specify a new one
+2. **Template selection** - Choose from predefined templates or customize from scratch
+3. **Project type** - Select between binary, library, or workspace
+4. **Component selection** - For workspaces, choose components to include:
+   - Client applications (with framework selection: Dioxus, Tauri, Leptos, Yew)
+   - Server services (with framework selection: Poem, Axum, Actix Web, Rocket, Warp)
+   - Shared libraries 
+   - Database support (PostgreSQL, MySQL, SQLite, MongoDB, Redis, DynamoDB)
+   - AI components (Text Generation, Image Generation, Speech Recognition, etc.)
+   - Edge computing (WebAssembly, Cloudflare Workers, Deno Deploy, etc.)
+   - Embedded systems (RP2040, ESP32, STM32, Arduino)
+
+### Freedom of Choice
+
+FerrisUp is designed to be flexible. Whether you're using templates or starting from scratch:
+
+- You're never locked into any specific tech stack
+- All components and features are customizable
+- You can always add, remove, or modify components later using the `transform` command
 
 ## Configuration
 
@@ -151,7 +218,7 @@ FerrisUp is designed with maximum flexibility in mind, allowing you to:
 Use the `--minimal` flag to create a bare-bones Rust project:
 
 ```bash
-./ferrisup.sh --minimal -n my_project
+ferrisup new my_project --minimal
 ```
 
 This creates a simple "Hello, World!" application with a clean workspace structure that's ready to expand.
@@ -193,7 +260,7 @@ Choose the right starting point for your project:
 When you're ready to scale, use the `--scale` flag to generate deployment configurations:
 
 ```bash
-./ferrisup.sh --scale -n my_enterprise_app
+ferrisup new my_enterprise_app --scale
 ```
 
 This adds:
@@ -211,19 +278,19 @@ FerrisUp truly embodies the "start anywhere, scale anywhere" philosophy with its
 
 ```bash
 # Start with a minimal project
-./ferrisup.sh my_project --minimal
+ferrisup new my_project
 
 # Later transform it to a library
-./ferrisup.sh --transform=library --project=my_project
+ferrisup transform --project=my_project --template=library
 
 # Add AI capabilities when needed
-./ferrisup.sh --transform=gen-ai --project=my_project
+ferrisup transform --project=my_project --template=gen-ai
 
 # Eventually scale to a full-stack application
-./ferrisup.sh --transform=full-stack --project=my_project
+ferrisup transform --project=my_project --template=full-stack
 
 # Add enterprise scaling when ready for production
-./ferrisup.sh --scale --project=my_project
+ferrisup scale --project=my_project
 ```
 
 This transformation feature intelligently:

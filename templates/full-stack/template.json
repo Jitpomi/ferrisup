@@ -1,0 +1,74 @@
+{
+  "name": "full-stack",
+  "description": "A complete Rust full-stack application with client, server, and shared libraries",
+  "type": "workspace",
+  "structure": {
+    "client": {
+      "apps": ["app1", "app2"],
+      "frameworks": ["dioxus", "tauri"]
+    },
+    "server": {
+      "services": ["api", "auth"],
+      "frameworks": ["poem", "poem"]
+    },
+    "libs": {
+      "packages": ["core", "models", "auth"],
+      "types": ["library", "library", "library"]
+    }
+  },
+  "database": {
+    "db_type": "postgres",
+    "orm": "sqlx"
+  },
+  "dependencies": {
+    "default": [
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "thiserror = \"1.0\"",
+      "anyhow = \"1.0\""
+    ],
+    "client": {
+      "dioxus": [
+        "dioxus = \"0.5\"",
+        "dioxus-web = \"0.5\"",
+        "wasm-bindgen = \"0.2\""
+      ],
+      "tauri": [
+        "tauri = { version = \"1.5\", features = [\"api-all\"] }",
+        "window-shadows = \"0.2\""
+      ]
+    },
+    "server": {
+      "poem": [
+        "poem = \"2.0\"",
+        "tokio = { version = \"1.36\", features = [\"full\"] }",
+        "tracing = \"0.1\"",
+        "tracing-subscriber = \"0.3\""
+      ]
+    },
+    "deployment": {
+      "heroku": ["#buildpack = \"emk/rust\""],
+      "vercel": ["vercel_runtime = \"1.1\""],
+      "netlify": ["netlify_lambda_http = \"0.5\""],
+      "flyio": ["#dockerfile = true"],
+      "railway": ["#dockerfile = true"],
+      "render": ["#dockerfile = true"]
+    },
+    "observability": {
+      "metrics": [
+        "prometheus = \"0.13\"",
+        "metrics = \"0.21\""
+      ],
+      "tracing": [
+        "opentelemetry = { version = \"0.20\", features = [\"trace\", \"metrics\"] }",
+        "opentelemetry-jaeger = \"0.19\""
+      ]
+    }
+  },
+  "dev-dependencies": {
+    "default": [
+      "tokio-test = \"0.4\"",
+      "criterion = \"0.5\""
+    ]
+  }
+}

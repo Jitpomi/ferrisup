@@ -1,0 +1,41 @@
+{
+  "name": "embedded",
+  "description": "A Rust embedded systems application template for microcontrollers",
+  "type": "binary",
+  "files": [
+    {
+      "source": "main.rs",
+      "target": "src/main.rs"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "panic-halt = \"0.2\"",
+      "cortex-m = \"0.7\"",
+      "cortex-m-rt = \"0.7\"",
+      "embedded-hal = \"0.2\""
+    ],
+    "rp2040": [
+      "rp2040-hal = \"0.9\"",
+      "rp2040-boot2 = \"0.3\""
+    ],
+    "esp32": [
+      "esp32-hal = \"0.16\"",
+      "esp-backtrace = \"0.9\""
+    ],
+    "stm32": [
+      "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }"
+    ],
+    "arduino": [
+      "arduino-hal = \"0.1\"",
+      "avr-device = \"0.5\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "defmt = \"0.3\"",
+      "defmt-rtt = \"0.4\"",
+      "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
+    ]
+  }
+}

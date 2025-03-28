@@ -1,0 +1,20 @@
+{
+  "name": "library",
+  "description": "A Rust library crate with a well-structured lib.rs file",
+  "type": "library",
+  "files": [
+    {
+      "source": "lib.rs",
+      "target": "src/lib.rs"
+    }
+  ],
+  "dependencies": {
+    "default": []
+  },
+  "dev-dependencies": {
+    "default": [
+      "anyhow = \"1.0\"",
+      "criterion = \"0.5\""
+    ]
+  }
+}

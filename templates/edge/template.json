@@ -1,0 +1,40 @@
+{
+  "name": "edge-app",
+  "description": "A Rust edge computing application template with WebAssembly support",
+  "type": "library",
+  "files": [
+    {
+      "source": "lib.rs",
+      "target": "src/lib.rs"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "wasm-bindgen = \"0.2\"",
+      "js-sys = \"0.3\"",
+      "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde-wasm-bindgen = \"0.6\"",
+      "anyhow = \"1.0\""
+    ],
+    "cloudflare": [
+      "worker = \"0.0.18\"",
+      "worker-macros = \"0.0.9\""
+    ],
+    "deno": [
+      "deno_core = \"0.264\"",
+      "deno_runtime = \"0.140\""
+    ],
+    "netlify": [
+      "netlify_lambda_http = \"0.5\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "wasm-pack = \"0.12\"",
+      "wasm-bindgen-test = \"0.3\"",
+      "console_error_panic_hook = \"0.1\"",
+      "wee_alloc = \"0.4\""
+    ]
+  }
+}

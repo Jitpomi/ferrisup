@@ -1,0 +1,55 @@
+{
+  "name": "iot-device",
+  "description": "A Rust IoT device firmware template with connectivity features",
+  "type": "binary",
+  "files": [
+    {
+      "source": "main.rs",
+      "target": "src/main.rs"
+    }
+  ],
+  "database": {
+    "db_type": "embedded",
+    "orm": "none" 
+  },
+  "dependencies": {
+    "default": [
+      "panic-halt = \"0.2\"",
+      "embedded-hal = \"0.2\"",
+      "cortex-m = \"0.7\"",
+      "cortex-m-rt = \"0.7\""
+    ],
+    "connectivity": [
+      "embassy-net = \"0.2\"",
+      "embedded-nal = \"0.6\"",
+      "embedded-nal-async = \"0.4\""
+    ],
+    "sensors": [
+      "embedded-sensors = \"0.3\"",
+      "embedded-hal-bus = \"0.1\""
+    ],
+    "rp2040": [
+      "rp2040-hal = \"0.9\"",
+      "rp2040-boot2 = \"0.3\""
+    ],
+    "esp32": [
+      "esp32-hal = \"0.16\"",
+      "esp-backtrace = \"0.9\"",
+      "esp-wifi = \"0.1\""
+    ],
+    "stm32": [
+      "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }"
+    ],
+    "arduino": [
+      "arduino-hal = \"0.1\"",
+      "avr-device = \"0.5\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "defmt = \"0.3\"",
+      "defmt-rtt = \"0.4\"",
+      "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "minimal",
+  "description": "A minimal Rust project with a simple main.rs file",
+  "type": "binary",
+  "files": [
+    {
+      "source": "main.rs",
+      "target": "src/main.rs"
+    }
+  ],
+  "dependencies": {
+    "default": []
+  },
+  "dev-dependencies": {
+    "default": []
+  }
+}
