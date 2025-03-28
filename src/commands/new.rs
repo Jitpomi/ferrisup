@@ -560,7 +560,17 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(app_path.join("src").to_str().unwrap())?;
             
             // Create app Cargo.toml
-            let framework = &client.frameworks[i];
+            // Fix for index out of bounds: safely get framework or use default
+            let framework = if i < client.frameworks.len() {
+                client.frameworks[i].as_str()
+            } else if !client.frameworks.is_empty() {
+                // If we have at least one framework, use the first one
+                client.frameworks[0].as_str()
+            } else {
+                // Default to empty string if no frameworks are defined
+                ""
+            };
+            
             let app_cargo = format!(
                 r#"[package]
 name = "{}"
@@ -571,7 +581,7 @@ edition = "2021"
 {}
 "#,
                 app,
-                match framework.as_str() {
+                match framework {
                     "dioxus" => "dioxus = \"0.4\"\ndioxus-web = \"0.4\"",
                     "tauri" => "tauri = \"1.4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
@@ -581,7 +591,7 @@ edition = "2021"
             std::fs::write(app_path.join("Cargo.toml"), app_cargo)?;
             
             // Create app main.rs based on framework
-            let main_rs = match framework.as_str() {
+            let main_rs = match framework {
                 "dioxus" => include_str!("../../templates/client/dioxus/main.rs"),
                 "tauri" => include_str!("../../templates/client/tauri/main.rs"),
                 _ => "fn main() {\n    println!(\"Hello from client!\");\n}",

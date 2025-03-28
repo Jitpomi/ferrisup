@@ -5,6 +5,12 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-03-28
+
+### Fixed
+- Fixed critical index out of bounds error in the interactive project creator when using the full-stack template
+- Added safe handling of client frameworks when there are more apps than frameworks defined
+
 ## [0.1.1] - 2025-03-28
 
 ### Added
