@@ -9,7 +9,7 @@ use crate::config::{self, Config, read_config};
 use crate::templates::{get_template, list_templates};
 use crate::utils::{create_directory, write_cargo_toml, write_env_file};
 
-pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, build: bool) -> Result<()> {
+pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, build: bool, no_interactive: bool) -> Result<()> {
     println!("{}", "FerrisUp Interactive Project Creator".bold().green());
     println!("{}", "Create a new Rust project with the features you need".blue());
     
@@ -17,10 +17,15 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     let project_name = match name {
         Some(n) => n.to_string(),
         None => {
-            // Prompt for project name
-            Input::new()
-                .with_prompt("Project name")
-                .interact_text()?
+            if no_interactive {
+                // Use a default name in non-interactive mode
+                "rust_project".to_string()
+            } else {
+                // Prompt for project name
+                Input::new()
+                    .with_prompt("Project name")
+                    .interact_text()?
+            }
         }
     };
     
@@ -33,97 +38,39 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
             "Directory".red(), 
             format!("'{}' already exists", project_name).red());
         
-        // Ask if user wants to use a different name
-        if Confirm::new()
+        // Ask if user wants to use a different name (skip in non-interactive mode)
+        if !no_interactive && Confirm::new()
             .with_prompt("Would you like to choose a different name?")
             .default(true)
             .interact()?
         {
-            return execute(None, template_name, init_git, build);
+            return execute(None, template_name, init_git, build, no_interactive);
         } else {
             return Ok(());
         }
     }
     
-    // If template name is not provided, offer interactive selection
+    // If template name is not provided, offer interactive selection or use default
     let selected_template = match template_name {
         Some(t) => t.to_string(),
         None => {
-            // First ask if the user wants to use a template
-            let use_template = Confirm::new()
-                .with_prompt("Would you like to use a predefined template?")
-                .default(false)
-                .interact()?;
-            
-            if use_template {
-                // Get available templates
+            if no_interactive {
+                // Use "minimal" as the default template in non-interactive mode
+                "minimal".to_string()
+            } else {
+                // Show available templates
                 let templates = list_templates()?;
-                let template_names: Vec<String> = templates.iter().map(|(name, desc)| {
-                    format!("{} - {}", name, desc)
-                }).collect();
+                let template_names: Vec<&str> = templates.iter().map(|(name, _)| name.as_str()).collect();
+                let template_descriptions: Vec<&str> = templates.iter().map(|(_, desc)| desc.as_str()).collect();
                 
-                // Present template options
-                let template_idx = Select::new()
+                let selection = Select::new()
                     .with_prompt("Select a template")
                     .items(&template_names)
-                    .default(0)
                     .interact()?;
                 
-                templates[template_idx].0.clone()
-            } else {
-                // If custom configuration, guide through the options
-                println!("\n{}", "Custom Project Configuration".bold().cyan());
+                println!("Template description: {}", template_descriptions[selection].blue());
                 
-                // Project type selection
-                let project_types = vec![
-                    "Binary (Simple application)",
-                    "Library (Reusable code)",
-                    "Workspace (Multi-crate project)",
-                ];
-                
-                let project_type_idx = Select::new()
-                    .with_prompt("Select project type")
-                    .items(&project_types)
-                    .default(0)
-                    .interact()?;
-                
-                // Choose template based on project type
-                match project_type_idx {
-                    0 => "minimal",  // Binary
-                    1 => "library",  // Library
-                    2 => {           // Workspace
-                        // For workspace, ask about additional components
-                        println!("\n{}", "Workspace Components".bold().cyan());
-                        
-                        let component_options = vec![
-                            "Client Applications (Web/Desktop UI)",
-                            "Server Services (APIs/Backend)",
-                            "Libraries (Shared code)",
-                            "AI Components (ML models, inference)",
-                            "Edge Computing (WASM, Serverless)",
-                            "Embedded Systems (IoT, Hardware)",
-                        ];
-                        
-                        let selections = MultiSelect::new()
-                            .with_prompt("Select the components for your workspace")
-                            .items(&component_options)
-                            .interact()?;
-                        
-                        // Suggest template based on selections
-                        if selections.contains(&3) && selections.len() == 1 {
-                            "gen-ai"
-                        } else if selections.contains(&4) && selections.len() == 1 {
-                            "edge-app"
-                        } else if selections.contains(&5) && selections.len() == 1 {
-                            "embedded"
-                        } else if selections.contains(&0) && selections.contains(&1) && selections.contains(&2) {
-                            "full-stack"
-                        } else {
-                            "minimal"  // Default to minimal for custom component selection
-                        }
-                    },
-                    _ => "minimal",
-                }.to_string()
+                template_names[selection].to_string()
             }
         }
     };
@@ -144,17 +91,25 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     project_config.template = selected_template.clone();
     
     // Ask if user wants to customize components
-    let customize_components = Confirm::new()
-        .with_prompt("Would you like to customize project components?")
-        .default(false)
-        .interact()?;
+    let customize_components = if no_interactive {
+        false
+    } else {
+        Confirm::new()
+            .with_prompt("Would you like to customize project components?")
+            .default(false)
+            .interact()?
+    };
     
     if customize_components {
         // Database selection
-        let use_database = Confirm::new()
-            .with_prompt("Include database support?")
-            .default(false)
-            .interact()?;
+        let use_database = if no_interactive {
+            false
+        } else {
+            Confirm::new()
+                .with_prompt("Include database support?")
+                .default(false)
+                .interact()?
+        };
         
         if use_database {
             let db_options = vec![
@@ -167,11 +122,15 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 "None (will configure later)",
             ];
             
-            let db_idx = Select::new()
-                .with_prompt("Select database type")
-                .items(&db_options)
-                .default(0)
-                .interact()?;
+            let db_idx: usize = if no_interactive {
+                0
+            } else {
+                Select::new()
+                    .with_prompt("Select database type")
+                    .items(&db_options)
+                    .default(0)
+                    .interact()?
+            };
             
             let db_type = match db_idx {
                 0 => "postgres",
@@ -183,18 +142,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 _ => "none",
             };
             
-            project_config.components.database = Some(config::Database {
-                db_type: db_type.to_string(),
-                orm: "sqlx".to_string(), // Default ORM
-            });
+            // Add database component if selected, but only for SQL databases for now
+            if db_idx <= 5 {  // Any valid database selection (not "None")
+                project_config.components.database = Some(config::Database {
+                    enabled: true,
+                    engines: vec![db_type.to_string()],
+                    migration_tool: "sqlx".to_string(), // Default migration tool
+                });
+            }
         }
         
         // For full-stack or workspace templates, allow customization of client frameworks
         if selected_template == "full-stack" || selected_template == "minimal" {
-            let customize_client = Confirm::new()
-                .with_prompt("Would you like to customize client frameworks?")
-                .default(false)
-                .interact()?;
+            let customize_client = if no_interactive {
+                false
+            } else {
+                Confirm::new()
+                    .with_prompt("Would you like to customize client frameworks?")
+                    .default(false)
+                    .interact()?
+            };
             
             if customize_client {
                 let framework_options = vec![
@@ -205,17 +172,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                     "Vanilla (No framework)",
                 ];
                 
-                let selections = MultiSelect::new()
-                    .with_prompt("Select client frameworks to use")
-                    .items(&framework_options)
-                    .interact()?;
+                let selections: Vec<usize> = if no_interactive {
+                    vec![0]
+                } else {
+                    MultiSelect::new()
+                        .with_prompt("Select client frameworks to use")
+                        .items(&framework_options)
+                        .interact()?
+                };
                 
                 let mut frameworks = Vec::new();
-                if selections.contains(&0) { frameworks.push("dioxus".to_string()); }
-                if selections.contains(&1) { frameworks.push("tauri".to_string()); }
-                if selections.contains(&2) { frameworks.push("leptos".to_string()); }
-                if selections.contains(&3) { frameworks.push("yew".to_string()); }
-                if selections.contains(&4) { frameworks.push("vanilla".to_string()); }
+                for selection in selections {
+                    match selection {
+                        0 => frameworks.push("dioxus".to_string()),
+                        1 => frameworks.push("tauri".to_string()),
+                        2 => frameworks.push("leptos".to_string()),
+                        3 => frameworks.push("yew".to_string()),
+                        4 => frameworks.push("vanilla".to_string()),
+                        _ => (),
+                    }
+                }
                 
                 if !frameworks.is_empty() {
                     project_config.components.client = Some(config::Client {
@@ -226,10 +202,14 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
             }
             
             // Server framework selection
-            let customize_server = Confirm::new()
-                .with_prompt("Would you like to customize server frameworks?")
-                .default(false)
-                .interact()?;
+            let customize_server = if no_interactive {
+                false
+            } else {
+                Confirm::new()
+                    .with_prompt("Would you like to customize server frameworks?")
+                    .default(false)
+                    .interact()?
+            };
             
             if customize_server {
                 let framework_options = vec![
@@ -240,17 +220,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                     "Warp (Composable and fast)",
                 ];
                 
-                let selections = MultiSelect::new()
-                    .with_prompt("Select server frameworks to use")
-                    .items(&framework_options)
-                    .interact()?;
+                let selections: Vec<usize> = if no_interactive {
+                    vec![0]
+                } else {
+                    MultiSelect::new()
+                        .with_prompt("Select server frameworks to use")
+                        .items(&framework_options)
+                        .interact()?
+                };
                 
                 let mut frameworks = Vec::new();
-                if selections.contains(&0) { frameworks.push("poem".to_string()); }
-                if selections.contains(&1) { frameworks.push("axum".to_string()); }
-                if selections.contains(&2) { frameworks.push("actix-web".to_string()); }
-                if selections.contains(&3) { frameworks.push("rocket".to_string()); }
-                if selections.contains(&4) { frameworks.push("warp".to_string()); }
+                for selection in selections {
+                    match selection {
+                        0 => frameworks.push("poem".to_string()),
+                        1 => frameworks.push("axum".to_string()),
+                        2 => frameworks.push("actix-web".to_string()),
+                        3 => frameworks.push("rocket".to_string()),
+                        4 => frameworks.push("warp".to_string()),
+                        _ => (),
+                    }
+                }
                 
                 if !frameworks.is_empty() {
                     project_config.components.server = Some(config::Server {
@@ -271,17 +260,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 "Computer Vision (Object detection, classification)",
             ];
             
-            let selections = MultiSelect::new()
-                .with_prompt("Select AI capabilities to include")
-                .items(&ai_options)
-                .interact()?;
+            let selections: Vec<usize> = if no_interactive {
+                vec![0]
+            } else {
+                MultiSelect::new()
+                    .with_prompt("Select AI capabilities to include")
+                    .items(&ai_options)
+                    .interact()?
+            };
             
             let mut modules = Vec::new();
-            if selections.contains(&0) { modules.push("text-generation".to_string()); }
-            if selections.contains(&1) { modules.push("image-generation".to_string()); }
-            if selections.contains(&2) { modules.push("speech-recognition".to_string()); }
-            if selections.contains(&3) { modules.push("embeddings".to_string()); }
-            if selections.contains(&4) { modules.push("computer-vision".to_string()); }
+            for selection in selections {
+                match selection {
+                    0 => modules.push("text-generation".to_string()),
+                    1 => modules.push("image-generation".to_string()),
+                    2 => modules.push("speech-recognition".to_string()),
+                    3 => modules.push("embeddings".to_string()),
+                    4 => modules.push("computer-vision".to_string()),
+                    _ => (),
+                }
+            }
             
             if !modules.is_empty() {
                 project_config.components.ai = Some(config::AI {
@@ -301,17 +299,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 "Vercel Edge Functions",
             ];
             
-            let selections = MultiSelect::new()
-                .with_prompt("Select edge computing targets")
-                .items(&edge_options)
-                .interact()?;
+            let selections: Vec<usize> = if no_interactive {
+                vec![0]
+            } else {
+                MultiSelect::new()
+                    .with_prompt("Select edge computing targets")
+                    .items(&edge_options)
+                    .interact()?
+            };
             
             let mut platforms = Vec::new();
-            if selections.contains(&0) { platforms.push("wasm".to_string()); }
-            if selections.contains(&1) { platforms.push("cloudflare-workers".to_string()); }
-            if selections.contains(&2) { platforms.push("deno-deploy".to_string()); }
-            if selections.contains(&3) { platforms.push("netlify-functions".to_string()); }
-            if selections.contains(&4) { platforms.push("vercel-edge".to_string()); }
+            for selection in selections {
+                match selection {
+                    0 => platforms.push("wasm".to_string()),
+                    1 => platforms.push("cloudflare-workers".to_string()),
+                    2 => platforms.push("deno-deploy".to_string()),
+                    3 => platforms.push("netlify-functions".to_string()),
+                    4 => platforms.push("vercel-edge".to_string()),
+                    _ => (),
+                }
+            }
             
             if !platforms.is_empty() {
                 project_config.components.edge = Some(config::Edge {
@@ -331,17 +338,26 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 "Generic Microcontroller",
             ];
             
-            let selections = MultiSelect::new()
-                .with_prompt("Select embedded targets")
-                .items(&embedded_options)
-                .interact()?;
+            let selections: Vec<usize> = if no_interactive {
+                vec![0]
+            } else {
+                MultiSelect::new()
+                    .with_prompt("Select embedded targets")
+                    .items(&embedded_options)
+                    .interact()?
+            };
             
             let mut platforms = Vec::new();
-            if selections.contains(&0) { platforms.push("rp2040".to_string()); }
-            if selections.contains(&1) { platforms.push("esp32".to_string()); }
-            if selections.contains(&2) { platforms.push("stm32".to_string()); }
-            if selections.contains(&3) { platforms.push("arduino".to_string()); }
-            if selections.contains(&4) { platforms.push("generic".to_string()); }
+            for selection in selections {
+                match selection {
+                    0 => platforms.push("rp2040".to_string()),
+                    1 => platforms.push("esp32".to_string()),
+                    2 => platforms.push("stm32".to_string()),
+                    3 => platforms.push("arduino".to_string()),
+                    4 => platforms.push("generic".to_string()),
+                    _ => (),
+                }
+            }
             
             if !platforms.is_empty() {
                 project_config.components.embedded = Some(config::Embedded {
@@ -359,10 +375,14 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     let should_init_git = if init_git {
         true
     } else {
-        Confirm::new()
-            .with_prompt("Initialize git repository?")
-            .default(true)
-            .interact()?
+        if no_interactive {
+            false
+        } else {
+            Confirm::new()
+                .with_prompt("Initialize git repository?")
+                .default(true)
+                .interact()?
+        }
     };
     
     // Initialize git if requested
@@ -387,10 +407,14 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     let should_build = if build {
         true
     } else {
-        Confirm::new()
-            .with_prompt("Build the project?")
-            .default(true)
-            .interact()?
+        if no_interactive {
+            false
+        } else {
+            Confirm::new()
+                .with_prompt("Build the project?")
+                .default(true)
+                .interact()?
+        }
     };
     
     // Build the project if requested
@@ -628,7 +652,7 @@ fn setup_libs(project_path: &Path, config: &crate::config::Config, workspace_mem
         let libs_path = project_path.join("libs");
         create_directory(libs_path.to_str().unwrap())?;
         
-        for lib in &libs.packages {
+        for lib in &libs.modules {
             let lib_path = libs_path.join(lib);
             create_directory(lib_path.to_str().unwrap())?;
             

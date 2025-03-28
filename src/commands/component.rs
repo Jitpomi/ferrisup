@@ -4,7 +4,6 @@ use dialoguer::{Confirm, Input, MultiSelect, Select};
 use std::path::{Path, PathBuf};
 use std::fs;
 
-use crate::config::{Config, read_config};
 use crate::utils::{create_directory, read_cargo_toml, update_workspace_members};
 
 /// Execute the component command for adding/removing components

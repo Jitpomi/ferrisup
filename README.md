@@ -81,13 +81,14 @@ FerrisUp offers a variety of commands to help you bootstrap, transform, and mana
 Create a new Rust project with a predefined structure.
 
 ```bash
-ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build]
+ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build] [--no-interactive]
 ```
 
 - `PROJECT_NAME`: Optional name for your project
 - `--template`: Specify a template (web, api, full-stack, etc.)
 - `--git`: Initialize a git repository
 - `--build`: Run cargo build after creation
+- `--no-interactive`: Create project without prompting, using default values
 
 ### `transform`
 
@@ -252,6 +253,37 @@ Optimize your workspace by:
 - Ensuring all crates are included in workspace members
 - Adding workspace.dependencies for common dependencies
 - Applying best practices for workspace structure
+
+## Development and Testing
+
+FerrisUp includes a comprehensive test suite to ensure functionality and compatibility. You can run the tests with:
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test test_name
+
+# Run tests in specific file
+cargo test --test file_name
+```
+
+The `--no-interactive` flag is especially useful for automated testing and CI/CD pipelines, allowing for the creation of projects without requiring user input.
+
+### Template Compatibility
+
+FerrisUp supports both new and old template formats, ensuring backward compatibility with existing templates. The system automatically converts older templates to the newer format.
+
+### Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add some amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
 ## Workflow
 

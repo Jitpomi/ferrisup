@@ -2,11 +2,9 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{Confirm, Select};
 use std::collections::HashMap;
-use std::path::Path;
 
 use crate::templates::{get_template, list_templates};
-use crate::config::{Config, Components, ClientComponents, ServerComponents, DatabaseComponents};
-use crate::utils::create_directory;
+use crate::config::{Config, Components, Client, Server, Database, AI, Edge, Embedded};
 
 /// Execute the preview command to visualize a template without actually creating files
 pub fn execute(template_name: Option<&str>) -> Result<()> {
@@ -20,13 +18,20 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
         // List available templates for selection
         let templates = list_templates()?;
         
+        // Create formatted display items with template name and description
+        let display_items: Vec<String> = templates
+            .iter()
+            .map(|(name, desc)| format!("{} - {}", name, desc))
+            .collect();
+        
         let selection = Select::new()
             .with_prompt("Select a template to preview")
-            .items(&templates)
+            .items(&display_items)
             .default(0)
             .interact()?;
         
-        templates[selection].clone()
+        // Extract just the name from the selected template tuple
+        templates[selection].0.clone()
     };
     
     // Get template metadata
@@ -61,7 +66,7 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
         .interact()?
     {
         // Call the new command with the selected template
-        crate::commands::new::execute(None, Some(&selected_template), false, false)?;
+        crate::commands::new::execute(None, Some(&selected_template), false, false, false)?;
     }
     
     Ok(())
@@ -78,95 +83,105 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
     // Set up different components based on template type
     match template_name {
         "full-stack" => {
-            config.components.client = Some(ClientComponents {
-                framework: "dioxus".to_string(),
+            config.components.client = Some(Client {
                 apps: vec!["web".to_string(), "desktop".to_string()],
+                frameworks: vec!["dioxus".to_string(), "dioxus".to_string()],
             });
             
-            config.components.server = Some(ServerComponents {
-                framework: "poem".to_string(),
+            config.components.server = Some(Server {
                 services: vec!["api".to_string(), "auth".to_string()],
+                frameworks: vec!["poem".to_string(), "poem".to_string()],
             });
             
-            config.components.database = Some(DatabaseComponents {
-                db_type: "postgresql".to_string(),
-                orm: "diesel".to_string(),
+            config.components.database = Some(Database {
+                enabled: true,
+                engines: vec!["postgresql".to_string()],
+                migration_tool: "diesel".to_string(),
             });
         },
         "gen-ai" => {
-            config.components.client = Some(ClientComponents {
-                framework: "dioxus".to_string(), 
+            config.components.client = Some(Client {
                 apps: vec!["web".to_string()],
+                frameworks: vec!["dioxus".to_string()],
             });
             
-            config.components.server = Some(ServerComponents {
-                framework: "axum".to_string(),
+            config.components.server = Some(Server {
                 services: vec!["inference".to_string(), "api".to_string()],
+                frameworks: vec!["axum".to_string(), "axum".to_string()],
             });
             
-            config.components.ai = Some(crate::config::AIComponents {
+            config.components.ai = Some(AI {
                 models: vec!["llama".to_string(), "whisper".to_string()],
-                tasks: vec!["text-generation".to_string(), "speech-recognition".to_string()],
+                frameworks: vec!["candle".to_string(), "tract".to_string()],
             });
         },
         "edge-app" => {
-            config.components.client = Some(ClientComponents {
-                framework: "leptos".to_string(),
+            config.components.client = Some(Client {
                 apps: vec!["web".to_string()],
+                frameworks: vec!["leptos".to_string()],
             });
             
-            config.components.edge = Some(crate::config::EdgeComponents {
-                platforms: vec!["cloudflare-workers".to_string(), "deno-deploy".to_string()],
-                features: vec!["wasm".to_string(), "serverless".to_string()],
+            config.components.edge = Some(Edge {
+                apps: vec!["worker".to_string()],
+                platforms: vec!["cloudflare".to_string(), "deno".to_string()],
+            });
+            
+            config.components.database = Some(Database {
+                enabled: true,
+                engines: vec!["dynamodb".to_string()],
+                migration_tool: "aws-sdk".to_string(),
             });
         },
         "embedded" | "iot-device" => {
-            config.components.embedded = Some(crate::config::EmbeddedComponents {
-                mcu: "rp2040".to_string(),
+            config.components.embedded = Some(Embedded {
+                devices: vec!["rp2040".to_string()],
                 platforms: vec!["raspberry-pi-pico".to_string()],
             });
         },
         "serverless" => {
-            config.components.server = Some(ServerComponents {
-                framework: "lambda".to_string(),
+            config.components.server = Some(Server {
                 services: vec!["function".to_string()],
+                frameworks: vec!["lambda".to_string()],
             });
             
-            config.components.database = Some(DatabaseComponents {
-                db_type: "dynamodb".to_string(),
-                orm: "aws-sdk".to_string(),
+            config.components.database = Some(Database {
+                enabled: true,
+                engines: vec!["dynamodb".to_string()],
+                migration_tool: "aws-sdk".to_string(),
             });
         },
         "ml-pipeline" => {
-            config.components.server = Some(ServerComponents {
-                framework: "axum".to_string(),
+            config.components.server = Some(Server {
                 services: vec!["pipeline".to_string(), "api".to_string()],
+                frameworks: vec!["axum".to_string(), "axum".to_string()],
             });
             
-            config.components.ai = Some(crate::config::AIComponents {
+            config.components.ai = Some(AI {
                 models: vec!["custom".to_string()],
-                tasks: vec!["training".to_string(), "inference".to_string()],
+                frameworks: vec!["tract".to_string()],
             });
             
-            config.components.database = Some(DatabaseComponents {
-                db_type: "postgresql".to_string(),
-                orm: "sqlx".to_string(),
+            config.components.database = Some(Database {
+                enabled: true,
+                engines: vec!["postgresql".to_string()],
+                migration_tool: "sqlx".to_string(),
             });
         },
         "data-science" => {
-            config.components.server = Some(ServerComponents {
-                framework: "rocket".to_string(),
+            config.components.server = Some(Server {
                 services: vec!["api".to_string()],
+                frameworks: vec!["rocket".to_string()],
             });
             
-            config.components.ai = Some(crate::config::AIComponents {
-                models: vec!["custom".to_string()],
-                tasks: vec!["analysis".to_string()],
+            config.components.ai = Some(AI {
+                models: vec!["notebook".to_string()],
+                frameworks: vec!["polars".to_string()],
             });
             
-            config.components.database = Some(DatabaseComponents {
-                db_type: "postgresql".to_string(),
-                orm: "sqlx".to_string(),
+            config.components.database = Some(Database {
+                enabled: true,
+                engines: vec!["postgresql".to_string(), "duckdb".to_string()],
+                migration_tool: "sqlx".to_string(),
             });
         },
         _ => {
@@ -179,208 +194,86 @@ fn create_preview_config(template_name: &str) -> Result<Config> {
 
 /// Generate a text-based tree representation of the project structure
 fn generate_project_tree(config: &Config) -> String {
-    let mut tree = format!("example_project/\n");
+    let mut tree = format!("{}/\n", config.project_name);
     tree.push_str("├── Cargo.toml\n");
     
-    match config.template.as_str() {
-        "minimal" => {
-            tree.push_str("└── src/\n");
-            tree.push_str("    └── main.rs\n");
-        },
-        "library" => {
-            tree.push_str("└── src/\n");
-            tree.push_str("    └── lib.rs\n");
-        },
-        "full-stack" => {
+    if config.template == "minimal" {
+        tree.push_str("├── src/\n");
+        tree.push_str("│   └── main.rs\n");
+    } else if config.template == "library" {
+        tree.push_str("├── src/\n");
+        tree.push_str("│   └── lib.rs\n");
+    } else if config.template == "full-stack" || config.template == "gen-ai" || config.template == "edge-app" {
+        // Client
+        if let Some(client) = &config.components.client {
             tree.push_str("├── client/\n");
-            if let Some(client) = &config.components.client {
-                for app in &client.apps {
-                    tree.push_str(&format!("│   ├── {}/\n", app));
-                    tree.push_str("│   │   ├── Cargo.toml\n");
-                    tree.push_str("│   │   └── src/\n");
-                    tree.push_str("│   │       └── main.rs\n");
-                }
+            if client.apps.contains(&"web".to_string()) {
+                tree.push_str("│   ├── web/\n");
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── main.rs\n");
             }
-            
+            if client.apps.contains(&"desktop".to_string()) {
+                tree.push_str("│   ├── desktop/\n");
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── main.rs\n");
+            }
+        }
+        
+        // Server
+        if let Some(server) = &config.components.server {
             tree.push_str("├── server/\n");
-            if let Some(server) = &config.components.server {
-                for service in &server.services {
-                    tree.push_str(&format!("│   ├── {}/\n", service));
-                    tree.push_str("│   │   ├── Cargo.toml\n");
-                    tree.push_str("│   │   └── src/\n");
-                    tree.push_str("│   │       └── main.rs\n");
-                }
-            }
-            
-            tree.push_str("└── shared/\n");
-            tree.push_str("    ├── core/\n");
-            tree.push_str("    │   ├── Cargo.toml\n");
-            tree.push_str("    │   └── src/\n");
-            tree.push_str("    │       └── lib.rs\n");
-            tree.push_str("    ├── models/\n");
-            tree.push_str("    │   ├── Cargo.toml\n");
-            tree.push_str("    │   └── src/\n");
-            tree.push_str("    │       └── lib.rs\n");
-            tree.push_str("    └── auth/\n");
-            tree.push_str("        ├── Cargo.toml\n");
-            tree.push_str("        └── src/\n");
-            tree.push_str("            └── lib.rs\n");
-        },
-        "gen-ai" => {
-            tree.push_str("├── client/\n");
-            tree.push_str("│   └── web/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── main.rs\n");
-            
-            tree.push_str("├── server/\n");
-            tree.push_str("│   ├── inference/\n");
-            tree.push_str("│   │   ├── Cargo.toml\n");
-            tree.push_str("│   │   └── src/\n");
-            tree.push_str("│   │       └── main.rs\n");
-            tree.push_str("│   └── api/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── main.rs\n");
-            
-            tree.push_str("├── ai/\n");
-            tree.push_str("│   ├── models/\n");
-            tree.push_str("│   │   ├── Cargo.toml\n");
-            tree.push_str("│   │   └── src/\n");
-            tree.push_str("│   │       └── lib.rs\n");
-            tree.push_str("│   └── inference/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── lib.rs\n");
-            
-            tree.push_str("└── shared/\n");
-            tree.push_str("    ├── core/\n");
-            tree.push_str("    │   ├── Cargo.toml\n");
-            tree.push_str("    │   └── src/\n");
-            tree.push_str("    │       └── lib.rs\n");
-            tree.push_str("    └── models/\n");
-            tree.push_str("        ├── Cargo.toml\n");
-            tree.push_str("        └── src/\n");
-            tree.push_str("            └── lib.rs\n");
-        },
-        "edge-app" => {
-            tree.push_str("├── client/\n");
-            tree.push_str("│   └── web/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── main.rs\n");
-            
-            tree.push_str("├── edge/\n");
-            tree.push_str("│   ├── cloudflare/\n");
-            tree.push_str("│   │   ├── Cargo.toml\n");
-            tree.push_str("│   │   └── src/\n");
-            tree.push_str("│   │       └── lib.rs\n");
-            tree.push_str("│   └── deno/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── lib.rs\n");
-            
-            tree.push_str("└── shared/\n");
-            tree.push_str("    └── core/\n");
-            tree.push_str("        ├── Cargo.toml\n");
-            tree.push_str("        └── src/\n");
-            tree.push_str("            └── lib.rs\n");
-        },
-        "embedded" | "iot-device" => {
-            tree.push_str("├── firmware/\n");
-            tree.push_str("│   ├── Cargo.toml\n");
-            tree.push_str("│   └── src/\n");
-            tree.push_str("│       └── main.rs\n");
-            
-            tree.push_str("├── memory.x\n");
-            tree.push_str("├── .cargo/\n");
-            tree.push_str("│   └── config.toml\n");
-            
-            if config.template == "iot-device" {
-                tree.push_str("├── server/\n");
-                tree.push_str("│   └── api/\n");
-                tree.push_str("│       ├── Cargo.toml\n");
-                tree.push_str("│       └── src/\n");
-                tree.push_str("│           └── main.rs\n");
-                
-                tree.push_str("└── shared/\n");
-                tree.push_str("    └── protocol/\n");
-                tree.push_str("        ├── Cargo.toml\n");
-                tree.push_str("        └── src/\n");
-                tree.push_str("            └── lib.rs\n");
-            } else {
-                tree.push_str("└── shared/\n");
-                tree.push_str("    └── hal/\n");
-                tree.push_str("        ├── Cargo.toml\n");
-                tree.push_str("        └── src/\n");
-                tree.push_str("            └── lib.rs\n");
-            }
-        },
-        "serverless" => {
-            tree.push_str("├── functions/\n");
             tree.push_str("│   ├── api/\n");
             tree.push_str("│   │   ├── Cargo.toml\n");
             tree.push_str("│   │   └── src/\n");
             tree.push_str("│   │       └── main.rs\n");
-            tree.push_str("│   └── worker/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── main.rs\n");
-            
-            tree.push_str("├── shared/\n");
-            tree.push_str("│   └── core/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── lib.rs\n");
-            
-            tree.push_str("└── deployment/\n");
-            tree.push_str("    ├── template.yaml\n");
-            tree.push_str("    └── scripts/\n");
-            tree.push_str("        └── deploy.sh\n");
-        },
-        "ml-pipeline" | "data-science" => {
-            tree.push_str("├── server/\n");
-            tree.push_str("│   └── api/\n");
-            tree.push_str("│       ├── Cargo.toml\n");
-            tree.push_str("│       └── src/\n");
-            tree.push_str("│           └── main.rs\n");
-            
-            if config.template == "ml-pipeline" {
-                tree.push_str("├── pipeline/\n");
-                tree.push_str("│   ├── ingest/\n");
+            if server.services.contains(&"auth".to_string()) {
+                tree.push_str("│   ├── auth/\n");
                 tree.push_str("│   │   ├── Cargo.toml\n");
                 tree.push_str("│   │   └── src/\n");
-                tree.push_str("│   │       └── lib.rs\n");
-                tree.push_str("│   ├── transform/\n");
-                tree.push_str("│   │   ├── Cargo.toml\n");
-                tree.push_str("│   │   └── src/\n");
-                tree.push_str("│   │       └── lib.rs\n");
-                tree.push_str("│   └── train/\n");
-                tree.push_str("│       ├── Cargo.toml\n");
-                tree.push_str("│       └── src/\n");
-                tree.push_str("│           └── lib.rs\n");
-            } else {
-                tree.push_str("├── analysis/\n");
-                tree.push_str("│   ├── Cargo.toml\n");
-                tree.push_str("│   └── src/\n");
-                tree.push_str("│       └── lib.rs\n");
-                
-                tree.push_str("├── visualization/\n");
-                tree.push_str("│   ├── Cargo.toml\n");
-                tree.push_str("│   └── src/\n");
-                tree.push_str("│       └── lib.rs\n");
+                tree.push_str("│   │       └── main.rs\n");
             }
-            
-            tree.push_str("└── shared/\n");
-            tree.push_str("    └── models/\n");
-            tree.push_str("        ├── Cargo.toml\n");
-            tree.push_str("        └── src/\n");
-            tree.push_str("            └── lib.rs\n");
-        },
-        _ => {
-            tree.push_str("└── src/\n");
-            tree.push_str("    └── main.rs\n");
         }
+        
+        // Database
+        if let Some(database) = &config.components.database {
+            tree.push_str("├── database/\n");
+            tree.push_str("│   ├── Cargo.toml\n");
+            tree.push_str("│   ├── migrations/\n");
+            tree.push_str("│   └── src/\n");
+            tree.push_str("│       ├── lib.rs\n");
+            tree.push_str("│       ├── models.rs\n");
+            tree.push_str("│       └── schema.rs\n");
+        }
+        
+        // AI components
+        if let Some(ai) = &config.components.ai {
+            tree.push_str("├── ai/\n");
+            tree.push_str("│   ├── models/\n");
+            for model in &ai.models {
+                tree.push_str(&format!("│   │   ├── {}/\n", model));
+            }
+            tree.push_str("│   ├── inference/\n");
+            tree.push_str("│   │   ├── Cargo.toml\n");
+            tree.push_str("│   │   └── src/\n");
+            tree.push_str("│   │       └── main.rs\n");
+        }
+        
+        // Shared libraries
+        tree.push_str("└── shared/\n");
+        tree.push_str("    ├── core/\n");
+        tree.push_str("    │   ├── Cargo.toml\n");
+        tree.push_str("    │   └── src/\n");
+        tree.push_str("    │       └── lib.rs\n");
+        tree.push_str("    ├── models/\n");
+        tree.push_str("    │   ├── Cargo.toml\n");
+        tree.push_str("    │   └── src/\n");
+        tree.push_str("    │       └── lib.rs\n");
+        tree.push_str("    └── auth/\n");
+        tree.push_str("        ├── Cargo.toml\n");
+        tree.push_str("        └── src/\n");
+        tree.push_str("            └── lib.rs\n");
     }
     
     tree
@@ -462,29 +355,31 @@ fn display_template_features(template_name: &str, config: &Config) {
     println!("\n{}", "Technology Stack:".bold());
     
     if let Some(client) = &config.components.client {
-        println!("  ✓ Client Framework: {}", client.framework);
+        println!("  ✓ Client Framework: {}", client.frameworks.join(", "));
     }
     
     if let Some(server) = &config.components.server {
-        println!("  ✓ Server Framework: {}", server.framework);
+        println!("  ✓ Server Framework: {}", server.frameworks.join(", "));
     }
     
     if let Some(db) = &config.components.database {
-        println!("  ✓ Database: {} with {}", db.db_type, db.orm);
+        if let Some(primary_db) = db.engines.get(0) {
+            println!("  ✓ Database: {} with {}", primary_db, db.migration_tool);
+        }
     }
     
     if let Some(ai) = &config.components.ai {
         println!("  ✓ AI Models: {}", ai.models.join(", "));
-        println!("  ✓ AI Tasks: {}", ai.tasks.join(", "));
+        println!("  ✓ AI Frameworks: {}", ai.frameworks.join(", "));
     }
     
     if let Some(edge) = &config.components.edge {
         println!("  ✓ Edge Platforms: {}", edge.platforms.join(", "));
-        println!("  ✓ Edge Features: {}", edge.features.join(", "));
+        println!("  ✓ Edge Apps: {}", edge.apps.join(", "));
     }
     
     if let Some(embedded) = &config.components.embedded {
-        println!("  ✓ MCU: {}", embedded.mcu);
+        println!("  ✓ Devices: {}", embedded.devices.join(", "));
         println!("  ✓ Embedded Platforms: {}", embedded.platforms.join(", "));
     }
 }
@@ -553,7 +448,7 @@ async fn main() -> Result<(), std::io::Error> {
         },
         _ => {
             let mut files = HashMap::new();
-            files.insert("README.md", format!(r#"# {} Project
+            files.insert("README.md", r#"# Custom Project
 
 A Rust project created with FerrisUp.
 
@@ -570,7 +465,7 @@ A Rust project created with FerrisUp.
 cargo build
 cargo test
 cargo run
-```"#, template_name));
+```"#);
             files
         }
     };
@@ -580,5 +475,118 @@ cargo run
         println!("{}", "----------------------------------------".dimmed());
         println!("{}", content);
         println!("{}", "----------------------------------------".dimmed());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    
+    #[test]
+    fn test_create_preview_config() {
+        // Test minimal template
+        let config = create_preview_config("minimal").unwrap();
+        assert_eq!(config.project_name, "example_project");
+        assert_eq!(config.template, "minimal");
+        assert!(config.components.client.is_none());
+        assert!(config.components.server.is_none());
+        
+        // Test full-stack template
+        let config = create_preview_config("full-stack").unwrap();
+        assert_eq!(config.project_name, "example_project");
+        assert_eq!(config.template, "full-stack");
+        assert!(config.components.client.is_some());
+        assert!(config.components.server.is_some());
+        assert!(config.components.database.is_some());
+        
+        if let Some(client) = config.components.client {
+            assert!(client.apps.contains(&"web".to_string()));
+            assert!(client.frameworks.contains(&"dioxus".to_string()));
+        }
+        
+        // Test gen-ai template
+        let config = create_preview_config("gen-ai").unwrap();
+        assert_eq!(config.template, "gen-ai");
+        assert!(config.components.ai.is_some());
+        
+        if let Some(ai) = config.components.ai {
+            assert!(ai.models.contains(&"llama".to_string()) || ai.models.contains(&"whisper".to_string()));
+        }
+    }
+    
+    #[test]
+    fn test_generate_project_tree() {
+        // Test minimal template tree generation
+        let config = create_preview_config("minimal").unwrap();
+        let tree = generate_project_tree(&config);
+        
+        assert!(tree.contains("example_project/"));
+        assert!(tree.contains("Cargo.toml"));
+        assert!(tree.contains("src/"));
+        assert!(tree.contains("main.rs"));
+        
+        // Test library template tree generation
+        let config = create_preview_config("library").unwrap();
+        let tree = generate_project_tree(&config);
+        
+        assert!(tree.contains("example_project/"));
+        assert!(tree.contains("Cargo.toml"));
+        assert!(tree.contains("src/"));
+        assert!(tree.contains("lib.rs"));
+        
+        // Test full-stack template tree generation
+        let config = create_preview_config("full-stack").unwrap();
+        let tree = generate_project_tree(&config);
+        
+        // Print the tree for debugging
+        println!("Full-stack tree structure:\n{}", tree);
+        
+        assert!(tree.contains("client/"));
+        assert!(tree.contains("server/"));
+        
+        // Look for database-related content in the tree
+        if let Some(db) = &config.components.database {
+            println!("Database config: enabled={}, engines={:?}, migration_tool={}", db.enabled, db.engines, db.migration_tool);
+            
+            // Re-enable the database check now that we've fixed the tree generator
+            assert!(
+                tree.contains("database/"),
+                "Tree should contain database directory"
+            );
+            
+            // Check for database schema/models
+            assert!(
+                tree.contains("migrations/") || 
+                tree.contains("models.rs") || 
+                tree.contains("schema.rs"),
+                "Tree should contain database schema components"
+            );
+        }
+    }
+    
+    #[test]
+    fn test_display_template_features() {
+        // This is mainly a visual function, so we're just testing it doesn't crash
+        let config = create_preview_config("minimal").unwrap();
+        display_template_features("minimal", &config);
+        
+        let config = create_preview_config("full-stack").unwrap();
+        display_template_features("full-stack", &config);
+        
+        let config = create_preview_config("gen-ai").unwrap();
+        display_template_features("gen-ai", &config);
+        
+        // No assertions needed - we're just making sure it executes without panicking
+    }
+    
+    #[test]
+    fn test_display_sample_files() {
+        // Similar to the previous test, we're just ensuring it runs without errors
+        display_sample_files("minimal");
+        display_sample_files("library");
+        display_sample_files("full-stack");
+        
+        // No assertions needed - we're just making sure it executes without panicking
     }
 }

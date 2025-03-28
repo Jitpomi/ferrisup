@@ -6,73 +6,176 @@ use std::{fs, path::Path};
 pub struct Config {
     pub project_name: String,
     pub template: String,
+    #[serde(default)]
     pub components: Components,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Components {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub client: Option<Client>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub server: Option<Server>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub database: Option<Database>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub libs: Option<Libs>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub binaries: Option<Binaries>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub ai: Option<AI>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub edge: Option<Edge>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub embedded: Option<Embedded>,
+}
+
+impl Default for Components {
+    fn default() -> Self {
+        Self {
+            client: None,
+            server: None,
+            database: None,
+            libs: None,
+            binaries: None,
+            ai: None,
+            edge: None,
+            embedded: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Client {
+    #[serde(default)]
     pub apps: Vec<String>,
+    #[serde(default)]
     pub frameworks: Vec<String>,
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        Self {
+            apps: vec![],
+            frameworks: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Server {
+    #[serde(default)]
     pub services: Vec<String>,
+    #[serde(default)]
     pub frameworks: Vec<String>,
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            services: vec![],
+            frameworks: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
-    pub db_type: String,
-    pub orm: String,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub engines: Vec<String>,
+    #[serde(default)]
+    pub migration_tool: String,
+}
+
+impl Default for Database {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            engines: vec![],
+            migration_tool: "".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Libs {
-    pub packages: Vec<String>,
+    #[serde(default)]
+    pub modules: Vec<String>,
+}
+
+impl Default for Libs {
+    fn default() -> Self {
+        Self {
+            modules: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Binaries {
+    #[serde(default)]
     pub apps: Vec<String>,
+}
+
+impl Default for Binaries {
+    fn default() -> Self {
+        Self {
+            apps: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AI {
+    #[serde(default)]
     pub models: Vec<String>,
+    #[serde(default)]
     pub frameworks: Vec<String>,
+}
+
+impl Default for AI {
+    fn default() -> Self {
+        Self {
+            models: vec![],
+            frameworks: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Edge {
+    #[serde(default)]
     pub apps: Vec<String>,
+    #[serde(default)]
     pub platforms: Vec<String>,
+}
+
+impl Default for Edge {
+    fn default() -> Self {
+        Self {
+            apps: vec![],
+            platforms: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Embedded {
+    #[serde(default)]
     pub devices: Vec<String>,
+    #[serde(default)]
     pub platforms: Vec<String>,
+}
+
+impl Default for Embedded {
+    fn default() -> Self {
+        Self {
+            devices: vec![],
+            platforms: vec![],
+        }
+    }
 }
 
 pub fn get_config_path() -> Result<String> {
@@ -82,11 +185,15 @@ pub fn get_config_path() -> Result<String> {
 
 pub fn read_config() -> Result<Config> {
     let config_path = get_config_path()?;
-    let config_str = fs::read_to_string(&config_path)
-        .context(format!("Failed to read config from {}", config_path))?;
     
-    let config: Config = serde_json::from_str(&config_str)
+    let config_content = fs::read_to_string(&config_path)
+        .context(format!("Failed to read config file: {}", config_path))?;
+    
+    let mut config: Config = serde_json::from_str(&config_content)
         .context("Failed to parse config.json")?;
+    
+    // Apply compatibility conversions for old template formats
+    convert_old_template(&mut config);
     
     Ok(config)
 }
@@ -115,11 +222,12 @@ pub fn get_default_config() -> Config {
                 frameworks: vec!["axum".to_string(), "axum".to_string()],
             }),
             database: Some(Database {
-                db_type: "postgres".to_string(),
-                orm: "sea-orm".to_string(),
+                enabled: true,
+                engines: vec!["postgres".to_string()],
+                migration_tool: "sea-orm".to_string(),
             }),
             libs: Some(Libs {
-                packages: vec!["core".to_string(), "models".to_string(), "utils".to_string()],
+                modules: vec!["core".to_string(), "models".to_string(), "utils".to_string()],
             }),
             binaries: Some(Binaries {
                 apps: vec!["cli".to_string()],
@@ -137,5 +245,148 @@ pub fn get_default_config() -> Config {
                 platforms: vec!["rp2040".to_string()],
             }),
         },
+    }
+}
+
+pub fn convert_old_template(config: &mut Config) {
+    if let Some(ai) = config.components.ai.as_mut() {
+        if ai.frameworks.is_empty() {
+            ai.frameworks = vec!["tract".to_string()];
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    
+    #[test]
+    fn test_components_default() {
+        let components = Components::default();
+        assert!(components.client.is_none());
+        assert!(components.server.is_none());
+        assert!(components.database.is_none());
+        assert!(components.libs.is_none());
+        assert!(components.binaries.is_none());
+        assert!(components.ai.is_none());
+        assert!(components.edge.is_none());
+        assert!(components.embedded.is_none());
+    }
+    
+    #[test]
+    fn test_get_default_config() {
+        let config = get_default_config();
+        
+        // Check basic properties
+        assert_eq!(config.project_name, "rust_workspace");
+        assert_eq!(config.template, "minimal");
+        
+        // Check client component
+        let client = config.components.client.unwrap();
+        assert_eq!(client.apps.len(), 2);
+        assert_eq!(client.apps[0], "app1");
+        assert_eq!(client.frameworks[0], "dioxus");
+        
+        // Check server component
+        let server = config.components.server.unwrap();
+        assert_eq!(server.services.len(), 2);
+        assert_eq!(server.services[0], "api");
+        assert_eq!(server.frameworks[0], "axum");
+        
+        // Check database component
+        let db = config.components.database.unwrap();
+        assert!(db.enabled);
+        assert_eq!(db.engines.len(), 1);
+        assert_eq!(db.engines[0], "postgres");
+        assert_eq!(db.migration_tool, "sea-orm");
+        
+        // Check libs component
+        let libs = config.components.libs.unwrap();
+        assert_eq!(libs.modules.len(), 3);
+        assert!(libs.modules.contains(&"core".to_string()));
+        assert!(libs.modules.contains(&"models".to_string()));
+        assert!(libs.modules.contains(&"utils".to_string()));
+    }
+    
+    #[test]
+    fn test_write_and_read_config() -> Result<()> {
+        // Create a temporary directory
+        let temp_dir = TempDir::new()?;
+        let temp_path = temp_dir.path();
+        
+        // Create a simple config
+        let config = Config {
+            project_name: "test_project".to_string(),
+            template: "minimal".to_string(),
+            components: Components::default(),
+        };
+        
+        // Write the config
+        write_config(&config, temp_path)?;
+        
+        // Check the file exists
+        let config_file = temp_path.join("config.json");
+        assert!(config_file.exists());
+        
+        // Read the contents directly and check
+        let content = fs::read_to_string(&config_file)?;
+        let parsed: serde_json::Value = serde_json::from_str(&content)?;
+        
+        assert_eq!(parsed["project_name"], "test_project");
+        assert_eq!(parsed["template"], "minimal");
+        
+        // Clean up
+        temp_dir.close()?;
+        
+        Ok(())
+    }
+    
+    #[test]
+    fn test_config_serialization() -> Result<()> {
+        // Create a config with all component types
+        let mut config = get_default_config();
+        config.project_name = "serialization_test".to_string();
+        
+        // Serialize to JSON
+        let json = serde_json::to_string_pretty(&config)?;
+        
+        // Deserialize back
+        let deserialized: Config = serde_json::from_str(&json)?;
+        
+        // Verify the round trip
+        assert_eq!(deserialized.project_name, "serialization_test");
+        assert_eq!(deserialized.template, "minimal");
+        
+        // Verify components survived the round trip
+        assert!(deserialized.components.client.is_some());
+        assert!(deserialized.components.server.is_some());
+        assert!(deserialized.components.database.is_some());
+        assert!(deserialized.components.libs.is_some());
+        assert!(deserialized.components.binaries.is_some());
+        assert!(deserialized.components.ai.is_some());
+        assert!(deserialized.components.edge.is_some());
+        assert!(deserialized.components.embedded.is_some());
+        
+        Ok(())
+    }
+    
+    #[test]
+    fn test_convert_old_template() {
+        let mut config = Config {
+            project_name: "old_template".to_string(),
+            template: "old".to_string(),
+            components: Components {
+                ai: Some(AI {
+                    models: vec!["inference".to_string()],
+                    frameworks: vec![],
+                }),
+                ..Default::default()
+            },
+        };
+        
+        convert_old_template(&mut config);
+        
+        assert_eq!(config.components.ai.unwrap().frameworks, vec!["tract".to_string()]);
     }
 }

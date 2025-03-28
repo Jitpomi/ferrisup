@@ -4,7 +4,7 @@ use colored::*;
 
 mod commands;
 mod config;
-mod templates;
+pub mod templates;
 mod utils;
 
 #[derive(Parser)]
@@ -39,6 +39,10 @@ enum Commands {
         /// Run cargo build after project creation
         #[arg(short, long)]
         build: bool,
+
+        /// Skip interactive prompts (for automated testing)
+        #[arg(long)]
+        no_interactive: bool,
     },
 
     /// Transform an existing project with interactive configuration
@@ -128,7 +132,7 @@ fn main() -> Result<()> {
 
     // Match the CLI command and execute
     match cli.command {
-        Some(Commands::New { name, template, git, build }) => {
+        Some(Commands::New { name, template, git, build, no_interactive }) => {
             match &name {
                 Some(n) => println!(
                     "{} {} {} {}",
@@ -144,7 +148,7 @@ fn main() -> Result<()> {
                     "project".green().bold()
                 )
             }
-            commands::new::execute(name.as_deref(), template.as_deref(), git, build)
+            commands::new::execute(name.as_deref(), template.as_deref(), git, build, no_interactive)
         }
         Some(Commands::Transform { project, template }) => {
             match &project {
