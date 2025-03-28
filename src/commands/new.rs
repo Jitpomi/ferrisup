@@ -396,11 +396,22 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
         
         // Create .gitignore
         let gitignore_path = project_path.join(".gitignore");
-        std::fs::copy(
-            format!("{}/templates/.gitignore", env!("CARGO_MANIFEST_DIR")),
-            gitignore_path,
-        )
-        .context("Failed to create .gitignore file")?;
+        let gitignore_content = r#"/target/
+**/*.rs.bk
+Cargo.lock
+.env
+.DS_Store
+.idea/
+.vscode/
+*.pdb
+*.exe
+*.dll
+*.so
+*.dylib
+*.iml
+"#;
+        std::fs::write(gitignore_path, gitignore_content)
+            .context("Failed to create .gitignore file")?;
     }
     
     // Ask about building the project if not specified
@@ -619,7 +630,17 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(service_path.join("src").to_str().unwrap())?;
             
             // Create service Cargo.toml
-            let framework = &server.frameworks[i];
+            // Fix for index out of bounds: safely get framework or use default
+            let framework = if i < server.frameworks.len() {
+                server.frameworks[i].as_str()
+            } else if !server.frameworks.is_empty() {
+                // If we have at least one framework, use the first one
+                server.frameworks[0].as_str()
+            } else {
+                // Default to empty string if no frameworks are defined
+                ""
+            };
+            
             let service_cargo = format!(
                 r#"[package]
 name = "{}"
@@ -630,21 +651,24 @@ edition = "2021"
 {}
 "#,
                 service,
-                match framework.as_str() {
-                    "poem" => "poem = \"1.3\"\nprisma-client-rust = { git = \"https://github.com/Brendonovich/prisma-client-rust\", tag = \"0.6.8\" }\ntokio = { version = \"1\", features = [\"full\"] }",
-                    "axum" => "axum = \"0.6\"\ntokio = { version = \"1\", features = [\"full\"] }\nserde = { version = \"1.0\", features = [\"derive\"] }",
-                    "actix-web" => "actix-web = \"4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
-                    _ => "tokio = { version = \"1\", features = [\"full\"] }",
+                match framework {
+                    "poem" => "poem = \"2.0\"\ntokio = { version = \"1\", features = [\"full\"] }",
+                    "axum" => "axum = \"0.7\"\ntokio = { version = \"1\", features = [\"full\"] }",
+                    "rocket" => "rocket = \"0.5\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
+                    _ => "",
                 }
             );
             
             std::fs::write(service_path.join("Cargo.toml"), service_cargo)?;
             
             // Create service main.rs based on framework
-            let main_rs = match framework.as_str() {
+            let main_rs = match framework {
                 "poem" => include_str!("../../templates/server/poem/main.rs"),
                 "axum" => include_str!("../../templates/server/axum/main.rs"),
-                "actix-web" => include_str!("../../templates/server/actix/main.rs"),
+                "rocket" => "fn main() {
+    println!(\"Hello from Rocket server!\");
+    // TODO: Add Rocket server implementation
+}",
                 _ => "fn main() {\n    println!(\"Hello from server!\");\n}",
             };
             
