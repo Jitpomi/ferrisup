@@ -1,0 +1,106 @@
+# Ignore Cargo build artifacts
+/target/
+/Cargo.lock
+
+# Ignore Rust backup files
+*.rs.bk
+
+# Ignore IDE/editor directories
+/.idea/
+/.vscode/
+/.fleet/
+/.eclipse/
+/.clion/
+/.rustup/
+/.rustc/
+
+# Ignore environment variables and sensitive files
+.env
+.env.*
+!.env.sample
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# Ignore generated files for documentation
+/doc/
+
+# Ignore Rust documentation files
+*.dox
+
+# Ignore any system-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignore Rust coverage directory
+/coverage/
+
+# Ignore the node_modules directory if using a frontend with Node.js
+/node_modules/
+/package-lock.json
+/yarn.lock
+/pnpm-lock.yaml
+
+# Ignore Tauri build artifacts (if using Tauri)
+/src-tauri/target/
+/src-tauri/Cargo.lock
+/src-tauri/dist/
+/dist/
+/out/
+
+# Ignore logs
+*.log
+/logs/
+
+# AI models and data (typically large files)
+/ai/models/
+/ai/datasets/
+/ai/checkpoints/
+*.onnx
+*.pt
+*.bin
+*.safetensors
+*.ot
+
+# Edge computing deployment files
+/edge/.wrangler/
+/edge/.netlify/
+/edge/.vercel/
+/edge/worker/dist/
+/edge/worker/build/
+*.env.local
+
+# Embedded systems build artifacts
+/embedded/target/
+/embedded/.pioenvs/
+/embedded/.piolibdeps/
+*.hex
+*.elf
+*.o
+*.a
+*.d
+*.map
+/embedded/build/
+
+# Deployment and cloud artifacts
+/deploy/**/.terraform/
+/deploy/**/terraform.tfstate
+/deploy/**/terraform.tfstate.backup
+/deploy/**/.terragrunt-cache/
+/deploy/**/kubeconfig
+/deploy/**/.aws/
+/deploy/**/.gcloud/
+/deploy/**/.azure/
+*.tfvars
+
+# Generated examples
+/examples/generated/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
