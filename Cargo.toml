@@ -5,9 +5,11 @@ edition = "2021"
 description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
 authors = ["Jitpomi <info@jitpomi.com>"]
 license = "MIT"
-readme = "README.md"
 repository = "https://github.com/Jitpomi/ferrisup"
-keywords = ["cli", "bootstrap", "rust", "workspace", "template"]
+documentation = "https://github.com/Jitpomi/ferrisup#readme"
+homepage = "https://github.com/Jitpomi/ferrisup"
+readme = "README.md"
+keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
