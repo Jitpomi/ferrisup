@@ -1,5 +1,5 @@
 [package]
-name = "ferrisup"
+name = "jitpomi-ferrisup"
 version = "0.1.0"
 edition = "2021"
 description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
