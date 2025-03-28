@@ -438,6 +438,9 @@ Cargo.lock
             .context("Failed to build project")?;
     }
     
+    // Create a comprehensive README file
+    create_readme(&project_name, &project_config)?;
+    
     println!("\n{}", "Project successfully created!".bold().green());
     println!("Your new Rust project is ready at: {}", project_path.display().to_string().cyan());
     
@@ -984,5 +987,237 @@ serde = {{ version = "1.0", features = ["derive"] }}
     
     std::fs::write(project_path.join("Cargo.toml"), cargo_toml)?;
     
+    Ok(())
+}
+
+fn create_readme(project_name: &str, config: &Config) -> Result<()> {
+    let readme_path = Path::new(project_name).join("README.md");
+    
+    // Generate content based on project components
+    let mut content = format!(
+        r#"# {}
+
+A Rust project created with [FerrisUp](https://github.com/Jitpomi/ferrisup).
+
+## Project Structure
+
+This is a full-stack Rust project with the following components:
+
+"#,
+        project_name
+    );
+
+    // Add client section if applicable
+    if let Some(client) = &config.components.client {
+        content.push_str("### Client Applications\n\n");
+        
+        for (i, app) in client.apps.iter().enumerate() {
+            content.push_str(&format!("- `client/{}`", app));
+            
+            if let Some(i) = client.apps.iter().position(|a| a == app) {
+                if i < client.frameworks.len() {
+                    content.push_str(&format!(" ({})", client.frameworks[i]));
+                }
+            }
+            content.push_str("\n");
+        }
+        content.push_str("\n");
+    }
+
+    // Add server section if applicable
+    if let Some(server) = &config.components.server {
+        content.push_str("### Server Services\n\n");
+        
+        for service in &server.services {
+            content.push_str(&format!("- `server/{}`", service));
+            
+            if let Some(i) = server.services.iter().position(|s| s == service) {
+                if i < server.frameworks.len() {
+                    content.push_str(&format!(" ({})", server.frameworks[i]));
+                }
+            }
+            content.push_str("\n");
+        }
+        content.push_str("\n");
+    }
+
+    // Add database section if applicable
+    if let Some(database) = &config.components.database {
+        content.push_str("### Database\n\n");
+        if database.enabled {
+            content.push_str(&format!("- Engines: {}\n", database.engines.join(", ")));
+            if !database.migration_tool.is_empty() {
+                content.push_str(&format!("- Migration Tool: {}\n", database.migration_tool));
+            }
+        } else {
+            content.push_str("- Database is configured but not enabled\n");
+        }
+        content.push_str("\n");
+    }
+
+    // Add running instructions
+    content.push_str(r#"## Running the Project
+
+This project is set up as a Rust workspace with multiple binary targets. Here's how to run each component:
+
+"#);
+
+    // Add client running instructions
+    if let Some(client) = &config.components.client {
+        content.push_str("### Running Client Applications\n\n");
+        
+        for (i, app) in client.apps.iter().enumerate() {
+            content.push_str(&format!("#### {}\n\n", app));
+            
+            let framework = if i < client.frameworks.len() {
+                &client.frameworks[i]
+            } else if !client.frameworks.is_empty() {
+                // If we have at least one framework, use the first one
+                &client.frameworks[0]
+            } else {
+                // Default to empty string if no frameworks are defined
+                ""
+            };
+            
+            match framework {
+                "dioxus" => {
+                    content.push_str(&format!(r#"This is a Dioxus web application. To run it:
+
+1. Install the Dioxus CLI if you haven't already:
+   ```bash
+   cargo install dioxus-cli
+   ```
+
+2. Run the development server:
+   ```bash
+   # From the project root
+   dx serve --path client/{}
+   ```
+
+3. Open your browser at http://localhost:8080
+"#, app));
+                },
+                "tauri" => {
+                    content.push_str(&format!(r#"This is a Tauri desktop application. To run it:
+
+```bash
+cd client/{}
+cargo run
+```
+"#, app));
+                },
+                _ => {
+                    content.push_str(&format!(r#"```bash
+cargo run --bin {}
+```
+"#, app));
+                }
+            }
+            content.push_str("\n");
+        }
+    }
+
+    // Add server running instructions
+    if let Some(server) = &config.components.server {
+        content.push_str("### Running Server Services\n\n");
+        
+        for service in &server.services {
+            content.push_str(&format!("#### {}\n\n", service));
+            content.push_str(&format!(r#"```bash
+cargo run --bin {}
+```
+
+The server will start and listen on http://localhost:3000 by default.
+
+"#, service));
+        }
+    }
+
+    // Add instructions for running multiple components
+    content.push_str(r#"### Running Multiple Components
+
+To run multiple components simultaneously, you can use separate terminal windows or use a tool like [Overmind](https://github.com/DarthSim/overmind) or [Foreman](https://github.com/ddollar/foreman).
+
+#### Example Procfile for Foreman/Overmind
+
+Create a `Procfile` in the project root with the following content:
+
+```
+"#);
+    
+    // Add server services to Procfile
+    if let Some(server) = &config.components.server {
+        for service in &server.services {
+            content.push_str(&format!("{}: cd server/{} && cargo run\n", service, service));
+        }
+    }
+    
+    // Add client apps to Procfile
+    if let Some(client) = &config.components.client {
+        for (i, app) in client.apps.iter().enumerate() {
+            let framework = if i < client.frameworks.len() {
+                &client.frameworks[i]
+            } else if !client.frameworks.is_empty() {
+                // If we have at least one framework, use the first one
+                &client.frameworks[0]
+            } else {
+                // Default to empty string if no frameworks are defined
+                ""
+            };
+            
+            if framework == "dioxus" {
+                let port = 8080 + i;
+                content.push_str(&format!("{}: cd client/{} && dx serve{}\n", 
+                    app, 
+                    app,
+                    if i > 0 { format!(" --port {}", port) } else { String::new() }
+                ));
+            } else {
+                content.push_str(&format!("{}: cd client/{} && cargo run\n", app, app));
+            }
+        }
+    }
+    
+    content.push_str("```\n\n");
+    content.push_str("Then run:\n\n");
+    content.push_str("```bash\n# If using Overmind\novermind start\n\n# If using Foreman\nforeman start\n```\n\n");
+    
+    content.push_str(r#"## Development
+
+### Building All Components
+
+To build all components at once:
+
+```bash
+cargo build
+```
+
+### Running Tests
+
+To run tests for all components:
+
+```bash
+cargo test
+```
+
+## Deployment
+
+Each component can be built for production using:
+
+```bash
+cargo build --release
+```
+
+For Dioxus web applications, use:
+
+```bash
+cd client/app1
+dx build --release
+```
+
+This will generate optimized WebAssembly files in the `dist` directory.
+"#);
+
+    std::fs::write(readme_path, content)?;
     Ok(())
 }
