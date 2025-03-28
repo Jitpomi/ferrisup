@@ -1,8 +1,8 @@
+use std::fs;
+use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use colored::*;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
-use std::path::Path;
-use std::fs;
 
 use crate::templates::{get_template, list_templates};
 use crate::utils::{create_directory, read_cargo_toml, update_workspace_members};
@@ -217,6 +217,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ProjectStructure {
     root_path: PathBuf,
     project_name: String,
