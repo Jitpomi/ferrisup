@@ -567,8 +567,8 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
             let app_path = client_path.join(app);
             create_directory(app_path.to_str().unwrap())?;
             
-            // Create app directories
-            create_directory(app_path.join("src").to_str().unwrap())?;
+            // Create app directory structure
+            std::fs::create_dir_all(app_path.join("src"))?;
             
             // Create app Cargo.toml
             // Fix for index out of bounds: safely get framework or use default
@@ -597,7 +597,7 @@ path = "src/main.rs"
 "#,
                 app,
                 match framework {
-                    "dioxus" => "dioxus = \"0.4\"\ndioxus-web = \"0.4\"",
+                    "dioxus" => "dioxus = \"0.4\"\ndioxus-web = \"0.4\"\n\n# Optional: Uncomment to add the Dioxus CLI tools as a dev dependency\n# [dev-dependencies]\n# dioxus-cli = \"0.4\"",
                     "tauri" => "tauri = \"1.4\"\nserde = { version = \"1.0\", features = [\"derive\"] }",
                     _ => "",
                 },
@@ -605,6 +605,49 @@ path = "src/main.rs"
             );
             
             std::fs::write(app_path.join("Cargo.toml"), app_cargo)?;
+            
+            // Create app README.md for Dioxus apps
+            if framework == "dioxus" {
+                let readme_content = r#"# Dioxus Web Application
+
+This is a web application built with Dioxus, a React-like framework for Rust.
+
+## Running the Application
+
+To run this application in a browser, you'll need to install the Dioxus CLI:
+
+```bash
+cargo install dioxus-cli
+```
+
+Then you can run the development server:
+
+```bash
+# From this directory
+dx serve
+
+# Or from the workspace root
+dx serve --path client/app1
+```
+
+## Building for Production
+
+To build the application for production:
+
+```bash
+dx build --release
+```
+
+This will create optimized WebAssembly files in the `dist` directory.
+
+## Running as a Native Binary
+
+This application is designed to run in a web browser. If you try to run it directly with `cargo run`, you'll get a helpful message but it won't actually render the UI.
+
+For the best development experience, use the Dioxus CLI as described above.
+"#;
+                std::fs::write(app_path.join("README.md"), readme_content)?;
+            }
             
             // Create app main.rs based on framework
             let main_rs = match framework {

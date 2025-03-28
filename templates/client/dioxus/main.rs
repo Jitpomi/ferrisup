@@ -1,8 +1,21 @@
 use dioxus::prelude::*;
 
 fn main() {
-    // Launch the web app
-    dioxus_web::launch(App);
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Launch the web app when targeting WebAssembly
+        dioxus_web::launch(App);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // For non-wasm targets, print a helpful message
+        println!("This is a Dioxus web application that should be built for WebAssembly.");
+        println!("To run this app in a browser, use:");
+        println!("    dx serve");
+        println!("Or build for web with:");
+        println!("    dx build --release");
+    }
 }
 
 // Define the main app component
