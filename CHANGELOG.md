@@ -5,6 +5,20 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-03-28
+
+### Added
+- CHANGELOG.md for tracking version history
+- CONTRIBUTING.md with guidelines for contributors
+
+### Changed
+- Updated package metadata in Cargo.toml
+- Transferred GitHub repository to Jitpomi organization
+- Updated documentation with correct repository links
+
+### Fixed
+- Fixed compiler warnings in various files
+
 ## [0.1.0] - 2025-03-28
 
 ### Added
