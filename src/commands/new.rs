@@ -1133,7 +1133,7 @@ edition = "2021"
 
 [dependencies]
 leptos = {{ version = "0.5", features = ["csr"] }}
-leptos_router = {{ version = "0.5" }}
+leptos_router = {{ version = "0.5", features = ["csr"] }}
 console_log = "1.0"
 log = "0.4"
 console_error_panic_hook = "0.1"
