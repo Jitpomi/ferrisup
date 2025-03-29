@@ -1219,6 +1219,72 @@ script = []
                         .map(|s| s.as_str())
                         .unwrap_or("yew"); // Default to yew if no specific framework is selected
                     
+                    // Check for required dependencies
+                    println!("🔧 Checking for required Tauri Rust frontend dependencies...");
+                    
+                    // Check for Tauri CLI
+                    let tauri_cli_installed = Command::new("cargo")
+                        .args(["install", "--list"])
+                        .output()
+                        .map(|output| String::from_utf8_lossy(&output.stdout).contains("tauri-cli"))
+                        .unwrap_or(false);
+                    
+                    if !tauri_cli_installed {
+                        println!("📦 Installing Tauri CLI...");
+                        let install_result = Command::new("cargo")
+                            .args(["install", "tauri-cli", "--version", "^2.0.0", "--locked"])
+                            .status();
+                        
+                        match install_result {
+                            Ok(status) if status.success() => println!("✅ Tauri CLI installed successfully"),
+                            _ => println!("⚠️ Failed to install Tauri CLI. You'll need to install it manually: cargo install tauri-cli --version '^2.0.0' --locked"),
+                        }
+                    } else {
+                        println!("✅ Tauri CLI is already installed");
+                    }
+                    
+                    // Check for Trunk
+                    let trunk_installed = Command::new("cargo")
+                        .args(["install", "--list"])
+                        .output()
+                        .map(|output| String::from_utf8_lossy(&output.stdout).contains("trunk"))
+                        .unwrap_or(false);
+                    
+                    if !trunk_installed {
+                        println!("📦 Installing Trunk...");
+                        let install_result = Command::new("cargo")
+                            .args(["install", "trunk", "--locked"])
+                            .status();
+                        
+                        match install_result {
+                            Ok(status) if status.success() => println!("✅ Trunk installed successfully"),
+                            _ => println!("⚠️ Failed to install Trunk. You'll need to install it manually: cargo install trunk --locked"),
+                        }
+                    } else {
+                        println!("✅ Trunk is already installed");
+                    }
+                    
+                    // Check for wasm32 target
+                    let wasm_target_installed = Command::new("rustup")
+                        .args(["target", "list", "--installed"])
+                        .output()
+                        .map(|output| String::from_utf8_lossy(&output.stdout).contains("wasm32-unknown-unknown"))
+                        .unwrap_or(false);
+                    
+                    if !wasm_target_installed {
+                        println!("📦 Adding wasm32-unknown-unknown target...");
+                        let add_target_result = Command::new("rustup")
+                            .args(["target", "add", "wasm32-unknown-unknown"])
+                            .status();
+                        
+                        match add_target_result {
+                            Ok(status) if status.success() => println!("✅ wasm32-unknown-unknown target added successfully"),
+                            _ => println!("⚠️ Failed to add wasm32-unknown-unknown target. You'll need to add it manually: rustup target add wasm32-unknown-unknown"),
+                        }
+                    } else {
+                        println!("✅ wasm32-unknown-unknown target is already installed");
+                    }
+                    
                     // Remove the app directory first to allow create-tauri-app to create it
                     std::fs::remove_dir_all(&app_path).ok();
                     
