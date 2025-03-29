@@ -89,8 +89,205 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     project_config.project_name = project_name.to_string();
     project_config.template = selected_template.clone();
     
+    // For client template, prompt for Rust client framework selection
+    if selected_template == "client" && !no_interactive {
+        let rust_client_framework_options = get_rust_client_framework_options();
+        
+        let selection = Select::new()
+            .with_prompt("Select Rust client framework")
+            .items(&rust_client_framework_options)
+            .default(0)
+            .interact()?;
+        
+        let framework = match selection {
+            0 => "dioxus",
+            1 => "yew",
+            2 => "leptos",
+            3 => "tauri",
+            4 => "sycamoreui",
+            5 => "moon-zoon",
+            6 => "percy",
+            7 => "seed",
+            _ => "dioxus", // Default to dioxus
+        };
+        
+        // Set up a single app with the selected framework
+        let mut apps = Vec::new();
+        apps.push("app1".to_string());
+        
+        let mut frameworks = Vec::new();
+        frameworks.push(framework.to_string());
+        
+        // If Tauri is selected, provide Tauri configuration options
+        if framework == "tauri" {
+            // First, prompt for frontend language
+            let frontend_languages = vec![
+                "TypeScript/JavaScript",
+                "Rust (Experimental)"
+            ];
+            
+            let language_selection = Select::new()
+                .with_prompt("Choose which language to use for your Tauri frontend")
+                .items(&frontend_languages)
+                .default(0)
+                .interact()?;
+            
+            let frontend_language = match language_selection {
+                0 => "js",
+                1 => "rust",
+                _ => "js",
+            };
+            
+            frameworks.push(format!("frontend-{}", frontend_language));
+            
+            // For JavaScript frontend, prompt for package manager and UI framework
+            if frontend_language == "js" {
+                // Prompt for package manager
+                let package_managers = vec![
+                    "pnpm",
+                    "yarn",
+                    "npm",
+                    "bun"
+                ];
+                
+                let package_manager_selection = Select::new()
+                    .with_prompt("Choose your package manager")
+                    .items(&package_managers)
+                    .default(0)
+                    .interact()?;
+                
+                let package_manager = package_managers[package_manager_selection];
+                frameworks.push(format!("package-manager-{}", package_manager));
+                
+                // Prompt for UI framework
+                let js_framework_options = vec![
+                    "React (JavaScript/TypeScript)",
+                    "Vue (JavaScript/TypeScript)",
+                    "Svelte (JavaScript/TypeScript)",
+                    "Preact (JavaScript/TypeScript)",
+                    "Solid (JavaScript/TypeScript)",
+                    "Qwik (JavaScript/TypeScript)",
+                    "Angular (JavaScript/TypeScript)",
+                    "Vanilla (JavaScript/TypeScript)",
+                    "None"
+                ];
+                
+                let js_selection = Select::new()
+                    .with_prompt("Choose your UI template")
+                    .items(&js_framework_options)
+                    .default(0)
+                    .interact()?;
+                
+                let js_framework = match js_selection {
+                    0 => "react",
+                    1 => "vue",
+                    2 => "svelte",
+                    3 => "preact",
+                    4 => "solid",
+                    5 => "qwik",
+                    6 => "angular",
+                    7 => "vanilla",
+                    _ => "vanilla",
+                };
+                
+                frameworks.push(js_framework.to_string());
+                
+                // Finally, prompt for TypeScript or JavaScript
+                let ui_flavors = vec![
+                    "TypeScript",
+                    "JavaScript"
+                ];
+                
+                let flavor_selection = Select::new()
+                    .with_prompt("Choose your UI flavor")
+                    .items(&ui_flavors)
+                    .default(0)
+                    .interact()?;
+                
+                let ui_flavor = match flavor_selection {
+                    0 => "typescript",
+                    _ => "javascript",
+                };
+                
+                frameworks.push(ui_flavor.to_string());
+            } else {
+                // For Rust frontend, prompt for Rust UI framework
+                let rust_ui_frameworks = vec![
+                    "Vanilla",
+                    "Yew",
+                    "Leptos",
+                    "Sycamore"
+                ];
+                
+                let rust_ui_selection = Select::new()
+                    .with_prompt("Choose your Rust UI framework")
+                    .items(&rust_ui_frameworks)
+                    .default(0)
+                    .interact()?;
+                
+                let rust_ui_framework = match rust_ui_selection {
+                    1 => "yew",
+                    2 => "leptos",
+                    3 => "sycamore",
+                    _ => "vanilla",
+                };
+                
+                frameworks.push(rust_ui_framework.to_string());
+            }
+            
+            // Add desktop/mobile capabilities
+            frameworks.push("desktop".to_string());
+            
+            // Set the template to "tauri" instead of "client"
+            project_config.template = "tauri".to_string();
+        }
+        
+        project_config.components.client = Some(config::Client {
+            apps,
+            frameworks,
+        });
+    }
+    
+    // Only show JavaScript framework options for Tauri projects that are directly selected
+    // (not when selected via client template)
+    if selected_template == "tauri" && !no_interactive && project_config.components.client.is_none() {
+        let framework_options = get_client_framework_options(no_interactive);
+        
+        let selections: Vec<usize> = MultiSelect::new()
+            .with_prompt("Select client frameworks to use")
+            .items(&framework_options)
+            .interact()?;
+        
+        let mut frameworks = Vec::new();
+        for selection in selections {
+            match selection {
+                0 => frameworks.push("react".to_string()),
+                1 => frameworks.push("vue".to_string()),
+                2 => frameworks.push("svelte".to_string()),
+                3 => frameworks.push("preact".to_string()),
+                4 => frameworks.push("solid".to_string()),
+                5 => frameworks.push("qwik".to_string()),
+                6 => frameworks.push("angular".to_string()),
+                7 => frameworks.push("vanilla".to_string()),
+                8 => frameworks.push("none".to_string()),
+                _ => (),
+            }
+        }
+        
+        if !frameworks.is_empty() {
+            project_config.components.client = Some(config::Client {
+                apps: vec!["app".to_string()], // Default app
+                frameworks,
+            });
+        }
+    }
+    
     // Ask if user wants to customize components
     let customize_components = if no_interactive {
+        false
+    } else if selected_template == "client" {
+        // For client template, we've already handled framework selection
+        // No need to ask about database support for client templates
         false
     } else {
         Confirm::new()
@@ -273,20 +470,13 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
             };
             
             if customize_client {
-                let framework_options = vec![
-                    "Dioxus (React-like, Web/Desktop/Mobile)",
-                    "Tauri (Desktop with web technologies)",
-                    "Leptos (Web with fine-grained reactivity)",
-                    "Yew (Component-based framework)",
-                    "Vanilla (No framework)",
-                ];
-                
+                let rust_client_framework_options = get_rust_client_framework_options();
                 let selections: Vec<usize> = if no_interactive {
                     vec![0]
                 } else {
                     MultiSelect::new()
-                        .with_prompt("Select client frameworks to use")
-                        .items(&framework_options)
+                        .with_prompt("Select Rust client frameworks to use")
+                        .items(&rust_client_framework_options)
                         .interact()?
                 };
                 
@@ -294,10 +484,13 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 for selection in selections {
                     match selection {
                         0 => frameworks.push("dioxus".to_string()),
-                        1 => frameworks.push("tauri".to_string()),
+                        1 => frameworks.push("yew".to_string()),
                         2 => frameworks.push("leptos".to_string()),
-                        3 => frameworks.push("yew".to_string()),
-                        4 => frameworks.push("vanilla".to_string()),
+                        3 => frameworks.push("tauri".to_string()),
+                        4 => frameworks.push("sycamoreui".to_string()),
+                        5 => frameworks.push("moon-zoon".to_string()),
+                        6 => frameworks.push("percy".to_string()),
+                        7 => frameworks.push("seed".to_string()),
                         _ => (),
                     }
                 }
@@ -561,12 +754,12 @@ Cargo.lock
     println!("   cd {}", project_name);
     
     // Add instructions based on project components
-    if let Some(client) = &project_config.components.client {
-        if !client.apps.is_empty() {
+    if let Some(_client) = &project_config.components.client {
+        if !project_config.components.client.as_ref().unwrap().apps.is_empty() {
             println!("\n2. Run client applications:");
             
-            for app in &client.apps {
-                let framework = if let Some(framework) = client.frameworks.first() {
+            for app in &project_config.components.client.as_ref().unwrap().apps {
+                let framework = if let Some(framework) = project_config.components.client.as_ref().unwrap().frameworks.first() {
                     framework
                 } else {
                     // Default to empty string if no frameworks are defined
@@ -594,11 +787,11 @@ Cargo.lock
         }
     }
     
-    if let Some(server) = &project_config.components.server {
-        if !server.services.is_empty() {
+    if let Some(_server) = &project_config.components.server {
+        if !project_config.components.server.as_ref().unwrap().services.is_empty() && project_config.template != "client" && project_config.template != "tauri" {
             println!("\n3. Run server services:");
             
-            for service in &server.services {
+            for service in &project_config.components.server.as_ref().unwrap().services {
                 println!("   # For {}:", service);
                 println!("   cargo run --bin {}", service);
                 println!("   # Service will be available at http://localhost:3000");
@@ -609,6 +802,36 @@ Cargo.lock
     println!("\nFor more detailed instructions, see the README.md file in your project directory.");
     
     Ok(())
+}
+
+fn get_client_framework_options(_no_interactive: bool) -> Vec<&'static str> {
+    // Return a list of available JavaScript client frameworks for Tauri
+    vec![
+        "React (JavaScript/TypeScript)",
+        "Vue (JavaScript/TypeScript)",
+        "Svelte (JavaScript/TypeScript)",
+        "Preact (JavaScript/TypeScript)",
+        "Solid (JavaScript/TypeScript)",
+        "Qwik (JavaScript/TypeScript)",
+        "Angular (JavaScript/TypeScript)",
+        "Vanilla (JavaScript/TypeScript)",
+        "None"
+    ]
+}
+
+fn get_rust_client_framework_options() -> Vec<&'static str> {
+    // Return a list of available Rust client frameworks
+    vec![
+        "Dioxus",
+        "Yew",
+        "Leptos",
+        "Tauri",
+        "SycamoreUI",
+        "MoonZoon",
+        "Percy",
+        "Seed",
+        "None"
+    ]
 }
 
 fn create_project_structure(name: &str, config: &crate::config::Config, template: &str) -> Result<()> {
@@ -679,40 +902,46 @@ fn setup_project(
     match template {
         "full-stack" => {
             // Setup client
-            if config.components.client.is_some() {
+            if let Some(_client) = &config.components.client {
                 setup_client(project_path, config, workspace_members)?;
             }
             
             // Setup server
-            if config.components.server.is_some() {
+            if let Some(_server) = &config.components.server {
                 setup_server(project_path, config, workspace_members)?;
             }
             
             // Setup shared libs
-            if config.components.libs.is_some() {
+            if let Some(_libs) = &config.components.libs {
                 setup_libs(project_path, config, workspace_members)?;
+            }
+        },
+        "client" | "tauri" => {
+            // For client templates, only setup client components
+            if let Some(_client) = &config.components.client {
+                setup_client(project_path, config, workspace_members)?;
             }
         },
         "gen-ai" => {
             // Setup AI components
-            if config.components.ai.is_some() {
+            if let Some(_ai) = &config.components.ai {
                 setup_ai(project_path, config, workspace_members)?;
             }
             
             // Setup shared libs
-            if config.components.libs.is_some() {
+            if let Some(_libs) = &config.components.libs {
                 setup_libs(project_path, config, workspace_members)?;
             }
         },
         "edge-app" => {
             // Setup edge components
-            if config.components.edge.is_some() {
+            if let Some(_edge) = &config.components.edge {
                 setup_edge(project_path, config, workspace_members)?;
             }
         },
         "embedded" => {
             // Setup embedded components
-            if config.components.embedded.is_some() {
+            if let Some(_embedded) = &config.components.embedded {
                 setup_embedded(project_path, config, workspace_members)?;
             }
         },
@@ -726,19 +955,17 @@ fn setup_project(
 }
 
 fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(client) = &config.components.client {
-        let client_path = project_path.join("client");
-        create_directory(&client_path)?;
+    if let Some(_client) = &config.components.client {
+        let client_dir = project_path.join("client");
+        create_directory(&client_dir)?;
         
-        for app in &client.apps {
-            let app_path = client_path.join(app);
+        for app in &config.components.client.as_ref().unwrap().apps {
+            let app_path = client_dir.join(app);
             create_directory(&app_path)?;
-            
-            // Create app directory structure
             create_directory(&app_path.join("src"))?;
             
             // Create app Cargo.toml
-            let framework = if let Some(framework) = client.frameworks.first() {
+            let framework = if let Some(framework) = config.components.client.as_ref().unwrap().frameworks.first() {
                 framework
             } else {
                 // Default to empty string if no frameworks are defined
@@ -769,61 +996,112 @@ path = "src/main.rs"
             
             std::fs::write(app_path.join("Cargo.toml"), app_cargo)?;
             
-            // Create app README.md for Dioxus apps
+            // Handle different frameworks
             if framework == "dioxus" {
-                let readme_content = r#"# Dioxus Web Application
-
-This is a web application built with Dioxus, a React-like framework for Rust.
-
-## Running the Application
-
-To run this application in a browser, you'll need to install the Dioxus CLI:
-
-```bash
-cargo install dioxus-cli
-```
-
-Then you can run the development server:
-
-```bash
-# From this directory
-dx serve
-
-# Or from the workspace root
-dx serve --path client/app1
-```
-
-## Building for Production
-
-To build the application for production:
-
-```bash
-dx build --release
-```
-
-This will create optimized WebAssembly files in the `dist` directory.
-
-## Running as a Native Binary
-
-This application is designed to run in a web browser. If you try to run it directly with `cargo run`, you'll get a helpful message but it won't actually render the UI.
-
-For the best development experience, use the Dioxus CLI as described above.
-"#;
-                std::fs::write(app_path.join("README.md"), readme_content)?;
-            }
-            
-            // Create app main.rs based on framework
-            let main_rs = match framework {
-                "dioxus" => include_str!("../../templates/client/dioxus/main.rs"),
-                "tauri" => include_str!("../../templates/client/tauri/main.rs"),
-                _ => "fn main() {\n    println!(\"Hello from client!\");\n}",
-            };
-            
-            std::fs::write(app_path.join("src").join("main.rs"), main_rs)?;
-            
-            // Create Dioxus configuration file
-            if framework == "dioxus" {
-                let dioxus_config = r#"[application]
+                // Print debug information
+                println!("📦 Using Dioxus CLI to bootstrap the project");
+                
+                // First, ensure the Dioxus CLI is installed
+                println!("🔧 Checking if Dioxus CLI is installed...");
+                let dx_check = std::process::Command::new("dx")
+                    .arg("--version")
+                    .output();
+                
+                let dx_installed = match dx_check {
+                    Ok(output) => output.status.success(),
+                    Err(_) => false,
+                };
+                
+                if !dx_installed {
+                    println!("⚠️ Dioxus CLI not found. Installing it...");
+                    let install_status = std::process::Command::new("cargo")
+                        .args(["install", "dioxus-cli", "--locked"])
+                        .status();
+                        
+                    if let Err(e) = install_status {
+                        println!("⚠️ Failed to install Dioxus CLI: {}", e);
+                        println!("⚠️ Falling back to manual project creation");
+                        // Fall back to manual creation
+                        create_manual_dioxus_project(&app_path)?;
+                    } else {
+                        // Remove the app directory to allow dx new to create it
+                        std::fs::remove_dir_all(&app_path).ok();
+                        
+                        // Change to the client directory and run dx new
+                        println!("🔧 Creating new Dioxus project: {}", app);
+                        let mut command = std::process::Command::new("dx");
+                        command.args(["new", app])
+                            .arg("--name").arg(app)
+                            .current_dir(&client_dir);
+                        
+                        // Print the full command for debugging
+                        println!("🔧 Executing: {:?}", command);
+                        
+                        // Execute the command
+                        let status = command.status();
+                        
+                        match status {
+                            Ok(exit_status) if exit_status.success() => {
+                                println!("✅ Successfully created Dioxus app");
+                                
+                                // Ensure WASM target is installed
+                                println!("🔧 Ensuring WASM target is installed...");
+                                let _ = std::process::Command::new("rustup")
+                                    .args(["target", "add", "wasm32-unknown-unknown"])
+                                    .status();
+                            },
+                            _ => {
+                                println!("⚠️ Failed to create Dioxus project using CLI. Falling back to manual creation.");
+                                // Fall back to manual creation
+                                create_manual_dioxus_project(&app_path)?;
+                            }
+                        }
+                    }
+                } else {
+                    // Remove the app directory to allow dx new to create it
+                    std::fs::remove_dir_all(&app_path).ok();
+                    
+                    // Change to the client directory and run dx new
+                    println!("🔧 Creating new Dioxus project: {}", app);
+                    let mut command = std::process::Command::new("dx");
+                    command.args(["new", app])
+                        .arg("--name").arg(app)
+                        .current_dir(&client_dir);
+                    
+                    // Print the full command for debugging
+                    println!("🔧 Executing: {:?}", command);
+                    
+                    // Execute the command
+                    let status = command.status();
+                    
+                    match status {
+                        Ok(exit_status) if exit_status.success() => {
+                            println!("✅ Successfully created Dioxus app");
+                            
+                            // Ensure WASM target is installed
+                            println!("🔧 Ensuring WASM target is installed...");
+                            let _ = std::process::Command::new("rustup")
+                                .args(["target", "add", "wasm32-unknown-unknown"])
+                                .status();
+                        },
+                        _ => {
+                            println!("⚠️ Failed to create Dioxus project using CLI. Falling back to manual creation.");
+                            // Fall back to manual creation
+                            create_manual_dioxus_project(&app_path)?;
+                        }
+                    }
+                }
+                
+                // Create main.rs with Dioxus template if it doesn't exist
+                let src_main_rs = app_path.join("src").join("main.rs");
+                if !src_main_rs.exists() {
+                    std::fs::write(src_main_rs, include_str!("../../templates/client/dioxus/main.rs"))?;
+                }
+                
+                // Create Dioxus configuration file if it doesn't exist
+                let dioxus_config_path = app_path.join("Dioxus.toml");
+                if !dioxus_config_path.exists() {
+                    let dioxus_config = r#"[application]
 name = "dioxus-app"
 default_platform = "web"
 out_dir = "dist"
@@ -843,8 +1121,168 @@ script = []
 [web.resource.dev]
 script = []
 "#;
-                std::fs::create_dir_all(app_path.join("public"))?;
-                std::fs::write(app_path.join("Dioxus.toml"), dioxus_config)?;
+                    std::fs::create_dir_all(app_path.join("public"))?;
+                    std::fs::write(dioxus_config_path, dioxus_config)?;
+                }
+            } else if framework == "tauri" {
+                // Get frontend language, package manager, and UI framework from config
+                let frontend_language = config.components.client.as_ref().unwrap().frameworks.iter()
+                    .find(|f| f.starts_with("frontend-"))
+                    .map(|s| s.replace("frontend-", ""))
+                    .unwrap_or_else(|| "js".to_string());
+                
+                // For JS/TS frontend, get package manager and UI framework
+                if frontend_language == "js" {
+                    let package_manager = config.components.client.as_ref().unwrap().frameworks.iter()
+                        .find(|f| f.starts_with("package-manager-"))
+                        .map(|s| s.replace("package-manager-", ""))
+                        .unwrap_or_else(|| "npm".to_string());
+                    
+                    let js_framework = config.components.client.as_ref().unwrap().frameworks.iter()
+                        .find(|f| ["react", "vue", "svelte", "preact", "solid", "qwik", "angular", "vanilla"].contains(&f.as_str()))
+                        .map(|s| s.as_str())
+                        .unwrap_or("vanilla");
+                    
+                    let is_typescript = config.components.client.as_ref().unwrap().frameworks.iter().any(|f| f == "typescript");
+                    let template = format!("{}{}", js_framework, if is_typescript { "-ts" } else { "" });
+                    
+                    // Remove the app directory first to allow create-tauri-app to create it
+                    std::fs::remove_dir_all(&app_path).ok();
+                    
+                    // Print debug information
+                    println!("📦 Using create-tauri-app CLI to bootstrap the project");
+                    println!("   Package Manager: {}", package_manager);
+                    println!("   Template: {}", template);
+                    
+                    // Construct the command based on the package manager
+                    let mut command = std::process::Command::new(&package_manager);
+                    
+                    // Add appropriate arguments based on package manager
+                    match package_manager.as_str() {
+                        "npm" => {
+                            command.args(["exec", "--", "create-tauri-app@latest"]);
+                        },
+                        "yarn" => {
+                            command.args(["dlx", "create-tauri-app@latest"]);
+                        },
+                        "pnpm" => {
+                            command.args(["dlx", "create-tauri-app@latest"]);
+                        },
+                        "bun" => {
+                            command.args(["x", "create-tauri-app@latest"]);
+                        },
+                        _ => {
+                            command.args(["exec", "--", "create-tauri-app@latest"]);
+                        }
+                    };
+                    
+                    // Add common arguments
+                    command.arg(app)
+                        .arg("--template")
+                        .arg(&template)
+                        .arg("--manager")
+                        .arg(&package_manager)
+                        .arg("--yes") // Non-interactive mode
+                        .current_dir(&client_dir);
+                    
+                    // Print the full command for debugging
+                    println!("🔧 Executing: {:?}", command);
+                    
+                    // Execute the command
+                    let status = command.status();
+                    
+                    match status {
+                        Ok(exit_status) if exit_status.success() => {
+                            println!("✅ Successfully created Tauri app with {} using {}", template, package_manager);
+                        },
+                        Ok(_) => {
+                            eprintln!("❌ Failed to create Tauri app with create-tauri-app CLI");
+                            
+                            // Fallback to manual creation if CLI fails
+                            create_directory(&app_path)?;
+                            create_directory(&app_path.join("src"))?;
+                            create_manual_tauri_project(&app_path, config.components.client.as_ref().unwrap(), app)?;
+                        },
+                        Err(e) => {
+                            eprintln!("❌ Failed to execute create-tauri-app CLI: {}", e);
+                            
+                            // Fallback to manual creation if CLI fails
+                            create_directory(&app_path)?;
+                            create_directory(&app_path.join("src"))?;
+                            create_manual_tauri_project(&app_path, config.components.client.as_ref().unwrap(), app)?;
+                        }
+                    }
+                } else if frontend_language == "rust" {
+                    // For Rust frontend, get the Rust UI framework
+                    let rust_ui_framework = config.components.client.as_ref().unwrap().frameworks.iter()
+                        .find(|f| ["yew", "leptos", "sycamore", "dioxus"].contains(&f.as_str()))
+                        .map(|s| s.as_str())
+                        .unwrap_or("yew"); // Default to yew if no specific framework is selected
+                    
+                    // Remove the app directory first to allow create-tauri-app to create it
+                    std::fs::remove_dir_all(&app_path).ok();
+                    
+                    // Print debug information
+                    println!("📦 Using create-tauri-app CLI to bootstrap the project with Rust frontend");
+                    println!("   Rust UI Framework: {}", rust_ui_framework);
+                    
+                    // Construct the command based on a default package manager (npm)
+                    let mut command = std::process::Command::new("npm");
+                    
+                    // Add appropriate arguments
+                    command.args(["exec", "--", "create-tauri-app@latest"]);
+                    
+                    // Add common arguments
+                    command.arg(app)
+                        .arg("--template")
+                        .arg(rust_ui_framework) // Use the specific Rust framework as template
+                        .arg("--yes") // Non-interactive mode
+                        .current_dir(&client_dir);
+                    
+                    // Print the full command for debugging
+                    println!("🔧 Executing: {:?}", command);
+                    
+                    // Execute the command
+                    let status = command.status();
+                    
+                    match status {
+                        Ok(exit_status) if exit_status.success() => {
+                            println!("✅ Successfully created Tauri app with Rust frontend");
+                            
+                            // If a specific Rust UI framework was selected, we need to modify the generated project
+                            if rust_ui_framework != "yew" {
+                                // TODO: Modify the generated project to use the selected Rust UI framework
+                                println!("⚠️ Support for {} with Tauri is experimental. You may need to manually configure it.", rust_ui_framework);
+                            }
+                        },
+                        Ok(_) => {
+                            eprintln!("❌ Failed to create Tauri app with create-tauri-app CLI");
+                            
+                            // Fallback to manual creation if CLI fails
+                            create_directory(&app_path)?;
+                            create_directory(&app_path.join("src"))?;
+                            create_manual_tauri_project(&app_path, config.components.client.as_ref().unwrap(), app)?;
+                        },
+                        Err(e) => {
+                            eprintln!("❌ Failed to execute create-tauri-app CLI: {}", e);
+                            
+                            // Fallback to manual creation if CLI fails
+                            create_directory(&app_path)?;
+                            create_directory(&app_path.join("src"))?;
+                            create_manual_tauri_project(&app_path, config.components.client.as_ref().unwrap(), app)?;
+                        }
+                    }
+                }
+                
+                // The src-tauri directory should be added to workspace members if it exists
+                let src_tauri_dir = app_path.join("src-tauri");
+                if src_tauri_dir.exists() {
+                    workspace_members.push(format!("client/{}/src-tauri", app));
+                }
+            } else {
+                // For other frameworks, create a basic main.rs
+                let main_rs = "fn main() {\n    println!(\"Hello from client!\");\n}";
+                std::fs::write(app_path.join("src").join("main.rs"), main_rs)?;
             }
             
             workspace_members.push(format!("client/{}", app));
@@ -854,12 +1292,67 @@ script = []
     Ok(())
 }
 
+// Helper function to create a manual Dioxus project when the CLI approach fails
+fn create_manual_dioxus_project(app_path: &Path) -> Result<()> {
+    println!("⚠️ Falling back to manual Dioxus project creation");
+    
+    // Create src directory
+    let src_dir = app_path.join("src");
+    create_directory(&src_dir)?;
+    
+    // Create main.rs
+    std::fs::write(
+        src_dir.join("main.rs"),
+        r#"use dioxus::prelude::*;
+
+fn main() {
+    dioxus::web::launch(app);
+}
+
+fn app(cx: Scope) -> Element {
+    cx.render(rsx! {
+        div {
+            h1 { "Welcome to Dioxus!" }
+            p { "Your Dioxus app is ready." }
+        }
+    })
+}
+"#,
+    )?;
+    
+    // Create Dioxus configuration file
+    let dioxus_config = r#"[application]
+name = "dioxus-app"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "public"
+
+[web.app]
+title = "Dioxus App"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "public"]
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+script = []
+"#;
+    std::fs::create_dir_all(app_path.join("public"))?;
+    std::fs::write(app_path.join("Dioxus.toml"), dioxus_config)?;
+    
+    Ok(())
+}
+
 fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(server) = &config.components.server {
+    if let Some(_server) = &config.components.server {
         let server_path = project_path.join("server");
         create_directory(&server_path)?;
         
-        for service in &server.services {
+        for service in &config.components.server.as_ref().unwrap().services {
             let service_path = server_path.join(service);
             create_directory(&service_path)?;
             
@@ -867,7 +1360,7 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(&service_path.join("src"))?;
             
             // Create service Cargo.toml
-            let framework = if let Some(framework) = server.frameworks.first() {
+            let framework = if let Some(framework) = config.components.server.as_ref().unwrap().frameworks.first() {
                 framework
             } else {
                 // Default to empty string if no frameworks are defined
@@ -919,11 +1412,11 @@ path = "src/main.rs"
 }
 
 fn setup_libs(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(libs) = &config.components.libs {
+    if let Some(_libs) = &config.components.libs {
         let libs_path = project_path.join("libs");
         create_directory(&libs_path)?;
         
-        for lib in &libs.modules {
+        for lib in &config.components.libs.as_ref().unwrap().modules {
             let lib_path = libs_path.join(lib);
             create_directory(&lib_path)?;
             
@@ -960,11 +1453,11 @@ thiserror = "1.0"
 }
 
 fn setup_ai(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(ai) = &config.components.ai {
+    if let Some(_ai) = &config.components.ai {
         let ai_path = project_path.join("ai");
         create_directory(&ai_path)?;
         
-        for model in &ai.models {
+        for model in &config.components.ai.as_ref().unwrap().models {
             let model_path = ai_path.join(model);
             create_directory(&model_path)?;
             
@@ -1005,11 +1498,11 @@ anyhow = "1.0"
 }
 
 fn setup_edge(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(edge) = &config.components.edge {
+    if let Some(_edge) = &config.components.edge {
         let edge_path = project_path.join("edge");
         create_directory(&edge_path)?;
         
-        for app in &edge.apps {
+        for app in &config.components.edge.as_ref().unwrap().apps {
             let app_path = edge_path.join(app);
             create_directory(&app_path)?;
             
@@ -1056,11 +1549,11 @@ serde-wasm-bindgen = "0.4"
 }
 
 fn setup_embedded(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
-    if let Some(embedded) = &config.components.embedded {
+    if let Some(_embedded) = &config.components.embedded {
         let embedded_path = project_path.join("embedded");
         create_directory(&embedded_path)?;
         
-        for device in &embedded.devices {
+        for device in &config.components.embedded.as_ref().unwrap().devices {
             let device_path = embedded_path.join(device);
             create_directory(&device_path)?;
             
@@ -1162,47 +1655,323 @@ tokio = {{ version = "1.0", features = ["full"] }}
 }
 
 fn create_readme(project_name: &str, config: &Config) -> Result<()> {
-    let mut content = String::new();
+    let project_path = Path::new(project_name);
     
-    content.push_str("# FerrisUp Workspace\n\n");
-    content.push_str("This is a Rust workspace created with FerrisUp.\n\n");
+    // Determine if this is a Tauri project
+    let is_tauri = if let Some(_client) = &config.components.client {
+        config.components.client.as_ref().unwrap().frameworks.iter().any(|f| f == "tauri")
+    } else {
+        false
+    };
     
-    content.push_str("## Components\n\n");
-    
-    if let Some(client) = &config.components.client {
-        content.push_str("### Client Applications\n\n");
+    // For Tauri projects, create a specialized README
+    if is_tauri {
+        let readme_content = format!(
+            r#"# {project_name}
+
+A Tauri desktop application.
+
+## Project Structure
+
+```
+{project_name}/
+├── client/           # Frontend application
+│   └── app/          # Tauri application
+│       ├── src/      # Frontend source code
+│       └── src-tauri/ # Tauri backend code
+├── Cargo.toml        # Rust workspace configuration
+└── README.md         # This file
+```
+
+## Development
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/) (latest stable)
+- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
+
+### Running the Application
+
+Navigate to the client app directory:
+
+```bash
+cd client/app
+```
+
+Then run the development server:
+
+```bash
+cargo tauri dev
+```
+
+### Building for Production
+
+To build the application for production:
+
+```bash
+cargo tauri build
+```
+
+This will create optimized binaries in the `target/release` directory.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+"#
+        );
         
-        for app in &client.apps {
-            content.push_str(&format!("- {}\n", app));
-        }
-        
-        content.push('\n');
+        std::fs::write(project_path.join("README.md"), readme_content)?;
+        return Ok(());
     }
     
-    if let Some(server) = &config.components.server {
-        content.push_str("### Server Applications\n\n");
+    // For other projects, create a standard README with appropriate sections
+    let mut readme_content = format!(
+        r#"# {project_name}
+
+## Project Structure
+
+```
+{project_name}/
+"#
+    );
+    
+    // Add client section if client components exist
+    if let Some(_client) = &config.components.client {
+        readme_content.push_str(
+            r#"├── client/           # Client applications
+"#
+        );
         
-        for service in &server.services {
-            content.push_str(&format!("- {}\n", service));
+        for app in &config.components.client.as_ref().unwrap().apps {
+            readme_content.push_str(&format!(
+                r#"│   ├── {}/          # Client application
+"#,
+                app
+            ));
         }
-        
-        content.push('\n');
     }
     
-    if let Some(database) = &config.components.database {
-        if database.enabled {
-            content.push_str("### Database Engines\n\n");
+    // Add server section if server components exist and this is not a client-only template
+    if config.template != "client" {
+        if let Some(_server) = &config.components.server {
+            readme_content.push_str(
+                r#"├── server/           # Server applications
+"#
+            );
             
-            for engine in &database.engines {
-                content.push_str(&format!("- {}\n", engine));
+            for app in &config.components.server.as_ref().unwrap().services {
+                readme_content.push_str(&format!(
+                    r#"│   ├── {}/          # Server application
+"#,
+                    app
+                ));
             }
-            
-            content.push('\n');
+        }
+        
+        // Add database section if database components exist
+        if let Some(database) = &config.components.database {
+            if database.enabled {
+                readme_content.push_str(
+                    r#"├── database/         # Database configuration
+"#
+                );
+                
+                for engine in &database.engines {
+                    readme_content.push_str(&format!(
+                        r#"│   ├── {}/          # {} database configuration
+"#,
+                        engine, engine
+                    ));
+                }
+            }
         }
     }
     
-    // Write the README.md file
-    std::fs::write(Path::new(project_name).join("README.md"), content)?;
+    // Add common files
+    readme_content.push_str(
+        r#"├── Cargo.toml        # Rust workspace configuration
+└── README.md         # This file
+```
+
+## Getting Started
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/) (latest stable)
+"#
+    );
+    
+    // Add client-specific instructions
+    if let Some(_client) = &config.components.client {
+        let has_dioxus = config.components.client.as_ref().unwrap().frameworks.iter().any(|f| f == "dioxus");
+        
+        if has_dioxus {
+            readme_content.push_str(
+                r#"- [Dioxus CLI](https://dioxuslabs.com/docs/0.5/guide/en/getting_started/cli.html) (for Dioxus applications)
+
+### Running Client Applications
+
+For Dioxus applications:
+
+```bash
+# Navigate to the client app directory
+cd client/app1
+
+# Run the development server
+dx serve
+```
+"#
+            );
+        }
+    }
+    
+    // Add server-specific instructions if not a client-only template
+    if config.template != "client" {
+        if let Some(_server) = &config.components.server {
+            readme_content.push_str(
+                r#"
+### Running Server Applications
+
+```bash
+# Navigate to the server app directory
+cd server/app1
+
+# Run the server
+cargo run
+```
+"#
+            );
+        }
+        
+        // Add database-specific instructions
+        if let Some(database) = &config.components.database {
+            if database.enabled {
+                readme_content.push_str(
+                    r#"
+### Database Setup
+
+"#
+                );
+                
+                for engine in &database.engines {
+                    match engine.as_str() {
+                        "postgres" => {
+                            readme_content.push_str(
+                                r#"#### PostgreSQL
+
+1. Install PostgreSQL
+2. Create a database
+3. Update the `.env` file with your database credentials
+"#
+                            );
+                        }
+                        "mysql" => {
+                            readme_content.push_str(
+                                r#"#### MySQL
+
+1. Install MySQL
+2. Create a database
+3. Update the `.env` file with your database credentials
+"#
+                            );
+                        }
+                        "sqlite" => {
+                            readme_content.push_str(
+                                r#"#### SQLite
+
+The SQLite database file will be created automatically when the application runs.
+"#
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    
+    // Add common closing sections
+    readme_content.push_str(
+        r#"
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+"#
+    );
+    
+    std::fs::write(project_path.join("README.md"), readme_content)?;
+    
+    Ok(())
+}
+
+fn create_manual_tauri_project(app_path: &Path, _client: &crate::config::Client, app: &str) -> Result<()> {
+    println!("⚠️ Falling back to manual Tauri project creation");
+    
+    // Create src directory
+    let src_dir = app_path.join("src");
+    create_directory(&src_dir)?;
+    
+    // Create main.rs
+    std::fs::write(
+        src_dir.join("main.rs"),
+        r#"use tauri::{Builder, TauriApp};
+use tauri::WindowBuilder;
+
+fn main() {
+    let app = Builder::default()
+        .setup(|_app| Ok(()))
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application");
+    
+    let window = WindowBuilder::new(&app, "main")
+        .title("Tauri App")
+        .build()
+        .unwrap();
+    
+    app.run(|_app_handle, event| match event {
+        tauri::Event::WindowEvent { event, .. } => match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                println!("Close requested");
+            }
+            _ => {}
+        },
+        _ => {}
+    });
+}
+"#,
+    )?;
+    
+    // Create index.html
+    let index_html = r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tauri App</title>
+</head>
+<body>
+    <h1>Welcome to Tauri!</h1>
+</body>
+</html>
+"#;
+    std::fs::write(app_path.join("index.html"), index_html)?;
+    
+    // Create Cargo.toml
+    let cargo_toml = format!(
+        r#"[package]
+name = "{}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = "2.0"
+serde = {{ version = "1.0", features = ["derive"] }}
+"#,
+        app
+    );
+    std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
     
     Ok(())
 }

@@ -7,3 +7,4 @@ pub mod config;
 pub mod component;
 pub mod workspace;
 pub mod dependency;
+pub mod frameworks;
