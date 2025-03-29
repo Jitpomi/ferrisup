@@ -81,7 +81,7 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     println!("{} {}", "Using template:".blue(), template.cyan());
     
     // Create project directory
-    create_directory(&project_path)?;
+    create_directory(project_path)?;
     
     // Create project structure based on template
     let config = read_config()?;
@@ -305,8 +305,8 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 if !frameworks.is_empty() {
                     // Create the same number of apps as frameworks to avoid index out of bounds errors
                     let mut apps = Vec::new();
-                    for (i, _framework) in frameworks.iter().enumerate() {
-                        apps.push(format!("app{}", i + 1));
+                    for _ in frameworks.iter() {
+                        apps.push("app".to_string());
                     }
                     
                     project_config.components.client = Some(config::Client {
@@ -358,7 +358,7 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 
                 if !frameworks.is_empty() {
                     project_config.components.server = Some(config::Server {
-                        services: vec!["service1".to_string(), "service2".to_string()], // Default services
+                        services: vec!["service".to_string()], // Default services
                         frameworks,
                     });
                 }
@@ -476,7 +476,7 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
             
             if !platforms.is_empty() {
                 project_config.components.embedded = Some(config::Embedded {
-                    devices: vec!["device1".to_string()], // Default device
+                    devices: vec!["device".to_string()], // Default device
                     platforms,
                 });
             }
@@ -489,15 +489,13 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     // Ask about git initialization if not specified
     let should_init_git = if init_git {
         true
+    } else if no_interactive {
+        false
     } else {
-        if no_interactive {
-            false
-        } else {
-            Confirm::new()
-                .with_prompt("Initialize git repository?")
-                .default(true)
-                .interact()?
-        }
+        Confirm::new()
+            .with_prompt("Initialize git repository?")
+            .default(true)
+            .interact()?
     };
     
     // Initialize git if requested
@@ -532,15 +530,13 @@ Cargo.lock
     // Ask about building the project if not specified
     let should_build = if build {
         true
+    } else if no_interactive {
+        false
     } else {
-        if no_interactive {
-            false
-        } else {
-            Confirm::new()
-                .with_prompt("Build the project?")
-                .default(true)
-                .interact()?
-        }
+        Confirm::new()
+            .with_prompt("Build the project?")
+            .default(true)
+            .interact()?
     };
     
     // Build the project if requested
@@ -569,12 +565,9 @@ Cargo.lock
         if !client.apps.is_empty() {
             println!("\n2. Run client applications:");
             
-            for (_i, app) in client.apps.iter().enumerate() {
-                let framework = if _i < client.frameworks.len() {
-                    &client.frameworks[_i]
-                } else if !client.frameworks.is_empty() {
-                    // If we have at least one framework, use the first one
-                    &client.frameworks[0]
+            for app in &client.apps {
+                let framework = if let Some(framework) = client.frameworks.first() {
+                    framework
                 } else {
                     // Default to empty string if no frameworks are defined
                     ""
@@ -582,7 +575,7 @@ Cargo.lock
                 
                 match framework {
                     "dioxus" => {
-                        let port = 8080 + _i;
+                        let port = 8080;
                         println!("   # For {} (Dioxus web app):", app);
                         println!("   cargo install dioxus-cli  # Only needed once");
                         println!("   cd client/{} && dx serve --platform web --port {}", app, port);
@@ -631,7 +624,7 @@ fn create_project_structure(name: &str, config: &crate::config::Config, template
     // Create main.rs or lib.rs based on template
     match template {
         "minimal" | "binary" => {
-            setup_minimal(project_path, config, &mut Vec::new())?;
+            setup_minimal(project_path, config)?;
         },
         "library" => {
             std::fs::write(
@@ -686,46 +679,46 @@ fn setup_project(
     match template {
         "full-stack" => {
             // Setup client
-            if let Some(_) = &config.components.client {
+            if config.components.client.is_some() {
                 setup_client(project_path, config, workspace_members)?;
             }
             
             // Setup server
-            if let Some(_) = &config.components.server {
+            if config.components.server.is_some() {
                 setup_server(project_path, config, workspace_members)?;
             }
             
             // Setup shared libs
-            if let Some(_) = &config.components.libs {
+            if config.components.libs.is_some() {
                 setup_libs(project_path, config, workspace_members)?;
             }
         },
         "gen-ai" => {
             // Setup AI components
-            if let Some(_) = &config.components.ai {
+            if config.components.ai.is_some() {
                 setup_ai(project_path, config, workspace_members)?;
             }
             
             // Setup shared libs
-            if let Some(_) = &config.components.libs {
+            if config.components.libs.is_some() {
                 setup_libs(project_path, config, workspace_members)?;
             }
         },
         "edge-app" => {
             // Setup edge components
-            if let Some(_) = &config.components.edge {
+            if config.components.edge.is_some() {
                 setup_edge(project_path, config, workspace_members)?;
             }
         },
         "embedded" => {
             // Setup embedded components
-            if let Some(_) = &config.components.embedded {
+            if config.components.embedded.is_some() {
                 setup_embedded(project_path, config, workspace_members)?;
             }
         },
         _ => {
             // For minimal or custom template, just setup workspace with a binary
-            setup_minimal(project_path, config, workspace_members)?;
+            setup_minimal(project_path, config)?;
         }
     }
     
@@ -737,7 +730,7 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
         let client_path = project_path.join("client");
         create_directory(&client_path)?;
         
-        for (_i, app) in client.apps.iter().enumerate() {
+        for app in &client.apps {
             let app_path = client_path.join(app);
             create_directory(&app_path)?;
             
@@ -745,11 +738,8 @@ fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(&app_path.join("src"))?;
             
             // Create app Cargo.toml
-            let framework = if _i < client.frameworks.len() {
-                &client.frameworks[_i]
-            } else if !client.frameworks.is_empty() {
-                // If we have at least one framework, use the first one
-                &client.frameworks[0]
+            let framework = if let Some(framework) = client.frameworks.first() {
+                framework
             } else {
                 // Default to empty string if no frameworks are defined
                 ""
@@ -869,7 +859,7 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
         let server_path = project_path.join("server");
         create_directory(&server_path)?;
         
-        for (_i, service) in server.services.iter().enumerate() {
+        for service in &server.services {
             let service_path = server_path.join(service);
             create_directory(&service_path)?;
             
@@ -877,11 +867,8 @@ fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_m
             create_directory(&service_path.join("src"))?;
             
             // Create service Cargo.toml
-            let framework = if _i < server.frameworks.len() {
-                &server.frameworks[_i]
-            } else if !server.frameworks.is_empty() {
-                // If we have at least one framework, use the first one
-                &server.frameworks[0]
+            let framework = if let Some(framework) = server.frameworks.first() {
+                framework
             } else {
                 // Default to empty string if no frameworks are defined
                 ""
@@ -1117,20 +1104,22 @@ bench = false
     Ok(())
 }
 
-fn setup_minimal(project_path: &Path, _config: &crate::config::Config, _workspace_members: &mut Vec<String>) -> Result<()> {
+fn setup_minimal(project_path: &Path, _config: &crate::config::Config) -> Result<()> {
     // Create a basic project with src directory
     let src_path = project_path.join("src");
     create_directory(&src_path)?;
     
     // Create a simple main.rs
+    let main_rs = src_path.join("main.rs");
     let main_content = r#"fn main() {
-    println!("Hello from FerrisUp minimal project!");
+    println!("Hello from FerrisUp!");
 }
 "#;
-    std::fs::write(src_path.join("main.rs"), main_content)?;
+    std::fs::write(main_rs, main_content)?;
     
-    // Create a simple Cargo.toml
-    let cargo_content = format!(r#"[package]
+    // Create a basic Cargo.toml
+    let cargo_toml = project_path.join("Cargo.toml");
+    let toml_content = format!(r#"[package]
 name = "{}"
 version = "0.1.0"
 edition = "2021"
@@ -1140,7 +1129,7 @@ edition = "2021"
         .and_then(|name| name.to_str())
         .unwrap_or("rust_project"));
     
-    std::fs::write(project_path.join("Cargo.toml"), cargo_content)?;
+    std::fs::write(cargo_toml, toml_content)?;
     
     Ok(())
 }
@@ -1149,282 +1138,71 @@ fn update_workspace_toml(project_path: &Path, workspace_members: &[String]) -> R
     let mut cargo_toml = format!(
         r#"[workspace]
 members = [
+    ".",
 {}
 ]
-resolver = "2"
 
 [workspace.dependencies]
-serde = {{ version = "1.0", features = ["derive"] }}
-thiserror = "1.0"
 anyhow = "1.0"
-"#,
-        workspace_members.iter()
-            .map(|m| format!("    \"{}\"", m))
-            .collect::<Vec<_>>()
-            .join(",\n")
-    );
-    
-    if workspace_members.is_empty() {
-        let project_name = project_path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("rust_project");
-            
-        cargo_toml = format!(
-            r#"[package]
-name = "{}"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
 serde = {{ version = "1.0", features = ["derive"] }}
+tokio = {{ version = "1.0", features = ["full"] }}
 "#,
-            project_name
-        );
-    }
-    
+        workspace_members
+            .iter()
+            .map(|member| format!("    \"{}\",", member))
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
+
+    // Add resolver for Rust 2021
+    cargo_toml.push_str("resolver = \"2\"\n");
+
     std::fs::write(project_path.join("Cargo.toml"), cargo_toml)?;
-    
     Ok(())
 }
 
 fn create_readme(project_name: &str, config: &Config) -> Result<()> {
-    let readme_path = Path::new(project_name).join("README.md");
+    let mut content = String::new();
     
-    // Generate content based on project components
-    let mut content = format!(
-        r#"# {}
-
-A Rust project created with [FerrisUp](https://github.com/Jitpomi/ferrisup).
-
-## Project Structure
-
-This is a full-stack Rust project with the following components:
-
-"#,
-        project_name
-    );
-
-    // Add client section if applicable
+    content.push_str("# FerrisUp Workspace\n\n");
+    content.push_str("This is a Rust workspace created with FerrisUp.\n\n");
+    
+    content.push_str("## Components\n\n");
+    
     if let Some(client) = &config.components.client {
         content.push_str("### Client Applications\n\n");
         
-        for (_i, app) in client.apps.iter().enumerate() {
-            content.push_str(&format!("- {}", app));
-            
-            if let Some(i) = client.apps.iter().position(|a| a == app) {
-                if i < client.frameworks.len() {
-                    content.push_str(&format!(" ({})", client.frameworks[i]));
-                }
-            }
-            content.push_str("\n");
+        for app in &client.apps {
+            content.push_str(&format!("- {}\n", app));
         }
-        content.push_str("\n");
+        
+        content.push('\n');
     }
-
-    // Add server section if applicable
+    
     if let Some(server) = &config.components.server {
-        content.push_str("### Server Services\n\n");
+        content.push_str("### Server Applications\n\n");
         
         for service in &server.services {
-            content.push_str(&format!("- {}", service));
-            
-            if let Some(i) = server.services.iter().position(|s| s == service) {
-                if i < server.frameworks.len() {
-                    content.push_str(&format!(" ({})", server.frameworks[i]));
-                }
-            }
-            content.push_str("\n");
+            content.push_str(&format!("- {}\n", service));
         }
-        content.push_str("\n");
+        
+        content.push('\n');
     }
-
-    // Add database section if applicable
+    
     if let Some(database) = &config.components.database {
-        content.push_str("### Database\n\n");
         if database.enabled {
-            content.push_str(&format!("- Engines: {}\n", database.engines.join(", ")));
-            if !database.migration_tool.is_empty() {
-                content.push_str(&format!("- Migration Tool: {}\n", database.migration_tool));
-            }
-            if let Some(cache_engine) = &database.cache_engine {
-                content.push_str(&format!("- Cache Engine: {}\n", cache_engine));
-            }
-            if let Some(vector_engine) = &database.vector_engine {
-                content.push_str(&format!("- Vector Engine: {}\n", vector_engine));
-            }
-            if let Some(graph_engine) = &database.graph_engine {
-                content.push_str(&format!("- Graph Engine: {}\n", graph_engine));
-            }
-        } else {
-            content.push_str("- Database is configured but not enabled\n");
-        }
-        content.push_str("\n");
-    }
-
-    // Add running instructions
-    content.push_str(r#"## Running the Project
-
-This project is set up as a Rust workspace with multiple binary targets. Here's how to run each component:
-
-"#);
-
-    // Add client running instructions
-    if let Some(client) = &config.components.client {
-        content.push_str("### Running Client Applications\n\n");
-        
-        for (_i, app) in client.apps.iter().enumerate() {
-            content.push_str(&format!("#### {}\n\n", app));
+            content.push_str("### Database Engines\n\n");
             
-            let framework = if _i < client.frameworks.len() {
-                &client.frameworks[_i]
-            } else if !client.frameworks.is_empty() {
-                // If we have at least one framework, use the first one
-                &client.frameworks[0]
-            } else {
-                // Default to empty string if no frameworks are defined
-                ""
-            };
-            
-            match framework {
-                "dioxus" => {
-                    let port = 8080 + _i;
-                    content.push_str(&format!(r#"This is a Dioxus web application. To run it:
-
-1. Install the Dioxus CLI if you haven't already:
-   ```bash
-   cargo install dioxus-cli
-   ```
-
-2. Run the development server:
-   ```bash
-   # From the project root
-   cd client/{} && dx serve --platform web --port {}
-   ```
-
-3. Open your browser at http://localhost:{}
-"#, app, port, port));
-                },
-                "tauri" => {
-                    content.push_str(&format!(r#"This is a Tauri desktop application. To run it:
-
-```bash
-cd client/{} && cargo run
-```
-"#, app));
-                },
-                _ => {
-                    content.push_str(&format!(r#"```bash
-cargo run --bin {}
-```
-"#, app));
-                }
+            for engine in &database.engines {
+                content.push_str(&format!("- {}\n", engine));
             }
-            content.push_str("\n");
-        }
-    }
-
-    // Add server running instructions
-    if let Some(server) = &config.components.server {
-        content.push_str("### Running Server Services\n\n");
-        
-        for service in &server.services {
-            content.push_str(&format!("#### {}\n\n", service));
-            content.push_str(&format!(r#"```bash
-cargo run --bin {}
-```
-
-The server will start and listen on http://localhost:3000 by default.
-
-"#, service));
-        }
-    }
-
-    // Add instructions for running multiple components
-    content.push_str(r#"### Running Multiple Components
-
-To run multiple components simultaneously, you can use separate terminal windows or use a tool like [Overmind](https://github.com/DarthSim/overmind) or [Foreman](https://github.com/ddollar/foreman).
-
-#### Example Procfile for Foreman/Overmind
-
-Create a `Procfile` in the project root with the following content:
-
-```
-"#);
-    
-    // Add server services to Procfile
-    if let Some(server) = &config.components.server {
-        for service in &server.services {
-            content.push_str(&format!("{}: cd server/{} && cargo run\n", service, service));
-        }
-    }
-    
-    // Add client apps to Procfile
-    if let Some(client) = &config.components.client {
-        for (_i, app) in client.apps.iter().enumerate() {
-            let framework = if _i < client.frameworks.len() {
-                &client.frameworks[_i]
-            } else if !client.frameworks.is_empty() {
-                // If we have at least one framework, use the first one
-                &client.frameworks[0]
-            } else {
-                // Default to empty string if no frameworks are defined
-                ""
-            };
             
-            if framework == "dioxus" {
-                let port = 8080 + _i;
-                content.push_str(&format!("{}: cd client/{} && dx serve --platform web --port {}\n", 
-                    app, 
-                    app,
-                    port
-                ));
-            } else {
-                content.push_str(&format!("{}: cd client/{} && cargo run\n", app, app));
-            }
+            content.push('\n');
         }
     }
     
-    content.push_str("```\n\n");
-    content.push_str("Then run:\n\n");
-    content.push_str("```bash\n# If using Overmind\novermind start\n\n# If using Foreman\nforeman start\n```\n\n");
+    // Write the README.md file
+    std::fs::write(Path::new(project_name).join("README.md"), content)?;
     
-    content.push_str(r#"## Development
-
-### Building All Components
-
-To build all components at once:
-
-```bash
-cargo build
-```
-
-### Running Tests
-
-To run tests for all components:
-
-```bash
-cargo test
-```
-
-## Deployment
-
-Each component can be built for production using:
-
-```bash
-cargo build --release
-```
-
-For Dioxus web applications, use:
-
-```bash
-cd client/app1
-dx build --release
-```
-
-This will generate optimized WebAssembly files in the `dist` directory.
-"#);
-
-    std::fs::write(readme_path, content)?;
     Ok(())
 }

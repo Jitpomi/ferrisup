@@ -142,7 +142,7 @@ log = "0.4"
         let content = read_cargo_toml(project_dir)?;
         
         // Preserve existing content and add workspace section
-        let new_content = if content.contains("[package]") {
+        if content.contains("[package]") {
             // Convert an application to a workspace root
             // First, move package section to its own crate
             let package_name = extract_package_name(&content).unwrap_or("app".to_string());
@@ -209,9 +209,7 @@ log = "0.4"
                     .collect::<Vec<String>>()
                     .join("\n")
             )
-        };
-        
-        new_content
+        }
     };
     
     // Write the Cargo.toml file

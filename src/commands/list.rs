@@ -11,66 +11,54 @@ pub fn execute() -> Result<()> {
     for template in templates {
         match template.as_str() {
             "minimal" => {
-                println!("  {} - {}", 
-                    "minimal".cyan(),
-                    "Simple binary with a single main.rs file");
+                println!("  {} - Simple binary with a single main.rs file", 
+                    "minimal".cyan());
             },
             "library" => {
-                println!("  {} - {}", 
-                    "library".cyan(),
-                    "Rust library crate with a lib.rs file");
+                println!("  {} - Rust library crate with a lib.rs file", 
+                    "library".cyan());
             },
             "full-stack" => {
-                println!("  {} - {}", 
-                    "full-stack".cyan(),
-                    "Complete application with client, server, and shared libraries");
+                println!("  {} - Complete application with client, server, and shared libraries", 
+                    "full-stack".cyan());
             },
             "gen-ai" => {
-                println!("  {} - {}", 
-                    "gen-ai".cyan(),
-                    "AI-focused project with inference and model components");
+                println!("  {} - AI-focused project with inference and model components", 
+                    "gen-ai".cyan());
             },
             "edge-app" => {
-                println!("  {} - {}", 
-                    "edge-app".cyan(),
-                    "WebAssembly-based application for edge computing");
+                println!("  {} - WebAssembly-based application for edge computing", 
+                    "edge-app".cyan());
             },
             "embedded" => {
-                println!("  {} - {}", 
-                    "embedded".cyan(),
-                    "Embedded systems firmware for microcontrollers");
+                println!("  {} - Embedded systems firmware for microcontrollers", 
+                    "embedded".cyan());
             },
             "serverless" => {
-                println!("  {} - {}", 
-                    "serverless".cyan(),
-                    "Serverless functions for cloud deployment");
+                println!("  {} - Serverless functions for cloud deployment", 
+                    "serverless".cyan());
             },
             "iot-device" => {
-                println!("  {} - {}", 
-                    "iot-device".cyan(),
-                    "IoT device firmware with connectivity features");
+                println!("  {} - IoT device firmware with connectivity features", 
+                    "iot-device".cyan());
             },
             "ml-pipeline" => {
-                println!("  {} - {}", 
-                    "ml-pipeline".cyan(),
-                    "Machine learning data processing pipeline");
+                println!("  {} - Machine learning data processing pipeline", 
+                    "ml-pipeline".cyan());
             },
             "data-science" => {
-                println!("  {} - {}", 
-                    "data-science".cyan(),
-                    "Data science project with analysis tools");
+                println!("  {} - Data science project with analysis tools", 
+                    "data-science".cyan());
             },
             _ => {
-                println!("  {} - {}", 
-                    template.cyan(),
-                    "Custom template");
+                println!("  {} - Custom template", 
+                    template.cyan());
             }
         }
     }
     
-    println!("\n{} {}", 
-        "Usage:".yellow().bold(),
-        "ferrisup new <PROJECT_NAME> --template=<TEMPLATE>\n");
+    println!("\n{} ferrisup new <PROJECT_NAME> --template=<TEMPLATE>\n", 
+        "Usage:".yellow().bold());
     
     Ok(())
 }

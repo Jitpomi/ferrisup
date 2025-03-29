@@ -48,7 +48,7 @@ fn run_interactive() -> Result<()> {
                 .interact()?;
             
             if !Path::new(&import_path).exists() {
-                println!("{} {}", "Error:".red().bold(), "File not found");
+                println!("{} File not found", "Error:".red().bold());
                 return Ok(());
             }
             
@@ -85,7 +85,7 @@ fn export_config(path: Option<&str>) -> Result<()> {
     let config = match read_config() {
         Ok(cfg) => cfg,
         Err(_) => {
-            println!("{} {}", "Warning:".yellow().bold(), "No existing config found, using default");
+            println!("{} No existing config found, using default", "Warning:".yellow().bold());
             config::get_default_config()
         }
     };
@@ -127,7 +127,7 @@ fn view_current_config() -> Result<()> {
     let config = match read_config() {
         Ok(cfg) => cfg,
         Err(_) => {
-            println!("{} {}", "Warning:".yellow().bold(), "No existing config found, showing default");
+            println!("{} No existing config found, showing default", "Warning:".yellow().bold());
             config::get_default_config()
         }
     };

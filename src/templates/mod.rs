@@ -52,19 +52,18 @@ pub fn get_all_templates() -> Result<Vec<String>> {
 /// Returns a list of templates with their descriptions
 /// Format: Vec<(name, description)>
 pub fn list_templates() -> Result<Vec<(String, String)>> {
-    let mut templates = Vec::new();
-    
-    // Add built-in templates with descriptions
-    templates.push(("minimal".to_string(), "Simple binary with a single main.rs file".to_string()));
-    templates.push(("library".to_string(), "Rust library crate with a lib.rs file".to_string()));
-    templates.push(("full-stack".to_string(), "Complete application with client, server, and shared libraries".to_string()));
-    templates.push(("gen-ai".to_string(), "AI-focused project with inference and model components".to_string()));
-    templates.push(("edge-app".to_string(), "WebAssembly-based application for edge computing".to_string()));
-    templates.push(("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()));
-    templates.push(("serverless".to_string(), "Serverless functions for cloud deployment".to_string()));
-    templates.push(("iot-device".to_string(), "IoT device firmware with connectivity features".to_string()));
-    templates.push(("ml-pipeline".to_string(), "Machine learning data processing pipeline".to_string()));
-    templates.push(("data-science".to_string(), "Data science project with analysis tools".to_string()));
+    let mut templates = vec![
+        ("minimal".to_string(), "Simple binary with a single main.rs file".to_string()),
+        ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
+        ("full-stack".to_string(), "Complete application with client, server, and shared libraries".to_string()),
+        ("gen-ai".to_string(), "AI-focused project with inference and model components".to_string()),
+        ("edge-app".to_string(), "WebAssembly-based application for edge computing".to_string()),
+        ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
+        ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
+        ("iot-device".to_string(), "IoT device firmware with connectivity features".to_string()),
+        ("ml-pipeline".to_string(), "Machine learning data processing pipeline".to_string()),
+        ("data-science".to_string(), "Data science project with analysis tools".to_string()),
+    ];
     
     // Check for custom templates in the templates directory
     let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));

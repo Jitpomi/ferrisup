@@ -260,7 +260,7 @@ pub fn remove_dependencies(args: RemoveArgs) -> Result<()> {
         println!("{} {}", "Removing dependency:".yellow(), dependency);
         
         let output = Command::new("cargo")
-            .args(&["remove", dependency])
+            .args(["remove", dependency])
             .current_dir(&project_dir)
             .output()
             .context(format!("Failed to remove dependency {}", dependency))?;
@@ -292,7 +292,7 @@ pub fn update_dependencies(args: UpdateArgs) -> Result<()> {
             println!("{} {}", "Updating dependency:".blue(), dependency);
             
             let output = Command::new("cargo")
-                .args(&["update", dependency])
+                .args(["update", dependency])
                 .current_dir(&project_dir)
                 .output()
                 .context(format!("Failed to update dependency {}", dependency))?;
@@ -309,7 +309,7 @@ pub fn update_dependencies(args: UpdateArgs) -> Result<()> {
         println!("{}", "Updating all dependencies...".blue());
         
         let output = Command::new("cargo")
-            .args(&["update"])
+            .args(["update"])
             .current_dir(&project_dir)
             .output()
             .context("Failed to update dependencies")?;
@@ -339,9 +339,11 @@ pub fn analyze_dependencies(args: AnalyzeArgs) -> Result<()> {
     
     // Check if cargo-audit is installed
     let audit_installed = Command::new("cargo")
-        .args(&["audit", "--version"])
-        .output()
-        .map(|output| output.status.success())
+        .args(["audit", "--version"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
         .unwrap_or(false);
     
     if !audit_installed {
@@ -353,13 +355,14 @@ pub fn analyze_dependencies(args: AnalyzeArgs) -> Result<()> {
             println!("{}", "Installing cargo-audit...".blue());
             
             let output = Command::new("cargo")
-                .args(&["install", "cargo-audit"])
-                .output()
+                .args(["install", "cargo-audit"])
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status()
                 .context("Failed to install cargo-audit")?;
             
-            if !output.status.success() {
-                let error = String::from_utf8_lossy(&output.stderr);
-                println!("{} {}", "Failed to install cargo-audit:".red(), error);
+            if !output.success() {
+                println!("{} Check your internet connection and try again", "Failed to install cargo-audit:".red());
             } else {
                 println!("{}", "Successfully installed cargo-audit".green());
             }
@@ -369,7 +372,7 @@ pub fn analyze_dependencies(args: AnalyzeArgs) -> Result<()> {
     // Run cargo tree
     println!("\n{}", "Dependency tree:".blue());
     let tree_output = Command::new("cargo")
-        .args(&["tree"])
+        .args(["tree"])
         .current_dir(&project_dir)
         .output()
         .context("Failed to run cargo tree")?;
@@ -378,20 +381,25 @@ pub fn analyze_dependencies(args: AnalyzeArgs) -> Result<()> {
     
     // Run cargo audit if available
     if audit_installed || Command::new("cargo")
-        .args(&["audit", "--version"])
-        .output()
-        .map(|output| output.status.success())
+        .args(["audit", "--version"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
         .unwrap_or(false)
     {
         println!("\n{}", "Security audit:".blue());
         let audit_output = Command::new("cargo")
-            .args(&["audit"])
+            .args(["audit"])
             .current_dir(&project_dir)
-            .output()
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status()
             .context("Failed to run cargo audit")?;
         
-        println!("{}", String::from_utf8_lossy(&audit_output.stdout));
-        println!("{}", String::from_utf8_lossy(&audit_output.stderr));
+        if !audit_output.success() {
+            println!("{}", "Security vulnerabilities found in your dependencies. Please review and update.".yellow());
+        }
     }
     
     Ok(())

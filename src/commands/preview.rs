@@ -378,7 +378,7 @@ fn display_template_features(template_name: &str, config: &Config) {
     }
     
     if let Some(db) = &config.components.database {
-        if let Some(primary_db) = db.engines.get(0) {
+        if let Some(primary_db) = db.engines.first() {
             println!("  ✓ Database: {} with {}", primary_db, db.migration_tool);
         }
     }

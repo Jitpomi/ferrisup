@@ -40,7 +40,7 @@ pub fn execute(action: Option<&str>, component_type: Option<&str>, project_path:
     let action_str = if let Some(act) = action {
         act.to_string()
     } else {
-        let options = vec!["add", "remove", "list"];
+        let options = ["add", "remove", "list"];
         let selection = Select::new()
             .with_prompt("Select action")
             .items(&options)
@@ -67,7 +67,7 @@ fn add_component(project_dir: &Path, component_type: Option<&str>) -> Result<()>
     let component = if let Some(ctype) = component_type {
         ctype.to_string()
     } else {
-        let options = vec![
+        let options = [
             "client", "server", "database", "ai", "edge", "embedded",
             "library", "test", "documentation", "deployment",
         ];
@@ -200,7 +200,7 @@ fn list_components(project_dir: &Path) -> Result<()> {
 fn discover_components(project_dir: &Path) -> Result<Vec<String>> {
     let mut components = Vec::new();
     
-    let dirs = vec!["client", "server", "shared", "ai", "edge", "embedded", "libs"];
+    let dirs = ["client", "server", "shared", "ai", "edge", "embedded", "libs"];
     
     for dir in dirs {
         let dir_path = project_dir.join(dir);
@@ -223,7 +223,7 @@ fn discover_components(project_dir: &Path) -> Result<Vec<String>> {
 // Implement component addition functions
 fn add_client_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
     // Get client framework
-    let frameworks = vec!["dioxus", "tauri", "leptos", "yew"];
+    let frameworks = ["dioxus", "tauri", "leptos", "yew"];
     let selection = Select::new()
         .with_prompt("Select client framework")
         .items(&frameworks)
@@ -310,7 +310,7 @@ edition = "2021"
 
 fn add_server_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
     // Get server framework
-    let frameworks = vec!["poem", "axum", "actix-web", "rocket", "warp"];
+    let frameworks = ["poem", "axum", "actix-web", "rocket", "warp"];
     let selection = Select::new()
         .with_prompt("Select server framework")
         .items(&frameworks)
@@ -525,7 +525,7 @@ fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
         if let Some(cache) = &cache_db {
             match cache.as_str() {
                 "redis" => {
-                    dependencies.push_str("redis = { version = \"0.24.0\", features = [\"tokio-comp\"] }\n");
+                    dependencies.push_str("redis = \"0.24.0\"\n");
                 },
                 "memcached" => {
                     dependencies.push_str("memcache = \"0.17.0\"\n");
@@ -728,7 +728,7 @@ edition = "2021"
 
 fn add_ai_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
     // Get AI model types
-    let models = vec!["llama", "bert", "whisper", "stable-diffusion", "custom"];
+    let models = ["llama", "bert", "whisper", "stable-diffusion", "custom"];
     let mut selections = MultiSelect::new()
         .with_prompt("Select AI models (space to select, enter to confirm)")
         .items(&models)
@@ -798,7 +798,7 @@ edition = "2021"
 
 fn add_edge_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
     // Get edge platforms
-    let platforms = vec!["cloudflare-workers", "deno-deploy", "browser-wasm", "edge-lambda"];
+    let platforms = ["cloudflare-workers", "deno-deploy", "browser-wasm", "edge-lambda"];
     let mut selections = MultiSelect::new()
         .with_prompt("Select edge platforms (space to select, enter to confirm)")
         .items(&platforms)
@@ -867,7 +867,7 @@ crate-type = ["cdylib", "rlib"]
 
 fn add_embedded_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
     // Get microcontroller type
-    let mcus = vec!["rp2040", "esp32", "stm32", "arduino"];
+    let mcus = ["rp2040", "esp32", "stm32", "arduino"];
     let selection = Select::new()
         .with_prompt("Select microcontroller")
         .items(&mcus)
@@ -1012,7 +1012,7 @@ edition = "2021"
 
 #[allow(dead_code)]
 fn _select_database_components() -> Result<Vec<String>> {
-    let primary_options = vec![
+    let primary_options = [
         "PostgreSQL".to_string(),
         "MySQL".to_string(),
         "SQLite".to_string(),
@@ -1023,7 +1023,7 @@ fn _select_database_components() -> Result<Vec<String>> {
         "ScyllaDB".to_string(),
     ];
 
-    let cache_options = vec![
+    let cache_options = [
         "Redis".to_string(),
         "Memcached".to_string(),
         "Hazelcast".to_string(),
@@ -1031,7 +1031,7 @@ fn _select_database_components() -> Result<Vec<String>> {
         "Ignite".to_string(),
     ];
 
-    let vector_options = vec![
+    let vector_options = [
         "Pinecone".to_string(),
         "Qdrant".to_string(),
         "Milvus".to_string(),
@@ -1042,7 +1042,7 @@ fn _select_database_components() -> Result<Vec<String>> {
         "OpenSearch".to_string(),
     ];
 
-    let graph_options = vec![
+    let graph_options = [
         "Neo4j".to_string(),
         "TypeDB".to_string(),
         "ArangoDB".to_string(),
@@ -1074,7 +1074,7 @@ fn _select_database_components() -> Result<Vec<String>> {
 
 #[allow(dead_code)]
 fn _select_client_components() -> Result<Vec<String>> {
-    let options = vec![
+    let options = [
         "Dioxus (Desktop)".to_string(),
         "Tauri".to_string(),
         "Browser (WASM)".to_string(),

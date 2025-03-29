@@ -10,7 +10,7 @@ pub struct Config {
     pub components: Components,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Components {
     #[serde(default)]
     pub client: Option<Client>,
@@ -30,22 +30,7 @@ pub struct Components {
     pub embedded: Option<Embedded>,
 }
 
-impl Default for Components {
-    fn default() -> Self {
-        Self {
-            client: None,
-            server: None,
-            database: None,
-            libs: None,
-            binaries: None,
-            ai: None,
-            edge: None,
-            embedded: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Client {
     #[serde(default)]
     pub apps: Vec<String>,
@@ -53,16 +38,7 @@ pub struct Client {
     pub frameworks: Vec<String>,
 }
 
-impl Default for Client {
-    fn default() -> Self {
-        Self {
-            apps: vec![],
-            frameworks: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Server {
     #[serde(default)]
     pub services: Vec<String>,
@@ -70,16 +46,7 @@ pub struct Server {
     pub frameworks: Vec<String>,
 }
 
-impl Default for Server {
-    fn default() -> Self {
-        Self {
-            services: vec![],
-            frameworks: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Database {
     #[serde(default)]
     pub enabled: bool,
@@ -95,48 +62,19 @@ pub struct Database {
     pub graph_engine: Option<String>,
 }
 
-impl Default for Database {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            engines: vec![],
-            migration_tool: "".to_string(),
-            cache_engine: None,
-            vector_engine: None,
-            graph_engine: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Libs {
     #[serde(default)]
     pub modules: Vec<String>,
 }
 
-impl Default for Libs {
-    fn default() -> Self {
-        Self {
-            modules: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Binaries {
     #[serde(default)]
     pub apps: Vec<String>,
 }
 
-impl Default for Binaries {
-    fn default() -> Self {
-        Self {
-            apps: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AI {
     #[serde(default)]
     pub models: Vec<String>,
@@ -144,16 +82,7 @@ pub struct AI {
     pub frameworks: Vec<String>,
 }
 
-impl Default for AI {
-    fn default() -> Self {
-        Self {
-            models: vec![],
-            frameworks: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Edge {
     #[serde(default)]
     pub apps: Vec<String>,
@@ -161,30 +90,12 @@ pub struct Edge {
     pub platforms: Vec<String>,
 }
 
-impl Default for Edge {
-    fn default() -> Self {
-        Self {
-            apps: vec![],
-            platforms: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Embedded {
     #[serde(default)]
     pub devices: Vec<String>,
     #[serde(default)]
     pub platforms: Vec<String>,
-}
-
-impl Default for Embedded {
-    fn default() -> Self {
-        Self {
-            devices: vec![],
-            platforms: vec![],
-        }
-    }
 }
 
 pub fn get_config_path() -> Result<String> {

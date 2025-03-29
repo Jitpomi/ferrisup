@@ -547,18 +547,16 @@ fn init_workspace(project_dir: &Path, structure: &ProjectStructure) -> Result<()
     };
     
     // Create workspace Cargo.toml
-    let workspace_toml = format!(
-        r#"[workspace]
+    let workspace_toml = r#"[workspace]
 members = [
     "src"
 ]
 
 [workspace.dependencies]
-serde = {{ version = "1.0", features = ["derive"] }}
+serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 anyhow = "1.0"
-"#
-    );
+"#.to_string();
     
     // Create src directory if it doesn't exist
     let src_dir = project_dir.join("src");

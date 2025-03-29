@@ -1,9 +1,8 @@
-use anyhow::{Context, Result};
-use colored::Colorize;
 use std::fs;
 use std::path::Path;
+use anyhow::{Context, Result};
+use colored::*;
 use walkdir::WalkDir;
-use toml;
 
 pub fn create_directory(path: &Path) -> Result<()> {
     if !path.exists() {
@@ -90,7 +89,7 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
         .context("Failed to parse Cargo.toml as valid TOML")?;
     
     // Check if it's a workspace
-    if !cargo_toml.get("workspace").is_some() {
+    if cargo_toml.get("workspace").is_none() {
         return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
     }
     
@@ -143,10 +142,8 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
             let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
             
             // Skip common directories that might contain multiple crates
-            if !["src", "target", "client", "server", "shared", "libs", "crates"].contains(&dir_name.as_str()) {
-                if !existing_members.contains(&dir_name) {
-                    crates_to_add.push(dir_name);
-                }
+            if !["src", "target", "client", "server", "shared", "libs", "crates"].contains(&dir_name.as_str()) && !existing_members.contains(&dir_name) {
+                crates_to_add.push(dir_name);
             }
         }
     }

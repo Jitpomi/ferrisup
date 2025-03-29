@@ -24,7 +24,7 @@ fn copy_templates_dir<P: AsRef<Path>>(templates_dir: &str, out_dir: P) {
     let target_dir = out_dir.as_ref().join("templates");
     
     // Create the target directory if it doesn't exist
-    fs::create_dir_all(&target_dir).expect("Failed to create templates directory");
+    fs::create_dir_all(&target_dir).unwrap_or_else(|_| panic!("Failed to create templates directory"));
     
     // Copy all template files
     copy_dir_recursively(&source_dir, &target_dir);
@@ -33,21 +33,22 @@ fn copy_templates_dir<P: AsRef<Path>>(templates_dir: &str, out_dir: P) {
 fn copy_dir_recursively(source: &Path, target: &Path) {
     // Create the target directory if it doesn't exist
     if !target.exists() {
-        fs::create_dir_all(target).expect(&format!("Failed to create directory: {:?}", target));
+        fs::create_dir_all(target)
+            .unwrap_or_else(|_| panic!("Failed to create directory: {:?}", target));
     }
     
     // Iterate through the source directory and copy all files
-    for entry in fs::read_dir(source).expect(&format!("Failed to read directory: {:?}", source)) {
-        let entry = entry.expect("Failed to read directory entry");
+    for entry in fs::read_dir(source)
+        .unwrap_or_else(|_| panic!("Failed to read directory: {:?}", source)) {
+        let entry = entry.unwrap_or_else(|_| panic!("Failed to read directory entry"));
         let entry_path = entry.path();
         let target_path = target.join(entry_path.file_name().unwrap());
         
         if entry_path.is_dir() {
             copy_dir_recursively(&entry_path, &target_path);
         } else {
-            fs::copy(&entry_path, &target_path).expect(&format!(
-                "Failed to copy {:?} to {:?}", entry_path, target_path
-            ));
+            fs::copy(&entry_path, &target_path)
+                .unwrap_or_else(|_| panic!("Failed to copy {:?} to {:?}", entry_path, target_path));
         }
     }
 }
