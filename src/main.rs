@@ -112,6 +112,10 @@ enum Commands {
         #[arg(short, long)]
         path: Option<String>,
     },
+    
+    /// Manage project dependencies
+    #[cfg(not(feature = "workspace_test"))]
+    Dependency(commands::dependency::DependencyArgs),
 }
 
 fn main() -> Result<()> {
@@ -190,6 +194,11 @@ fn main() -> Result<()> {
         Some(Commands::Workspace { action, path }) => {
             println!("{}", "Managing Cargo workspace".green().bold());
             commands::workspace::execute(action.as_deref(), path.as_deref())
+        }
+        #[cfg(not(feature = "workspace_test"))]
+        Some(Commands::Dependency(args)) => {
+            println!("{}", "Managing dependencies".green().bold());
+            commands::dependency::execute(args)
         }
         None => {
             println!("{}", "No command specified, using interactive mode".yellow());

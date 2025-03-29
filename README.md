@@ -153,51 +153,70 @@ ferrisup config [--export] [--import FILE] [--path PATH]
 
 ### `workspace`
 
-Manage a Cargo workspace structure for your Rust projects. This command helps you create and maintain modular projects with multiple crates organized in a workspace.
+Manage Cargo workspaces.
 
 ```bash
-ferrisup workspace <SUBCOMMAND> [OPTIONS]
+ferrisup workspace [--action ACTION] [--path PATH]
 ```
 
-Subcommands:
+- `--action`: Action to perform: init, add, remove, list, or optimize
+- `--path`: Path to the workspace
 
-- `init [PATH]`: Initialize a new workspace with standard directory structure (bin, libs, services, apps)
-- `add <CRATE> [PATH]`: Add a new crate to the workspace
-- `remove <CRATE> [PATH]`: Remove a crate from the workspace
-- `list [PATH]`: List all workspace members
-- `optimize [PATH]`: Find common dependencies and move them to workspace-level
+### `dependency`
 
-Examples:
+Manage project dependencies with smart features.
 
 ```bash
-# Initialize a new workspace
-ferrisup workspace init my_workspace
-
-# Add a library crate to the workspace
-ferrisup workspace add libs/core my_workspace
-
-# Add a binary crate
-ferrisup workspace add bin/cli my_workspace
-
-# Add a service
-ferrisup workspace add services/api my_workspace
-
-# List all workspace members
-ferrisup workspace list my_workspace
-
-# Remove a crate from the workspace
-ferrisup workspace remove libs/core my_workspace
-
-# Optimize workspace dependencies
-ferrisup workspace optimize my_workspace
+ferrisup dependency [SUBCOMMAND]
 ```
 
-This command supports the "Start Anywhere, Scale Anywhere" philosophy by allowing you to:
-- Begin with a small modular project
-- Gradually add components as your application grows
-- Maintain clean boundaries between different parts of your system
-- Share code through internal libraries
-- Optimize dependency management across crates
+#### Subcommands:
+
+##### `add`
+
+Add dependencies to your project with smart feature suggestions.
+
+```bash
+ferrisup dependency add [DEPENDENCIES...] [--dev] [--features FEATURES] [--version VERSION] [--path PATH]
+```
+
+- `DEPENDENCIES`: Dependencies to add (e.g., serde, tokio)
+- `--dev`: Add as development dependency
+- `--features`: Add with specific features (comma separated)
+- `--version`: Add with specific version
+- `--path`: Path to the project (defaults to current directory)
+
+##### `remove`
+
+Remove dependencies from your project.
+
+```bash
+ferrisup dependency remove [DEPENDENCIES...] [--path PATH]
+```
+
+- `DEPENDENCIES`: Dependencies to remove (if not specified, will show an interactive selection)
+- `--path`: Path to the project (defaults to current directory)
+
+##### `update`
+
+Update dependencies in your project.
+
+```bash
+ferrisup dependency update [DEPENDENCIES...] [--path PATH]
+```
+
+- `DEPENDENCIES`: Dependencies to update (if not specified, will update all)
+- `--path`: Path to the project (defaults to current directory)
+
+##### `analyze`
+
+Analyze dependencies in your project for security vulnerabilities and insights.
+
+```bash
+ferrisup dependency analyze [--path PATH]
+```
+
+- `--path`: Path to the project (defaults to current directory)
 
 ## Workspace Management
 

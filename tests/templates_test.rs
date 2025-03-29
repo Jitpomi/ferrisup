@@ -77,7 +77,7 @@ fn test_template_validation() -> Result<()> {
     
     // The current implementation falls back to "minimal" instead of erroring
     assert!(result.is_ok(), "Should fallback to minimal template");
-    assert_eq!(result.unwrap(), "minimal", "Should fallback to minimal template");
+    assert_eq!(result.as_ref().expect("Should contain a template name"), "minimal", "Should fallback to minimal template");
     
     Ok(())
 }

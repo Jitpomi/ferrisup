@@ -295,29 +295,36 @@ mod tests {
         assert_eq!(config.template, "minimal");
         
         // Check client component
-        let client = config.components.client.unwrap();
+        assert!(config.components.client.is_some(), "Client component should be present");
+        let client = config.components.client.as_ref().expect("Client component should be present");
         assert_eq!(client.apps.len(), 2);
         assert_eq!(client.apps[0], "app1");
         assert_eq!(client.frameworks[0], "dioxus");
         
         // Check server component
-        let server = config.components.server.unwrap();
+        assert!(config.components.server.is_some(), "Server component should be present");
+        let server = config.components.server.as_ref().expect("Server component should be present");
         assert_eq!(server.services.len(), 2);
         assert_eq!(server.services[0], "api");
         assert_eq!(server.frameworks[0], "axum");
         
         // Check database component
-        let db = config.components.database.unwrap();
+        assert!(config.components.database.is_some(), "Database component should be present");
+        let db = config.components.database.as_ref().expect("Database component should be present");
         assert!(db.enabled);
         assert_eq!(db.engines.len(), 1);
         assert_eq!(db.engines[0], "postgres");
         assert_eq!(db.migration_tool, "sea-orm");
-        assert_eq!(db.cache_engine.unwrap(), "redis");
-        assert_eq!(db.vector_engine.unwrap(), "pinecone");
-        assert_eq!(db.graph_engine.unwrap(), "neo4j");
+        assert!(db.cache_engine.is_some(), "Cache engine should be present");
+        assert_eq!(db.cache_engine.as_ref().expect("Cache engine should be present"), "redis");
+        assert!(db.vector_engine.is_some(), "Vector engine should be present");
+        assert_eq!(db.vector_engine.as_ref().expect("Vector engine should be present"), "pinecone");
+        assert!(db.graph_engine.is_some(), "Graph engine should be present");
+        assert_eq!(db.graph_engine.as_ref().expect("Graph engine should be present"), "neo4j");
         
         // Check libs component
-        let libs = config.components.libs.unwrap();
+        assert!(config.components.libs.is_some(), "Libs component should be present");
+        let libs = config.components.libs.as_ref().expect("Libs component should be present");
         assert_eq!(libs.modules.len(), 3);
         assert!(libs.modules.contains(&"core".to_string()));
         assert!(libs.modules.contains(&"models".to_string()));
@@ -402,6 +409,7 @@ mod tests {
         
         convert_old_template(&mut config);
         
-        assert_eq!(config.components.ai.unwrap().frameworks, vec!["tract".to_string()]);
+        assert!(config.components.ai.is_some(), "AI component should be present");
+        assert_eq!(config.components.ai.as_ref().expect("AI component should be present").frameworks, vec!["tract".to_string()]);
     }
 }

@@ -150,7 +150,7 @@ log = "0.4"
             // Create app directory for the existing package
             let app_dir = project_dir.join(&package_name);
             if !app_dir.exists() {
-                create_directory(app_dir.to_str().unwrap())?;
+                create_directory(&app_dir)?;
                 
                 // Move existing src directory to app directory
                 let src_dir = project_dir.join("src");
@@ -224,7 +224,7 @@ log = "0.4"
     for dir in &["client", "server", "shared"] {
         let path = project_dir.join(dir);
         if !path.exists() {
-            create_directory(path.to_str().unwrap())?;
+            create_directory(&path)?;
             println!("{} {}", "Created directory:".green(), path.display());
         }
     }
@@ -264,7 +264,7 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     };
     
     // Create crate directory
-    create_directory(crate_path.to_str().unwrap())?;
+    create_directory(&crate_path)?;
     
     // Get crate template
     let is_bin = if crate_type == "client" || crate_type == "server" {
@@ -278,7 +278,7 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     
     // Create src directory and main.rs/lib.rs
     let src_dir = crate_path.join("src");
-    create_directory(src_dir.to_str().unwrap())?;
+    create_directory(&src_dir)?;
     
     if is_bin {
         fs::write(
@@ -305,7 +305,11 @@ edition = "2021"
         if crate_type == "custom" {
             crate_name.clone()
         } else {
-            format!("{}-{}", project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), crate_name)
+            let project_name = project_dir.file_name()
+                .and_then(|name| name.to_str())
+                .map(|s| s.replace('-', "_"))
+                .unwrap_or_else(|| "project".to_string());
+            format!("{}-{}", project_name, crate_name)
         }
     );
     

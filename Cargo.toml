@@ -1,6 +1,6 @@
 [package]
 name = "ferrisup"
-version = "0.1.3"
+version = "0.1.7"
 edition = "2021"
 description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
 authors = ["Jitpomi <info@jitpomi.com>"]

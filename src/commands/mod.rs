@@ -6,3 +6,4 @@ pub mod preview;
 pub mod config;
 pub mod component;
 pub mod workspace;
+pub mod dependency;

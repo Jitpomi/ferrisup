@@ -496,19 +496,18 @@ cargo run
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     
     #[test]
     fn test_create_preview_config() {
         // Test minimal template
-        let config = create_preview_config("minimal").unwrap();
+        let config = create_preview_config("minimal").expect("Should create minimal preview config");
         assert_eq!(config.project_name, "example_project");
         assert_eq!(config.template, "minimal");
         assert!(config.components.client.is_none());
         assert!(config.components.server.is_none());
         
         // Test full-stack template
-        let config = create_preview_config("full-stack").unwrap();
+        let config = create_preview_config("full-stack").expect("Should create full-stack preview config");
         assert_eq!(config.project_name, "example_project");
         assert_eq!(config.template, "full-stack");
         assert!(config.components.client.is_some());
@@ -521,7 +520,7 @@ mod tests {
         }
         
         // Test gen-ai template
-        let config = create_preview_config("gen-ai").unwrap();
+        let config = create_preview_config("gen-ai").expect("Should create gen-ai preview config");
         assert_eq!(config.template, "gen-ai");
         assert!(config.components.ai.is_some());
         
@@ -533,7 +532,7 @@ mod tests {
     #[test]
     fn test_generate_project_tree() {
         // Test minimal template tree generation
-        let config = create_preview_config("minimal").unwrap();
+        let config = create_preview_config("minimal").expect("Should create minimal preview config");
         let tree = generate_project_tree(&config);
         
         assert!(tree.contains("example_project/"));
@@ -542,7 +541,7 @@ mod tests {
         assert!(tree.contains("main.rs"));
         
         // Test library template tree generation
-        let config = create_preview_config("library").unwrap();
+        let config = create_preview_config("library").expect("Should create library preview config");
         let tree = generate_project_tree(&config);
         
         assert!(tree.contains("example_project/"));
@@ -551,7 +550,7 @@ mod tests {
         assert!(tree.contains("lib.rs"));
         
         // Test full-stack template tree generation
-        let config = create_preview_config("full-stack").unwrap();
+        let config = create_preview_config("full-stack").expect("Should create full-stack preview config");
         let tree = generate_project_tree(&config);
         
         // Print the tree for debugging
@@ -583,13 +582,13 @@ mod tests {
     #[test]
     fn test_display_template_features() {
         // This is mainly a visual function, so we're just testing it doesn't crash
-        let config = create_preview_config("minimal").unwrap();
+        let config = create_preview_config("minimal").expect("Should create minimal preview config");
         display_template_features("minimal", &config);
         
-        let config = create_preview_config("full-stack").unwrap();
+        let config = create_preview_config("full-stack").expect("Should create full-stack preview config");
         display_template_features("full-stack", &config);
         
-        let config = create_preview_config("gen-ai").unwrap();
+        let config = create_preview_config("gen-ai").expect("Should create gen-ai preview config");
         display_template_features("gen-ai", &config);
         
         // No assertions needed - we're just making sure it executes without panicking

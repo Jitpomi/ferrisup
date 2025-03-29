@@ -5,6 +5,67 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2025-03-28
+
+### Added
+- New `dependency` command for managing project dependencies with the following features:
+  - Interactive dependency addition with smart feature suggestions
+  - Dependency removal with interactive selection
+  - Dependency updates (specific or all)
+  - Dependency analysis with security audit integration
+- Performance improvements in workspace management using proper TOML parsing
+
+### Changed
+- Refactored `update_workspace_members` function to use the TOML crate for more robust parsing
+- Improved workspace member detection for better multi-crate project support
+
+## [0.1.6] - 2025-03-28
+
+### Added
+- Comprehensive error handling throughout the codebase
+- Improved robustness in file system operations
+
+### Changed
+- Replaced all unsafe `unwrap()` calls with proper error handling
+- Enhanced test assertions with descriptive error messages
+- Improved server error handling in generated templates
+
+### Fixed
+- Potential panics when dealing with invalid file paths
+- Improved error propagation in workspace management functions
+
+## [0.1.5] - 2025-03-28
+
+### Added
+- Enhanced template customization with more granular options
+- Improved database migration support with better tool integration
+- Added progress indicators for long-running operations
+- Enhanced error messages with more descriptive text and resolution suggestions
+- Added validation checks to ensure generated projects are always in a buildable state
+
+### Changed
+- Optimized project creation process for better performance
+- Improved command documentation with examples and detailed explanations
+- Enhanced help text for all commands
+
+### Fixed
+- Addressed all compiler warnings throughout the codebase
+- Fixed remaining unwrap() calls to use proper error handling
+- Refactored common code patterns into helper functions for better maintainability
+
+## [0.1.4] - 2025-04-01
+
+### Changed
+- Improved error handling throughout the codebase by replacing `unwrap()` calls with proper error handling
+- Modified `create_directory` function to accept a `Path` instead of a string to reduce potential panics
+- Updated project name extraction to handle potential errors gracefully
+
+### Fixed
+- Fixed potential panics in file path handling by properly handling `Option` types
+- Improved robustness when creating project directories and files
+- Fixed "index out of bounds" panic in the interactive project creator
+- Fixed unwrap() calls in component management functionality
+
 ## [0.1.3] - 2025-03-28
 
 ### Added

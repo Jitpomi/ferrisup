@@ -245,11 +245,11 @@ fn add_client_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
         project_dir.join("src").join("client")
     };
     
-    create_directory(client_dir.to_str().unwrap())?;
+    create_directory(&client_dir)?;
     
     // Create src directory
     let src_dir = client_dir.join("src");
-    create_directory(src_dir.to_str().unwrap())?;
+    create_directory(&src_dir)?;
     
     // Create main.rs with appropriate content
     let main_content = match framework {
@@ -292,7 +292,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), name);
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"), name);
         
         fs::write(client_dir.join("Cargo.toml"), cargo_content)?;
     }
@@ -329,11 +332,11 @@ fn add_server_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
         project_dir.join("src").join("server")
     };
     
-    create_directory(server_dir.to_str().unwrap())?;
+    create_directory(&server_dir)?;
     
     // Create src directory
     let src_dir = server_dir.join("src");
-    create_directory(src_dir.to_str().unwrap())?;
+    create_directory(&src_dir)?;
     
     // Create Cargo.toml if workspace
     if is_workspace {
@@ -343,7 +346,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), name);
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"), name);
         
         fs::write(server_dir.join("Cargo.toml"), cargo_content)?;
     }
@@ -428,28 +434,28 @@ fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
         project_dir.join("src").join("database")
     };
     
-    create_directory(db_dir.to_str().unwrap())?;
+    create_directory(&db_dir)?;
     
     // Create subdirectories for different database types
     if primary_db.is_some() {
-        create_directory(db_dir.join("primary").to_str().unwrap())?;
+        create_directory(&db_dir.join("primary"))?;
         
         // Create migrations directory if using Diesel or Sea-ORM
         if orm == "diesel" || orm == "sea-orm" {
-            create_directory(db_dir.join("migrations").to_str().unwrap())?;
+            create_directory(&db_dir.join("migrations"))?;
         }
     }
     
     if cache_db.is_some() {
-        create_directory(db_dir.join("cache").to_str().unwrap())?;
+        create_directory(&db_dir.join("cache"))?;
     }
     
     if vector_db.is_some() {
-        create_directory(db_dir.join("vector").to_str().unwrap())?;
+        create_directory(&db_dir.join("vector"))?;
     }
     
     if graph_db.is_some() {
-        create_directory(db_dir.join("graph").to_str().unwrap())?;
+        create_directory(&db_dir.join("graph"))?;
     }
     
     // Create schema file
@@ -497,7 +503,9 @@ fn add_database_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
                     dependencies.push_str("bson = \"2.9.0\"\n");
                 },
                 "typedb" => {
-                    dependencies.push_str("typedb-client = \"2.24.0\"\n");
+                    if !dependencies.contains("typedb-client") {
+                        dependencies.push_str("typedb-client = \"2.24.0\"\n");
+                    }
                 },
                 "cockroachdb" => {
                     // CockroachDB uses the PostgreSQL driver
@@ -611,9 +619,89 @@ edition = "2021"
 
 [dependencies]
 {}
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), dependencies);
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"), dependencies);
         
         fs::write(db_dir.join("Cargo.toml"), cargo_content)?;
+    } else {
+        // If not a workspace, add dependencies to the main Cargo.toml file
+        let cargo_path = project_dir.join("Cargo.toml");
+        println!("Adding dependencies to: {:?}", cargo_path);
+        
+        // Read the current content
+        let content = match fs::read_to_string(&cargo_path) {
+            Ok(content) => content,
+            Err(e) => {
+                println!("Error reading Cargo.toml: {:?}", e);
+                return Ok(());
+            }
+        };
+        
+        // Build the dependencies string
+        let mut deps = String::new();
+        
+        // Add primary database dependencies
+        if let Some(primary) = &primary_db {
+            match primary.as_str() {
+                "typedb" => {
+                    deps.push_str("typedb-client = \"2.24.0\"\n");
+                },
+                "postgresql" | "postgres" => {
+                    if orm == "diesel" {
+                        deps.push_str("diesel = { version = \"2.1.0\", features = [\"postgres\"] }\n");
+                    } else if orm == "sqlx" {
+                        deps.push_str("sqlx = { version = \"0.7.3\", features = [\"runtime-tokio-rustls\", \"postgres\"] }\n");
+                    } else if orm == "sea-orm" {
+                        deps.push_str("sea-orm = { version = \"0.12.10\", features = [\"sqlx-postgres\", \"runtime-tokio-rustls\"] }\n");
+                    }
+                },
+                // Add other cases as needed
+                _ => {}
+            }
+        }
+        
+        // Add cache database dependencies
+        if let Some(cache) = &cache_db {
+            match cache.as_str() {
+                "redis" => {
+                    deps.push_str("redis = \"0.24.0\"\n");
+                },
+                // Add other cases as needed
+                _ => {}
+            }
+        }
+        
+        // Add vector database dependencies
+        if let Some(vector) = &vector_db {
+            match vector.as_str() {
+                "qdrant" => {
+                    deps.push_str("qdrant-client = \"1.7.0\"\n");
+                },
+                // Add other cases as needed
+                _ => {}
+            }
+        }
+        
+        // Add common dependencies
+        deps.push_str("anyhow = \"1.0.80\"\n");
+        deps.push_str("tokio = { version = \"1.36.0\", features = [\"full\"] }\n");
+        
+        // Create the new content with dependencies
+        let new_content = if content.contains("[dependencies]") {
+            // Replace the empty dependencies section with our dependencies
+            content.replace("[dependencies]", &format!("[dependencies]\n{}", deps))
+        } else {
+            // Add a new dependencies section
+            format!("{}\n[dependencies]\n{}", content, deps)
+        };
+        
+        // Write the new content back to the file
+        match fs::write(&cargo_path, new_content) {
+            Ok(_) => println!("Dependencies added successfully to Cargo.toml"),
+            Err(e) => println!("Error writing to Cargo.toml: {:?}", e),
+        }
     }
     
     // Print summary of what was added
@@ -662,11 +750,11 @@ fn add_ai_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
         project_dir.join("src").join("ai")
     };
     
-    create_directory(ai_dir.to_str().unwrap())?;
+    create_directory(&ai_dir)?;
     
     // Create model and inference subdirectories
-    create_directory(ai_dir.join("models").to_str().unwrap())?;
-    create_directory(ai_dir.join("inference").to_str().unwrap())?;
+    create_directory(&ai_dir.join("models"))?;
+    create_directory(&ai_dir.join("inference"))?;
     
     // Create lib.rs
     let lib_content = r#"//! AI components for inference and model management
@@ -692,7 +780,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"));
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"));
         
         fs::write(ai_dir.join("Cargo.toml"), cargo_content)?;
     }
@@ -729,7 +820,7 @@ fn add_edge_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
         project_dir.join("src").join("edge")
     };
     
-    create_directory(edge_dir.to_str().unwrap())?;
+    create_directory(&edge_dir)?;
     
     // Create lib.rs
     let lib_content = r#"//! Edge components for WebAssembly and edge deployment
@@ -758,7 +849,10 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"));
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"));
         
         fs::write(edge_dir.join("Cargo.toml"), cargo_content)?;
     }
@@ -789,11 +883,11 @@ fn add_embedded_component(project_dir: &Path, is_workspace: bool) -> Result<()> 
         project_dir.join("src").join("embedded")
     };
     
-    create_directory(embedded_dir.to_str().unwrap())?;
+    create_directory(&embedded_dir)?;
     
     // Create src directory
     let src_dir = embedded_dir.join("src");
-    create_directory(src_dir.to_str().unwrap())?;
+    create_directory(&src_dir)?;
     
     // Create main.rs
     let main_content = r#"#![no_std]
@@ -825,7 +919,7 @@ pub extern "C" fn main() -> ! {
     )?;
     
     // Create .cargo directory and config
-    create_directory(embedded_dir.join(".cargo").to_str().unwrap())?;
+    create_directory(&embedded_dir.join(".cargo"))?;
     
     fs::write(
         embedded_dir.join(".cargo").join("config.toml"),
@@ -840,7 +934,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"));
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"));
         
         fs::write(embedded_dir.join("Cargo.toml"), cargo_content)?;
     }
@@ -871,12 +968,12 @@ fn add_library_component(project_dir: &Path, is_workspace: bool) -> Result<()> {
         project_dir.join("src").join("lib")
     };
     
-    create_directory(lib_dir.to_str().unwrap())?;
+    create_directory(&lib_dir)?;
     
     // Create src directory if workspace
     if is_workspace {
         let src_dir = lib_dir.join("src");
-        create_directory(src_dir.to_str().unwrap())?;
+        create_directory(&src_dir)?;
         
         // Create lib.rs
         fs::write(
@@ -891,7 +988,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_dir.file_name().unwrap().to_str().unwrap().replace('-', "_"), name);
+"#, project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+        .replace('-', "_"), name);
         
         fs::write(lib_dir.join("Cargo.toml"), cargo_content)?;
     } else {

@@ -81,7 +81,7 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
     println!("{} {}", "Using template:".blue(), template.cyan());
     
     // Create project directory
-    create_directory(&project_name)?;
+    create_directory(&project_path)?;
     
     // Create project structure based on template
     let config = read_config()?;
@@ -303,8 +303,14 @@ pub fn execute(name: Option<&str>, template_name: Option<&str>, init_git: bool, 
                 }
                 
                 if !frameworks.is_empty() {
+                    // Create the same number of apps as frameworks to avoid index out of bounds errors
+                    let mut apps = Vec::new();
+                    for (i, _framework) in frameworks.iter().enumerate() {
+                        apps.push(format!("app{}", i + 1));
+                    }
+                    
                     project_config.components.client = Some(config::Client {
-                        apps: vec!["app1".to_string(), "app2".to_string()], // Default apps
+                        apps,
                         frameworks,
                     });
                 }
@@ -617,7 +623,7 @@ fn create_project_structure(name: &str, config: &crate::config::Config, template
     
     // Create src directory
     let src_path = project_path.join("src");
-    create_directory(src_path.to_str().unwrap())?;
+    create_directory(&src_path)?;
     
     // Create Cargo.toml
     write_cargo_toml(project_path, config)?;
@@ -729,14 +735,14 @@ fn setup_project(
 fn setup_client(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(client) = &config.components.client {
         let client_path = project_path.join("client");
-        create_directory(client_path.to_str().unwrap())?;
+        create_directory(&client_path)?;
         
         for (_i, app) in client.apps.iter().enumerate() {
             let app_path = client_path.join(app);
-            create_directory(app_path.to_str().unwrap())?;
+            create_directory(&app_path)?;
             
             // Create app directory structure
-            std::fs::create_dir_all(app_path.join("src"))?;
+            create_directory(&app_path.join("src"))?;
             
             // Create app Cargo.toml
             let framework = if _i < client.frameworks.len() {
@@ -861,14 +867,14 @@ script = []
 fn setup_server(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(server) = &config.components.server {
         let server_path = project_path.join("server");
-        create_directory(server_path.to_str().unwrap())?;
+        create_directory(&server_path)?;
         
         for (_i, service) in server.services.iter().enumerate() {
             let service_path = server_path.join(service);
-            create_directory(service_path.to_str().unwrap())?;
+            create_directory(&service_path)?;
             
             // Create service directories
-            create_directory(service_path.join("src").to_str().unwrap())?;
+            create_directory(&service_path.join("src"))?;
             
             // Create service Cargo.toml
             let framework = if _i < server.frameworks.len() {
@@ -928,14 +934,14 @@ path = "src/main.rs"
 fn setup_libs(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(libs) = &config.components.libs {
         let libs_path = project_path.join("libs");
-        create_directory(libs_path.to_str().unwrap())?;
+        create_directory(&libs_path)?;
         
         for lib in &libs.modules {
             let lib_path = libs_path.join(lib);
-            create_directory(lib_path.to_str().unwrap())?;
+            create_directory(&lib_path)?;
             
             // Create lib directories
-            create_directory(lib_path.join("src").to_str().unwrap())?;
+            create_directory(&lib_path.join("src"))?;
             
             // Create lib Cargo.toml
             let lib_cargo = format!(
@@ -969,14 +975,14 @@ thiserror = "1.0"
 fn setup_ai(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(ai) = &config.components.ai {
         let ai_path = project_path.join("ai");
-        create_directory(ai_path.to_str().unwrap())?;
+        create_directory(&ai_path)?;
         
         for model in &ai.models {
             let model_path = ai_path.join(model);
-            create_directory(model_path.to_str().unwrap())?;
+            create_directory(&model_path)?;
             
             // Create model directories
-            create_directory(model_path.join("src").to_str().unwrap())?;
+            create_directory(&model_path.join("src"))?;
             
             // Create model Cargo.toml
             let model_cargo = format!(
@@ -1014,14 +1020,14 @@ anyhow = "1.0"
 fn setup_edge(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(edge) = &config.components.edge {
         let edge_path = project_path.join("edge");
-        create_directory(edge_path.to_str().unwrap())?;
+        create_directory(&edge_path)?;
         
         for app in &edge.apps {
             let app_path = edge_path.join(app);
-            create_directory(app_path.to_str().unwrap())?;
+            create_directory(&app_path)?;
             
             // Create app directories
-            create_directory(app_path.join("src").to_str().unwrap())?;
+            create_directory(&app_path.join("src"))?;
             
             // Create app Cargo.toml
             let app_cargo = format!(
@@ -1065,14 +1071,14 @@ serde-wasm-bindgen = "0.4"
 fn setup_embedded(project_path: &Path, config: &crate::config::Config, workspace_members: &mut Vec<String>) -> Result<()> {
     if let Some(embedded) = &config.components.embedded {
         let embedded_path = project_path.join("embedded");
-        create_directory(embedded_path.to_str().unwrap())?;
+        create_directory(&embedded_path)?;
         
         for device in &embedded.devices {
             let device_path = embedded_path.join(device);
-            create_directory(device_path.to_str().unwrap())?;
+            create_directory(&device_path)?;
             
             // Create device directories
-            create_directory(device_path.join("src").to_str().unwrap())?;
+            create_directory(&device_path.join("src"))?;
             
             // Create device Cargo.toml
             let device_cargo = format!(
@@ -1114,7 +1120,7 @@ bench = false
 fn setup_minimal(project_path: &Path, _config: &crate::config::Config, _workspace_members: &mut Vec<String>) -> Result<()> {
     // Create a basic project with src directory
     let src_path = project_path.join("src");
-    create_directory(src_path.to_str().unwrap())?;
+    create_directory(&src_path)?;
     
     // Create a simple main.rs
     let main_content = r#"fn main() {
@@ -1130,7 +1136,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#, project_path.file_name().unwrap().to_str().unwrap());
+"#, project_path.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("rust_project"));
     
     std::fs::write(project_path.join("Cargo.toml"), cargo_content)?;
     
@@ -1157,6 +1165,11 @@ anyhow = "1.0"
     );
     
     if workspace_members.is_empty() {
+        let project_name = project_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("rust_project");
+            
         cargo_toml = format!(
             r#"[package]
 name = "{}"
@@ -1166,7 +1179,7 @@ edition = "2021"
 [dependencies]
 serde = {{ version = "1.0", features = ["derive"] }}
 "#,
-            project_path.file_name().unwrap().to_str().unwrap()
+            project_name
         );
     }
     

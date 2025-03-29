@@ -11,16 +11,23 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
     println!("{}", "FerrisUp Interactive Project Transformer".bold().green());
     println!("{}", "Transform your existing Rust project with new features".blue());
     
+    // Check if we're in test mode
+    let is_test_mode = std::env::var("FERRISUP_TEST_MODE").is_ok();
+    
     // Interactive mode if project path is not provided
     let path_str = match project_path {
         Some(p) => p.to_string(),
         None => {
             // Default to current directory
             let current_dir = std::env::current_dir()?;
-            let use_current_dir = Confirm::new()
-                .with_prompt("Use current directory for transformation?")
-                .default(true)
-                .interact()?;
+            let use_current_dir = if is_test_mode {
+                true
+            } else {
+                Confirm::new()
+                    .with_prompt("Use current directory for transformation?")
+                    .default(true)
+                    .interact()?
+            };
             
             if use_current_dir {
                 current_dir.to_string_lossy().to_string()
@@ -84,11 +91,15 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
                 "Customize transformation manually",
             ];
             
-            let approach_idx = Select::new()
-                .with_prompt("How would you like to transform your project?")
-                .items(&approach_options)
-                .default(0)
-                .interact()?;
+            let approach_idx = if is_test_mode {
+                0
+            } else {
+                Select::new()
+                    .with_prompt("How would you like to transform your project?")
+                    .items(&approach_options)
+                    .default(0)
+                    .interact()?
+            };
             
             if approach_idx == 0 {
                 // Get available templates
@@ -98,11 +109,15 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
                 }).collect();
                 
                 // Present template options
-                let template_idx = Select::new()
-                    .with_prompt("Select a template")
-                    .items(&template_names)
-                    .default(0)
-                    .interact()?;
+                let template_idx = if is_test_mode {
+                    0
+                } else {
+                    Select::new()
+                        .with_prompt("Select a template")
+                        .items(&template_names)
+                        .default(0)
+                        .interact()?
+                };
                 
                 templates[template_idx].0.clone()
             } else {
@@ -122,10 +137,14 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
                     "Convert to workspace structure",
                 ];
                 
-                let selections = MultiSelect::new()
-                    .with_prompt("Select components to add to your project")
-                    .items(&component_options)
-                    .interact()?;
+                let selections = if is_test_mode {
+                    vec![0, 1, 2, 3, 4, 5, 6]
+                } else {
+                    MultiSelect::new()
+                        .with_prompt("Select components to add to your project")
+                        .items(&component_options)
+                        .interact()?
+                };
                 
                 // Flag for custom mode
                 if !selections.is_empty() {
@@ -190,10 +209,14 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
         selected_template
     );
     
-    let proceed = Confirm::new()
-        .with_prompt(&confirm_msg)
-        .default(true)
-        .interact()?;
+    let proceed = if is_test_mode {
+        true
+    } else {
+        Confirm::new()
+            .with_prompt(&confirm_msg)
+            .default(true)
+            .interact()?
+    };
     
     if !proceed {
         println!("{}", "Transformation cancelled.".yellow());
@@ -256,7 +279,10 @@ fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
     
     Ok(ProjectStructure {
         root_path: project_dir.to_path_buf(),
-        project_name: project_dir.file_name().unwrap().to_str().unwrap().to_string(),
+        project_name: project_dir.file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
+            .to_string(),
         _has_database: has_database,
         has_libs,
         _has_binaries: has_binaries,
@@ -365,7 +391,9 @@ fn main() {{
     run();
 }}
 "#,
-            project_dir.file_name().unwrap().to_str().unwrap()
+            project_dir.file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
         );
         
         fs::write(main_path, new_main_content)
@@ -399,7 +427,7 @@ fn main() {{
             .context("Failed to update Cargo.toml")?;
     } else {
         // Not a binary, create a basic library
-        create_directory(project_dir.join("src").to_str().unwrap())?;
+        create_directory(&project_dir.join("src"))?;
         
         fs::write(
             project_dir.join("src").join("lib.rs"),
@@ -505,9 +533,17 @@ fn init_workspace(project_dir: &Path, structure: &ProjectStructure) -> Result<()
     {
         name_line.split('=').nth(1)
             .map(|s| s.trim().trim_matches('"').to_string())
-            .unwrap_or_else(|| project_dir.file_name().unwrap().to_str().unwrap().to_string())
+            .unwrap_or_else(|| {
+                project_dir.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "project".to_string())
+            })
     } else {
-        project_dir.file_name().unwrap().to_str().unwrap().to_string()
+        project_dir.file_name()
+            .and_then(|name| name.to_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "project".to_string())
     };
     
     // Create workspace Cargo.toml
@@ -527,7 +563,7 @@ anyhow = "1.0"
     // Create src directory if it doesn't exist
     let src_dir = project_dir.join("src");
     if !src_dir.exists() {
-        create_directory(src_dir.to_str().unwrap())?;
+        create_directory(&src_dir)?;
     }
     
     // Move current code to src directory if needed
@@ -560,13 +596,13 @@ pub fn add_client(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding client components...".blue());
     
     let client_dir = project_dir.join("client");
-    create_directory(client_dir.to_str().unwrap())?;
+    create_directory(&client_dir)?;
     
     // Create a default Dioxus app
     let app_name = "app";
     let app_dir = client_dir.join(app_name);
-    create_directory(app_dir.to_str().unwrap())?;
-    create_directory(app_dir.join("src").to_str().unwrap())?;
+    create_directory(&app_dir)?;
+    create_directory(&app_dir.join("src"))?;
     
     // Create Cargo.toml for the app
     let app_cargo_toml = r#"[package]
@@ -608,13 +644,13 @@ pub fn add_server(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding server components...".blue());
     
     let server_dir = project_dir.join("server");
-    create_directory(server_dir.to_str().unwrap())?;
+    create_directory(&server_dir)?;
     
     // Create a default API service
     let service_name = "api";
     let service_dir = server_dir.join(service_name);
-    create_directory(service_dir.to_str().unwrap())?;
-    create_directory(service_dir.join("src").to_str().unwrap())?;
+    create_directory(&service_dir)?;
+    create_directory(&service_dir.join("src"))?;
     
     // Create Cargo.toml for the service
     let service_cargo_toml = r#"[package]
@@ -646,13 +682,12 @@ async fn main() {
         .route("/", get(|| async { "Hello, World!" }))
         .route("/api/hello", get(hello));
 
-    // Run it with hyper on localhost:3000
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on http://{}", addr);
-    axum::Server::bind(&addr)
+    // Run the server
+    println!("Server starting at http://127.0.0.1:3000");
+    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap_or_else(|_| "0.0.0.0:3000".parse().unwrap()))
         .serve(app.into_make_service())
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 }
 
 #[derive(Serialize)]
@@ -676,13 +711,13 @@ pub fn add_libs(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding library components...".blue());
     
     let libs_dir = project_dir.join("libs");
-    create_directory(libs_dir.to_str().unwrap())?;
+    create_directory(&libs_dir)?;
     
     // Create core, models, and utils libraries
     for lib_name in &["core", "models", "utils"] {
         let lib_dir = libs_dir.join(lib_name);
-        create_directory(lib_dir.to_str().unwrap())?;
-        create_directory(lib_dir.join("src").to_str().unwrap())?;
+        create_directory(&lib_dir)?;
+        create_directory(&lib_dir.join("src"))?;
         
         // Create Cargo.toml for the library
         let lib_cargo_toml = format!(
@@ -722,13 +757,13 @@ pub fn add_ai(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding AI components...".blue());
     
     let ai_dir = project_dir.join("ai");
-    create_directory(ai_dir.to_str().unwrap())?;
+    create_directory(&ai_dir)?;
     
     // Create a default AI model
     let model_name = "inference";
     let model_dir = ai_dir.join(model_name);
-    create_directory(model_dir.to_str().unwrap())?;
-    create_directory(model_dir.join("src").to_str().unwrap())?;
+    create_directory(&model_dir)?;
+    create_directory(&model_dir.join("src"))?;
     
     // Create Cargo.toml for the model
     let model_cargo_toml = r#"[package]
@@ -780,7 +815,7 @@ mod tests {
     #[test]
     fn test_inference() {
         let model = Model::new("test-model");
-        let result = model.infer("Hello AI").unwrap();
+        let result = model.infer("Hello AI").expect("Inference should succeed");
         assert!(result.contains("Hello AI"));
     }
 }
@@ -795,13 +830,13 @@ pub fn add_edge(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding edge computing components...".blue());
     
     let edge_dir = project_dir.join("edge");
-    create_directory(edge_dir.to_str().unwrap())?;
+    create_directory(&edge_dir)?;
     
     // Create a default edge worker
     let worker_name = "worker";
     let worker_dir = edge_dir.join(worker_name);
-    create_directory(worker_dir.to_str().unwrap())?;
-    create_directory(worker_dir.join("src").to_str().unwrap())?;
+    create_directory(&worker_dir)?;
+    create_directory(&worker_dir.join("src"))?;
     
     // Create Cargo.toml for the worker
     let worker_cargo_toml = r#"[package]
@@ -850,13 +885,13 @@ pub fn add_embedded(project_dir: &Path) -> Result<()> {
     println!("{}", "Adding embedded systems components...".blue());
     
     let embedded_dir = project_dir.join("embedded");
-    create_directory(embedded_dir.to_str().unwrap())?;
+    create_directory(&embedded_dir)?;
     
     // Create a default embedded device
     let device_name = "device";
     let device_dir = embedded_dir.join(device_name);
-    create_directory(device_dir.to_str().unwrap())?;
-    create_directory(device_dir.join("src").to_str().unwrap())?;
+    create_directory(&device_dir)?;
+    create_directory(&device_dir.join("src"))?;
     
     // Create Cargo.toml for the device
     let device_cargo_toml = r#"[package]
