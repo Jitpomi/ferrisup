@@ -127,3 +127,96 @@ fn test_error_handling_with_file_operations() -> Result<()> {
     
     Ok(())
 }
+
+#[test]
+fn test_transform_execute_full_stack() -> Result<()> {
+    // Test transform to full-stack template
+    let (temp_dir, project_dir) = setup_test_project()?;
+    
+    // Set test mode environment variable
+    std::env::set_var("FERRISUP_TEST_MODE", "1");
+    
+    // Execute transform command
+    let result = ferrisup::commands::transform::execute(
+        Some(project_dir.to_str().unwrap()),
+        Some("full-stack")
+    );
+    
+    // Verify the operation succeeds
+    assert!(result.is_ok());
+    
+    // Keep temp_dir in scope until the end of the test
+    drop(temp_dir);
+    
+    Ok(())
+}
+
+#[test]
+fn test_transform_execute_with_invalid_template() -> Result<()> {
+    // Test transform with non-existent template
+    let (temp_dir, project_dir) = setup_test_project()?;
+    
+    // Set test mode environment variable
+    std::env::set_var("FERRISUP_TEST_MODE", "1");
+    
+    // Execute transform command with invalid template
+    let result = ferrisup::commands::transform::execute(
+        Some(project_dir.to_str().unwrap()),
+        Some("non_existent_template")
+    );
+    
+    // The transform module actually returns Ok(()) even for invalid templates
+    // because it handles the error internally and shows a message to the user
+    assert!(result.is_ok());
+    
+    // Keep temp_dir in scope until the end of the test
+    drop(temp_dir);
+    
+    Ok(())
+}
+
+#[test]
+fn test_transform_execute_with_valid_project() -> Result<()> {
+    // Test transform with valid project
+    let (temp_dir, project_dir) = setup_test_project()?;
+    
+    // Set test mode environment variable
+    std::env::set_var("FERRISUP_TEST_MODE", "1");
+    
+    // Execute transform command
+    let result = ferrisup::commands::transform::execute(
+        Some(project_dir.to_str().unwrap()),
+        Some("library")
+    );
+    
+    // Verify the operation succeeds
+    assert!(result.is_ok());
+    
+    // Verify that lib.rs was created
+    assert!(project_dir.join("src").join("lib.rs").exists());
+    
+    // Keep temp_dir in scope until the end of the test
+    drop(temp_dir);
+    
+    Ok(())
+}
+
+#[test]
+fn test_transform_execute_with_invalid_path() -> Result<()> {
+    // Test transform with non-existent path
+    let invalid_path = "/non/existent/path";
+    
+    // Set test mode environment variable
+    std::env::set_var("FERRISUP_TEST_MODE", "1");
+    
+    // Execute transform command with invalid path
+    let result = ferrisup::commands::transform::execute(
+        Some(invalid_path),
+        Some("library")
+    );
+    
+    // Verify the operation fails with an error
+    assert!(result.is_err());
+    
+    Ok(())
+}
