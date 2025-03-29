@@ -1125,6 +1125,16 @@ pub fn create_leptos_router_project(app_path: &Path) -> Result<()> {
     let src_dir = app_path.join("src");
     create_directory(&src_dir)?;
     
+    // Prompt for router feature
+    let router_features = vec!["csr", "hydrate"];
+    let router_feature = Select::new()
+        .with_prompt("Which feature would you like to enable for leptos_router?")
+        .items(&router_features)
+        .default(0)
+        .interact()?;
+    
+    println!("Using feature: {}", router_features[router_feature]);
+    
     // Create Cargo.toml with Leptos dependencies including routing
     let cargo_toml = format!(r#"[package]
 name = "{}"
@@ -1133,7 +1143,7 @@ edition = "2021"
 
 [dependencies]
 leptos = {{ version = "0.5", features = ["csr"] }}
-leptos_router = {{ version = "0.5", features = ["csr"] }}
+leptos_router = {{ version = "0.5", features = ["{}"] }}
 console_log = "1.0"
 log = "0.4"
 console_error_panic_hook = "0.1"
@@ -1142,7 +1152,7 @@ console_error_panic_hook = "0.1"
 opt-level = 'z'
 codegen-units = 1
 lto = true
-"#, app_name);
+"#, app_name, router_features[router_feature]);
 
     std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
     
