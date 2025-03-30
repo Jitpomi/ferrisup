@@ -408,7 +408,7 @@ pub fn execute(
                     command.arg("--template").arg(format!("{}-{}", ui_framework, ui_flavor));
                     command.arg("--manager").arg(package_manager);
                 } else if frontend_language == "rust" {
-                    command.arg("--template").arg(format!("rust-{}", ui_framework));
+                    command.arg("--template").arg(ui_framework);
                 }
                 
                 // Execute the command
