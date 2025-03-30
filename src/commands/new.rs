@@ -154,8 +154,304 @@ pub fn execute(
             };
             
             println!("🔧 Creating new Leptos project with {} template...", template);
+        } else if framework == "dioxus" {
+            // Use Dioxus CLI for project creation
+            println!("📦 Using Dioxus CLI to bootstrap the project");
+            
+            // Check if Dioxus CLI is installed
+            println!("🔍 Checking if Dioxus CLI is installed...");
+            
+            // Try with 'dioxus' command first (newer versions)
+            println!("🔍 Attempting to create Dioxus project");
+            let dioxus_result = Command::new("dioxus")
+                .args(["create", &name])
+                .status();
+                
+            match dioxus_result {
+                Ok(status) if status.success() => {
+                    println!("✅ Dioxus project created successfully using 'dioxus create'");
+                },
+                _ => {
+                    println!("⚠️ Error executing 'dioxus' command: {}", dioxus_result.err().map_or_else(|| "Unknown error".to_string(), |e| e.to_string()));
+                    
+                    // Try with 'dx' command next
+                    println!("🔄 Trying with 'dx' command instead...");
+                    let dx_new_result = Command::new("dx")
+                        .args(["new", &name])
+                        .status();
+                        
+                    match dx_new_result {
+                        Ok(status) if status.success() => {
+                            println!("✅ Dioxus project created successfully using 'dx new'");
+                        },
+                        _ => {
+                            // Print error status without consuming dx_new_result
+                            match &dx_new_result {
+                                Ok(status) => println!("⚠️ 'dx new' command failed with status: {}", status),
+                                Err(e) => println!("⚠️ 'dx new' command failed with error: {}", e),
+                            }
+                            
+                            // Final attempt with older dx CLI format
+                            println!("🔄 Trying older dx CLI format...");
+                            let dx_create_result = Command::new("dx")
+                                .args(["create", &name])
+                                .status();
+                                
+                            match dx_create_result {
+                                Ok(status) if status.success() => {
+                                    println!("✅ Dioxus project created successfully using 'dx create'");
+                                },
+                                _ => {
+                                    // Print error status without consuming dx_create_result
+                                    match &dx_create_result {
+                                        Ok(status) => println!("⚠️ 'dx create' command failed with status: {}", status),
+                                        Err(e) => println!("⚠️ 'dx create' command failed with error: {}", e),
+                                    }
+                                    
+                                    println!("⚠️ All Dioxus CLI commands failed");
+                                    println!("🔄 Falling back to manual Dioxus project creation...");
+                                    create_manual_dioxus_project(&app_path, &name)?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Ensure WASM target is installed
+            println!("🔧 Ensuring WASM target is installed...");
+            let _ = Command::new("rustup")
+                .args(["target", "add", "wasm32-unknown-unknown"])
+                .status();
+            
+            // Initialize git repository if requested
+            if git {
+                println!("🔄 Initializing git repository...");
+                let status = Command::new("git")
+                    .args(["init"])
+                    .current_dir(app_path)
+                    .status()?;
+                if !status.success() {
+                    println!("⚠️ Failed to initialize git repository");
+                } else {
+                    println!("✅ Git repository initialized");
+                }
+            }
+            
+            // Print success message with instructions
+            println!("\n🎉 Project {} created successfully!", name);
+            println!("\nNext steps:");
+            println!("  cd {}", name);
+            println!("  dx serve --hot-reload");
+            
+            return Ok(());
+        } else if framework == "tauri" {
+            // Use create-tauri-app for project creation
+            println!("📦 Using create-tauri-app to bootstrap the project");
+            
+            // First, prompt for frontend language
+            let frontend_languages = vec![
+                "TypeScript/JavaScript",
+                "Rust (Experimental)"
+            ];
+            
+            let language_selection = Select::new()
+                .with_prompt("Choose which language to use for your Tauri frontend")
+                .items(&frontend_languages)
+                .default(0)
+                .interact()?;
+            
+            let frontend_language = match language_selection {
+                0 => "js",
+                1 => "rust",
+                _ => "js",
+            };
+            
+            // For JavaScript frontend, prompt for package manager and UI framework
+            let mut package_manager = "npm";
+            let mut ui_framework = "react";
+            let mut ui_flavor = "ts";
+            
+            if frontend_language == "js" {
+                // Prompt for package manager
+                let package_managers = vec![
+                    "pnpm",
+                    "yarn",
+                    "npm",
+                    "bun"
+                ];
+                
+                let package_manager_selection = Select::new()
+                    .with_prompt("Choose your package manager")
+                    .items(&package_managers)
+                    .default(0)
+                    .interact()?;
+                
+                package_manager = package_managers[package_manager_selection];
+                
+                // Prompt for UI framework
+                let js_framework_options = vec![
+                    "React (JavaScript/TypeScript)",
+                    "Vue (JavaScript/TypeScript)",
+                    "Svelte (JavaScript/TypeScript)",
+                    "Preact (JavaScript/TypeScript)",
+                    "Solid (JavaScript/TypeScript)",
+                    "Qwik (JavaScript/TypeScript)",
+                    "Angular (JavaScript/TypeScript)",
+                    "Vanilla (JavaScript/TypeScript)",
+                    "None"
+                ];
+                
+                let js_selection = Select::new()
+                    .with_prompt("Choose your UI template")
+                    .items(&js_framework_options)
+                    .default(0)
+                    .interact()?;
+                
+                ui_framework = match js_selection {
+                    0 => "react",
+                    1 => "vue",
+                    2 => "svelte",
+                    3 => "preact",
+                    4 => "solid",
+                    5 => "qwik",
+                    6 => "angular",
+                    7 => "vanilla",
+                    8 => "none",
+                    _ => "react", // Default to React
+                };
+                
+                // If a UI framework is selected, prompt for JavaScript or TypeScript
+                if ui_framework != "none" {
+                    let flavor_options = vec![
+                        "TypeScript",
+                        "JavaScript"
+                    ];
+                    
+                    let flavor_selection = Select::new()
+                        .with_prompt("Choose JavaScript or TypeScript")
+                        .items(&flavor_options)
+                        .default(0)
+                        .interact()?;
+                    
+                    ui_flavor = match flavor_selection {
+                        0 => "ts",
+                        1 => "js",
+                        _ => "ts", // Default to TypeScript
+                    };
+                }
+            } else if frontend_language == "rust" {
+                // For Rust frontend, prompt for Rust UI framework
+                let rust_ui_frameworks = vec![
+                    "Vanilla (No framework)",
+                    "Yew",
+                    "Leptos",
+                    "Sycamore"
+                ];
+                
+                let rust_ui_selection = Select::new()
+                    .with_prompt("Choose your Rust UI framework")
+                    .items(&rust_ui_frameworks)
+                    .default(0)
+                    .interact()?;
+                
+                ui_framework = match rust_ui_selection {
+                    0 => "vanilla",
+                    1 => "yew",
+                    2 => "leptos",
+                    3 => "sycamore",
+                    _ => "vanilla", // Default to Vanilla
+                };
+            }
+            
+            // Check if create-tauri-app is installed
+            println!("🔍 Checking for create-tauri-app...");
+            let tauri_check = Command::new("create-tauri-app")
+                .arg("--version")
+                .output();
+                
+            let cta_installed = match tauri_check {
+                Ok(_) => {
+                    println!("✅ create-tauri-app is already installed");
+                    true
+                },
+                Err(_) => {
+                    println!("⚠️ create-tauri-app not found. Installing...");
+                    let status = Command::new("npm")
+                        .args(["install", "-g", "create-tauri-app"])
+                        .status()?;
+                        
+                    if !status.success() {
+                        println!("❌ Failed to install create-tauri-app.");
+                        println!("Please install it manually with: npm install -g create-tauri-app");
+                        return Err(anyhow!("Failed to install create-tauri-app"));
+                    } else {
+                        println!("✅ create-tauri-app installed successfully");
+                        true
+                    }
+                }
+            };
+            
+            if cta_installed {
+                // Remove the app directory if it exists to allow create-tauri-app to create it
+                if app_path.exists() {
+                    std::fs::remove_dir_all(app_path)?;
+                }
+                
+                // Build the create-tauri-app command with all the options
+                println!("🔧 Creating new Tauri project...");
+                let mut command = Command::new("create-tauri-app");
+                command.arg(&name);
+                
+                // Add template options based on selections
+                if frontend_language == "js" {
+                    command.arg("--template").arg(format!("{}-{}", ui_framework, ui_flavor));
+                    command.arg("--manager").arg(package_manager);
+                } else if frontend_language == "rust" {
+                    command.arg("--template").arg(format!("rust-{}", ui_framework));
+                }
+                
+                // Execute the command
+                let status = command.status()?;
+                
+                if !status.success() {
+                    return Err(anyhow!("Failed to create Tauri project"));
+                }
+                
+                println!("✅ Tauri project created successfully");
+                
+                // Initialize git repository if requested
+                if git {
+                    println!("🔄 Initializing git repository...");
+                    let status = Command::new("git")
+                        .args(["init"])
+                        .current_dir(app_path)
+                        .status()?;
+                    if !status.success() {
+                        println!("⚠️ Failed to initialize git repository");
+                    } else {
+                        println!("✅ Git repository initialized");
+                    }
+                }
+                
+                // Print success message with instructions
+                println!("\n🎉 Project {} created successfully!", name);
+                println!("\nNext steps:");
+                println!("  cd {}", name);
+                
+                if frontend_language == "js" {
+                    println!("  {} install", package_manager);
+                    println!("  {} run tauri dev", package_manager);
+                } else {
+                    println!("  cargo tauri dev");
+                }
+                
+                return Ok(());
+            } else {
+                return Err(anyhow!("Failed to set up create-tauri-app"));
+            }
         } else {
-            // If not Leptos, use the selected framework as the template
+            // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
             template = framework.to_string();
         }
     }
@@ -659,6 +955,11 @@ h1 {
     margin-bottom: 0.5rem;
 }
 
+p {
+    color: #64748b;
+    margin-bottom: 1.5rem;
+}
+
 .nav-links {
     display: flex;
     justify-content: center;
@@ -751,11 +1052,7 @@ footer {
     font-size: 0.9rem;
 }
 "#;
-
-    // Create assets directory
-    let assets_dir = app_path.join("assets");
-    create_directory(&assets_dir)?;
-    std::fs::write(assets_dir.join("leptos_app.css"), css_file)?;
+    std::fs::write(app_path.join("assets").join("leptos_app.css"), css_file)?;
     
     // Create Cargo.toml file
     let cargo_config = r#"[build]
@@ -776,6 +1073,7 @@ browserquery = "defaults"
 style_file = "assets/leptos_app.css"
 watch = ["src/**/*.rs", "assets/**/*"]
 "#, app_name);
+
     std::fs::write(app_path.join("Leptos.toml"), leptos_toml)?;
     
     // Create README.md
@@ -977,15 +1275,15 @@ main {
 .counter-container {
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 2rem;
     text-align: center;
 }
 
 h1 {
+    text-align: center;
     color: #2563eb;
     margin-top: 0;
-    margin-bottom: 0.5rem;
 }
 
 p {
@@ -997,46 +1295,19 @@ p {
     margin: 2rem 0;
 }
 
-.count-display {
-    background-color: #f1f5f9;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.count {
-    font-size: 4rem;
-    font-weight: bold;
-    color: #2563eb;
-}
-
-.buttons {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
 button {
     background-color: #3b82f6;
     color: white;
     border: none;
     border-radius: 4px;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
+    padding: 8px 16px;
     cursor: pointer;
+    font-size: 16px;
     transition: background-color 0.2s;
 }
 
 button:hover {
     background-color: #2563eb;
-}
-
-button.reset {
-    background-color: #64748b;
-}
-
-button.reset:hover {
-    background-color: #475569;
 }
 
 .counter-info {
@@ -1059,7 +1330,7 @@ button.reset:hover {
     // Create README.md
     let readme = format!(r#"# {} - Leptos Counter
 
-A simple counter application built with [Leptos](https://github.com/leptos-rs/leptos), demonstrating reactive state management.
+A Leptos application with a simple counter.
 
 ## Features
 
@@ -1073,17 +1344,13 @@ A simple counter application built with [Leptos](https://github.com/leptos-rs/le
 - Trunk: `cargo install trunk --locked`
 - WebAssembly target: `rustup target add wasm32-unknown-unknown`
 
-## Running the Application
+## Development
 
 ```bash
-# Navigate to the project directory
-cd {}
-
-# Start the development server
 trunk serve --open
 ```
 
-This will start a local development server and open the application in your default web browser.
+This will start a development server and open your application in a browser.
 
 ## Building for Production
 
@@ -1095,16 +1362,16 @@ This will create optimized WebAssembly files in the `dist` directory.
 
 ## Project Structure
 
-- `src/lib.rs`: Contains the counter component and application logic
+- `src/lib.rs`: Contains the main application logic and components
 - `src/main.rs`: Entry point that mounts the application to the DOM
 - `index.html`: HTML template with Trunk directives
-- `style.css`: Styling for the counter application
+- `style.css`: Styling for the application
 
 ## Learn More
 
 - [Leptos Documentation](https://leptos.dev/)
 - [Leptos GitHub Repository](https://github.com/leptos-rs/leptos)
-"#, app_name, app_name);
+"#, app_name);
     
     std::fs::write(app_path.join("README.md"), readme)?;
     
@@ -1133,7 +1400,8 @@ pub fn create_leptos_router_project(app_path: &Path) -> Result<()> {
         .default(0)
         .interact()?;
     
-    println!("Using feature: {}", router_features[router_feature]);
+    let selected_feature = router_features[router_feature];
+    println!("Using feature: {}", selected_feature);
     
     // Create Cargo.toml with Leptos dependencies including routing
     let cargo_toml = format!(r#"[package]
@@ -1142,7 +1410,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-leptos = {{ version = "0.5", features = ["csr"] }}
+leptos = {{ version = "0.5", features = ["{}"] }}
 leptos_router = {{ version = "0.5", features = ["{}"] }}
 console_log = "1.0"
 log = "0.4"
@@ -1152,86 +1420,13 @@ console_error_panic_hook = "0.1"
 opt-level = 'z'
 codegen-units = 1
 lto = true
-"#, app_name, router_features[router_feature]);
+"#, app_name, selected_feature, selected_feature);
 
     std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
     
-    // Create lib.rs with router component
-    let lib_rs = r#"use leptos::*;
-use leptos_router::*;
-
-// Home page component
-#[component]
-fn HomePage() -> impl IntoView {
-    view! {
-        <div class="page">
-            <h1>"Welcome to Leptos Router!"</h1>
-            <p>"This is the home page."</p>
-            <div class="counter-section">
-                <Counter/>
-            </div>
-        </div>
-    }
-}
-
-// About page component
-#[component]
-fn AboutPage() -> impl IntoView {
-    view! {
-        <div class="page">
-            <h1>"About"</h1>
-            <p>"This is a simple example of routing in Leptos."</p>
-            <p>"Try navigating between pages using the links in the navigation bar."</p>
-        </div>
-    }
-}
-
-// Counter component that can be used on any page
-#[component]
-fn Counter() -> impl IntoView {
-    let (count, set_count) = create_signal(0);
-    let on_click = move |_| set_count.update(|count| *count += 1);
-
-    view! {
-        <div class="counter">
-            <button on:click=on_click>"Click me: " {count}</button>
-        </div>
-    }
-}
-
-// Main app component with router
-#[component]
-pub fn App() -> impl IntoView {
-    view! {
-        <Router>
-            <div class="app-container">
-                <nav>
-                    <ul>
-                        <li><A href="/">"Home"</A></li>
-                        <li><A href="/about">"About"</A></li>
-                    </ul>
-                </nav>
-                
-                <main>
-                    <Routes>
-                        <Route path="/" view=HomePage/>
-                        <Route path="/about" view=AboutPage/>
-                    </Routes>
-                </main>
-                
-                <footer>
-                    <p>"Leptos Router Example"</p>
-                </footer>
-            </div>
-        </Router>
-    }
-}
-"#;
-
-    std::fs::write(src_dir.join("lib.rs"), lib_rs)?;
-    
-    // Create main.rs
+    // Create main.rs with routing
     let main_rs = format!(r#"use leptos::*;
+use leptos_router::*;
 use {}::App;
 
 fn main() {{
@@ -1245,116 +1440,112 @@ fn main() {{
 
     std::fs::write(src_dir.join("main.rs"), main_rs)?;
     
+    // Create lib.rs with routing components
+    let lib_rs = r#"use leptos::*;
+use leptos_router::*;
+
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <Router>
+            <main>
+                <Routes>
+                    <Route path="/" view=HomePage/>
+                    <Route path="/about" view=AboutPage/>
+                    <Route path="/*any" view=NotFound/>
+                </Routes>
+            </main>
+        </Router>
+    }
+}
+
+#[component]
+fn HomePage() -> impl IntoView {
+    view! {
+        <div class="page">
+            <h1>"Welcome to Leptos Router"</h1>
+            <p>"This is a simple example of routing with Leptos."</p>
+            <A href="/about">"About"</A>
+        </div>
+    }
+}
+
+#[component]
+fn AboutPage() -> impl IntoView {
+    view! {
+        <div class="page">
+            <h1>"About"</h1>
+            <p>"This is the about page."</p>
+            <A href="/">"Home"</A>
+        </div>
+    }
+}
+
+#[component]
+fn NotFound() -> impl IntoView {
+    view! {
+        <div class="page">
+            <h1>"404"</h1>
+            <p>"Page not found"</p>
+            <A href="/">"Go Home"</A>
+        </div>
+    }
+}
+"#;
+
+    std::fs::write(src_dir.join("lib.rs"), lib_rs)?;
+    
     // Create index.html
-    let index_html = r#"<!DOCTYPE html>
+    let index_html = format!(r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link data-trunk rel="rust" data-wasm-opt="z"/>
-    <link data-trunk rel="css" href="style.css"/>
-    <title>Leptos Router Example</title>
+    <title>{} - Leptos Router</title>
+    <style>
+        body {{
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .container {{
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }}
+        a {{
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4a6cf7;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }}
+        a:hover {{
+            background-color: #3a5ce7;
+        }}
+    </style>
 </head>
 <body>
-    <!-- This is where your Leptos app will be mounted -->
+    <div id="root"></div>
 </body>
 </html>
-"#;
+"#, app_name);
+
     std::fs::write(app_path.join("index.html"), index_html)?;
     
-    // Create style.css
-    let style_css = r#"html, body {
-    margin: 0;
-    padding: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-}
+    // Create README.md with instructions
+    let mut readme_content = format!(r#"# {}
 
-.app-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-nav {
-    background-color: #2563eb;
-    padding: 1rem;
-}
-
-nav ul {
-    list-style: none;
-    display: flex;
-    gap: 1rem;
-    margin: 0;
-    padding: 0;
-}
-
-nav li a {
-    color: white;
-    text-decoration: none;
-    font-weight: bold;
-}
-
-nav li a:hover {
-    text-decoration: underline;
-}
-
-main {
-    flex: 1;
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.page {
-    text-align: center;
-}
-
-h1 {
-    color: #2563eb;
-}
-
-.counter-section {
-    margin: 2rem 0;
-}
-
-.counter {
-    margin: 1rem 0;
-}
-
-button {
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.2s;
-}
-
-button:hover {
-    background-color: #2563eb;
-}
-
-footer {
-    background-color: #f1f5f9;
-    padding: 1rem;
-    text-align: center;
-    color: #64748b;
-}
-"#;
-    std::fs::write(app_path.join("style.css"), style_css)?;
-    
-    // Create README.md
-    let readme = format!(r#"# {} - Leptos Router Example
-
-A simple routing application built with [Leptos](https://github.com/leptos-rs/leptos) and [Leptos Router](https://github.com/leptos-rs/leptos/tree/main/router), demonstrating client-side navigation.
+A Leptos application with routing.
 
 ## Features
 
-- Multiple page routing with client-side navigation
-- Reusable counter component
-- Responsive layout with navigation bar
+- Multi-page application with routing
+- Client-side navigation
+- Clean, responsive UI
 
 ## Prerequisites
 
@@ -1362,17 +1553,13 @@ A simple routing application built with [Leptos](https://github.com/leptos-rs/le
 - Trunk: `cargo install trunk --locked`
 - WebAssembly target: `rustup target add wasm32-unknown-unknown`
 
-## Running the Application
+## Development
 
 ```bash
-# Navigate to the project directory
-cd {}
-
-# Start the development server
 trunk serve --open
 ```
 
-This will start a local development server and open the application in your default web browser.
+This will start a development server and open your application in a browser.
 
 ## Building for Production
 
@@ -1382,13 +1569,64 @@ trunk build --release
 
 This will create optimized WebAssembly files in the `dist` directory.
 
+## Project Structure
+
+- `src/lib.rs`: Contains the main application logic and components
+- `src/main.rs`: Entry point that mounts the application to the DOM
+- `index.html`: HTML template with Trunk directives
+- `style.css`: Styling for the application
+
 ## Learn More
 
 - [Leptos Documentation](https://leptos.dev/)
-- [Leptos Router Documentation](https://docs.rs/leptos_router/latest/leptos_router/)
-"#, app_name, app_name);
+- [Leptos GitHub Repository](https://github.com/leptos-rs/leptos)
+"#, app_name);
+
+    // Add note about hydrate feature if selected
+    if selected_feature == "hydrate" {
+        readme_content.push_str(r#"
+## Important Note About Hydration
+
+You've selected the "hydrate" feature for this project, which is designed for server-side rendering with client-side hydration. This requires:
+
+1. A server-side rendering environment
+2. Proper configuration for hydration
+
+For simple client-side development with Trunk, you may want to switch to the "csr" feature:
+
+1. Edit `Cargo.toml` and change:
+   ```toml
+   leptos = { version = "0.5", features = ["hydrate"] }
+   leptos_router = { version = "0.5", features = ["hydrate"] }
+   ```
+   to:
+   ```toml
+   leptos = { version = "0.5", features = ["csr"] }
+   leptos_router = { version = "0.5", features = ["csr"] }
+   ```
+
+2. Then run `trunk serve --open` as usual
+"#);
+    }
+
+    std::fs::write(app_path.join("README.md"), readme_content)?;
     
-    std::fs::write(app_path.join("README.md"), readme)?;
+    // Create .gitignore
+    let gitignore = r#"# Generated by Cargo
+/target/
+/dist/
+
+# Remove Cargo.lock from gitignore if creating an executable, keep it for libraries
+Cargo.lock
+
+# These are backup files generated by rustfmt
+**/*.rs.bk
+
+# Trunk artifacts
+.trunk/
+"#;
+
+    std::fs::write(app_path.join(".gitignore"), gitignore)?;
     
     println!("✅ Successfully created a Leptos router project");
     
@@ -1594,25 +1832,34 @@ pub fn App() -> impl IntoView {
                 <For
                     each=filtered_todos
                     key=|todo| todo.id.clone()
-                    let:todo
-                >
-                    <li class=move || if todo.completed { "completed" } else { "" }>
-                        <div class="todo-item">
-                            <input 
-                                type="checkbox" 
-                                prop:checked=todo.completed
-                                on:change=move |_| toggle_todo(todo.id.clone())
-                            />
-                            <span>{todo.text.clone()}</span>
-                            <button 
-                                class="delete"
-                                on:click=move |_| delete_todo(todo.id.clone())
-                            >
-                                "×"
-                            </button>
-                        </div>
-                    </li>
-                </For>
+                    children=move |todo| {
+                        let todo_id_for_toggle = todo.id.clone();
+                        let todo_id_for_delete = todo.id.clone();
+                        
+                        view! {
+                            <li class=move || if todo.completed { "completed" } else { "" }>
+                                <div class="todo-item">
+                                    <input 
+                                        type="checkbox" 
+                                        prop:checked=todo.completed
+                                        on:change=move |_| {
+                                            toggle_todo(todo_id_for_toggle.clone())
+                                        }
+                                    />
+                                    <span>{todo.text.clone()}</span>
+                                    <button 
+                                        class="delete"
+                                        on:click=move |_| {
+                                            delete_todo(todo_id_for_delete.clone())
+                                        }
+                                    >
+                                        "×"
+                                    </button>
+                                </div>
+                            </li>
+                        }
+                    }
+                />
             </ul>
             
             <div class="todo-count">
@@ -1682,6 +1929,11 @@ h1 {
     text-align: center;
     color: #2563eb;
     margin-top: 0;
+}
+
+p {
+    color: #64748b;
+    margin-bottom: 1.5rem;
 }
 
 .todo-form {
@@ -1808,9 +2060,7 @@ A feature-rich todo application built with [Leptos](https://github.com/leptos-rs
 
 - Add, toggle, and delete todos
 - Filter todos by status (All, Active, Completed)
-- Toggle all todos at once
 - Clear completed todos
-- Persistent count of remaining items
 - Responsive design
 
 ## Prerequisites
@@ -1822,14 +2072,11 @@ A feature-rich todo application built with [Leptos](https://github.com/leptos-rs
 ## Running the Application
 
 ```bash
-# Navigate to the project directory
 cd {}
-
-# Start the development server
 trunk serve --open
 ```
 
-This will start a local development server and open the application in your default web browser.
+This will start a development server and open your application in a browser.
 
 ## Building for Production
 
@@ -1881,43 +2128,22 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-axum = {{ version = "0.6", optional = true }}
-console_error_panic_hook = "0.1"
-console_log = "1"
-leptos = {{ version = "0.5", features = ["nightly"] }}
-leptos_axum = {{ version = "0.5", optional = true }}
-leptos_meta = {{ version = "0.5", features = ["nightly"] }}
-leptos_router = {{ version = "0.5", features = ["nightly"] }}
+leptos = {{ version = "0.5", features = ["csr", "ssr"] }}
+leptos_meta = {{ version = "0.5", features = ["csr", "ssr"] }}
+leptos_router = {{ version = "0.5", features = ["csr", "ssr"] }}
+leptos_axum = {{ version = "0.5" }}
+axum = "0.6"
+tokio = {{ version = "1", features = ["full"] }}
+tower = "0.4"
+tower-http = {{ version = "0.4", features = ["fs"] }}
+wasm-bindgen = "0.2"
 log = "0.4"
 simple_logger = "4"
-tokio = {{ version = "1", features = ["full"], optional = true }}
-tower = {{ version = "0.4", optional = true }}
-tower-http = {{ version = "0.4", features = ["fs"], optional = true }}
-wasm-bindgen = "=0.2.87"
+thiserror = "1"
 
-[features]
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
-ssr = [
-    "dep:axum",
-    "dep:tokio",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:leptos_axum",
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos_router/ssr",
-]
-
-[package.metadata.leptos]
-output-name = "{}"
-site-root = "target/site"
-site-pkg-dir = "pkg"
-style-file = "style/main.scss"
-assets-dir = "assets"
-site-addr = "127.0.0.1:3000"
-reload-port = 3001
-end-build-hook = "npx tailwindcss -i ./input.css -o ./style/main.scss"
-"#, app_name, app_name);
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+"#, app_name);
 
     std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
     
@@ -2020,8 +2246,9 @@ fn NotFound() -> impl IntoView {
     // Create main.rs for the server
     let main_rs = r#"use axum::{
     extract::{Extension, Path},
+    http::Request,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::post,
     Router,
 };
 use leptos::*;
@@ -2179,45 +2406,30 @@ A server-side rendered application built with [Leptos](https://github.com/leptos
 
 ## Features
 
-- Server-side rendering for improved performance and SEO
-- Client-side hydration for interactive components
-- Multi-page application with routing
-- Axum backend for handling API requests
-- Responsive design
+- Server-side rendering
+- Client-side hydration
+- API endpoints
+- Clean, responsive UI
 
 ## Prerequisites
 
 - Rust and Cargo
-- cargo-leptos: `cargo install cargo-leptos --locked`
 - WebAssembly target: `rustup target add wasm32-unknown-unknown`
 
 ## Running the Application
 
 ```bash
-# Navigate to the project directory
 cd {}
-
-# Start the development server
 cargo leptos watch
 ```
 
-This will start a local development server at http://127.0.0.1:3000.
+This will start a development server and open your application in a browser.
 
 ## Building for Production
 
 ```bash
 cargo leptos build --release
 ```
-
-This will create optimized files in the `target/site` directory.
-
-## Project Structure
-
-- `src/lib.rs`: Contains the main application components and routing
-- `src/main.rs`: Server implementation using Axum
-- `style/main.scss`: Main stylesheet for the application
-- `assets/`: Directory for static assets
-- `Leptos.toml`: Configuration file for cargo-leptos
 
 ## Learn More
 
@@ -2229,6 +2441,246 @@ This will create optimized files in the `target/site` directory.
     std::fs::write(app_path.join("README.md"), readme)?;
     
     println!("✅ Successfully created a Leptos SSR project");
+    
+    Ok(())
+}
+
+fn create_manual_dioxus_project(app_path: &Path, app_name: &str) -> Result<()> {
+    println!("⚠️ Creating manual Dioxus project structure");
+    
+    // Create src directory
+    let src_dir = app_path.join("src");
+    create_directory(&src_dir)?;
+    
+    // Create Cargo.toml
+    let cargo_toml = format!(r#"[package]
+name = "{}"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = "0.4"
+dioxus-web = "0.4"
+log = "0.4"
+"#, app_name);
+    
+    std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
+    
+    // Create main.rs
+    let main_rs = r#"use dioxus::prelude::*;
+
+fn main() {
+    // Init logger for debug info
+    dioxus_web::launch(App);
+}
+
+fn App() -> Element {
+    let mut count = use_signal(|| 0);
+
+    rsx! {
+        div { class: "container",
+            h1 { "Welcome to Dioxus!" }
+            p { "This is a simple counter example." }
+            
+            div { class: "counter",
+                button { 
+                    onclick: move |_| count -= 1,
+                    "Decrement" 
+                }
+                
+                span { class: "count", "{count}" }
+                
+                button { 
+                    onclick: move |_| count += 1,
+                    "Increment" 
+                }
+            }
+            
+            footer {
+                p { "Made with Dioxus" }
+            }
+        }
+    }
+}
+"#;
+    
+    std::fs::write(src_dir.join("main.rs"), main_rs)?;
+    
+    // Create index.html
+    let index_html = format!(r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{} - Dioxus App</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }}
+        
+        .container {{
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+        }}
+        
+        h1 {{
+            color: #2563eb;
+            margin-bottom: 1rem;
+        }}
+        
+        p {{
+            color: #64748b;
+            margin-bottom: 2rem;
+        }}
+        
+        .counter {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }}
+        
+        button {{
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }}
+        
+        button:hover {{
+            background-color: #2563eb;
+        }}
+        
+        .count {{
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2563eb;
+            min-width: 4rem;
+        }}
+        
+        footer {{
+            margin-top: 4rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }}
+    </style>
+</head>
+<body>
+    <div id="main"></div>
+</body>
+</html>
+"#, app_name);
+    
+    std::fs::write(app_path.join("index.html"), index_html)?;
+    
+    // Create Dioxus.toml configuration file
+    let dioxus_toml = r#"[application]
+name = "dioxus-app"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "public"
+
+[web.app]
+title = "Dioxus App"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "public"]
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+"#;
+    
+    std::fs::write(app_path.join("Dioxus.toml"), dioxus_toml)?;
+    
+    // Create README.md
+    let readme = format!(r#"# {} - Dioxus App
+
+A simple web application built with [Dioxus](https://dioxuslabs.com/).
+
+## Features
+
+- Simple counter example
+- Clean, responsive UI
+- Hot reloading during development
+
+## Prerequisites
+
+- Rust and Cargo
+- Dioxus CLI: `cargo install dioxus-cli --locked`
+- WebAssembly target: `rustup target add wasm32-unknown-unknown`
+
+## Running the Application
+
+```bash
+# Navigate to the project directory
+cd {}
+
+# Start the development server
+dx serve --hot-reload
+```
+
+This will start a local development server and open the application in your default web browser.
+
+## Building for Production
+
+```bash
+dx build --release
+```
+
+This will create optimized WebAssembly files in the `dist` directory.
+
+## Project Structure
+
+- `src/main.rs`: Contains the main application code and components
+- `index.html`: HTML template with styling
+- `Dioxus.toml`: Configuration file for the Dioxus CLI
+
+## Learn More
+
+- [Dioxus Documentation](https://dioxuslabs.com/docs/0.4/guide/en/)
+- [Dioxus GitHub Repository](https://github.com/DioxusLabs/dioxus)
+"#, app_name, app_name);
+    
+    std::fs::write(app_path.join("README.md"), readme)?;
+    
+    // Create .gitignore
+    let gitignore = r#"# Generated files
+/target/
+/dist/
+
+# Cargo lock file
+Cargo.lock
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+"#;
+    
+    std::fs::write(app_path.join(".gitignore"), gitignore)?;
+    
+    println!("✅ Successfully created manual Dioxus project structure");
     
     Ok(())
 }
