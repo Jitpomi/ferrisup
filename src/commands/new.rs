@@ -242,7 +242,7 @@ pub fn execute(
             println!("\n🎉 Project {} created successfully!", name);
             println!("\nNext steps:");
             println!("  cd {}", name);
-            println!("  dx serve --hot-reload");
+            println!("  dx serve --hot-reload true");
             
             return Ok(());
         } else if framework == "tauri" {
@@ -2983,7 +2983,7 @@ A simple web application built with [Dioxus](https://dioxuslabs.com/).
 cd {}
 
 # Start the development server
-dx serve --hot-reload
+dx serve --hot-reload true
 ```
 
 This will start a local development server and open your application in a browser.
