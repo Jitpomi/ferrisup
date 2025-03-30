@@ -296,7 +296,6 @@ pub fn execute(
                     "Svelte (JavaScript/TypeScript)",
                     "Preact (JavaScript/TypeScript)",
                     "Solid (JavaScript/TypeScript)",
-                    "Qwik (JavaScript/TypeScript)",
                     "Angular (JavaScript/TypeScript)",
                     "Vanilla (JavaScript/TypeScript)",
                     "None"
@@ -314,10 +313,9 @@ pub fn execute(
                     2 => "svelte",
                     3 => "preact",
                     4 => "solid",
-                    5 => "qwik",
-                    6 => "angular",
-                    7 => "vanilla",
-                    8 => "none",
+                    5 => "angular",
+                    6 => "vanilla",
+                    7 => "none",
                     _ => "react", // Default to React
                 };
                 
@@ -1944,7 +1942,7 @@ fn main() {{
 
 h1 {
     text-align: center;
-    color: #2563eb;
+    color: #333;
     margin-top: 0;
 }
 
