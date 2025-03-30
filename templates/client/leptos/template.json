@@ -1,0 +1,26 @@
+{
+  "name": "leptos",
+  "description": "Leptos - A fine-grained reactive web framework for Rust",
+  "templates": [
+    {
+      "name": "counter",
+      "description": "Simple counter with reactive state management"
+    },
+    {
+      "name": "router",
+      "description": "Multi-page application with client-side navigation"
+    },
+    {
+      "name": "todo",
+      "description": "Todo application with filtering capabilities"
+    },
+    {
+      "name": "ssr",
+      "description": "Server-side rendered application with Axum"
+    },
+    {
+      "name": "fullstack",
+      "description": "Complete application with API endpoints and server functions"
+    }
+  ]
+}

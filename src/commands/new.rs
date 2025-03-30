@@ -574,25 +574,28 @@ fn check_dependencies(template: &str) -> Result<()> {
     // Check for cargo-leptos (needed for ssr and fullstack templates)
     if template == "ssr" || template == "fullstack" {
         println!("🔍 Checking for cargo-leptos...");
-        let leptos_check = Command::new("cargo")
-            .args(["leptos", "--version"])
-            .output();
+        let cargo_install_output = Command::new("cargo")
+            .args(["install", "--list"])
+            .output()
+            .expect("Failed to execute cargo install --list");
         
-        match leptos_check {
-            Ok(_) => println!("✅ cargo-leptos is already installed"),
-            Err(_) => {
-                println!("⚠️ cargo-leptos not found. Installing...");
-                let status = Command::new("cargo")
-                    .args(["install", "cargo-leptos", "--locked"])
-                    .status()?;
-                
-                if !status.success() {
-                    println!("❌ Failed to install cargo-leptos.");
-                    println!("Please install it manually with: cargo install cargo-leptos --locked");
-                } else {
-                    println!("✅ cargo-leptos installed successfully");
-                }
+        let cargo_install_output_str = String::from_utf8_lossy(&cargo_install_output.stdout);
+        
+        if !cargo_install_output_str.contains("cargo-leptos") {
+            println!("⚠️ cargo-leptos not found. Installing...");
+            let install_result = Command::new("cargo")
+                .args(["install", "cargo-leptos"])
+                .status()
+                .expect("Failed to install cargo-leptos");
+            
+            if !install_result.success() {
+                println!("❌ Failed to install cargo-leptos.");
+                println!("Please install it manually with: cargo install cargo-leptos");
+            } else {
+                println!("✅ cargo-leptos installed successfully");
             }
+        } else {
+            println!("✅ cargo-leptos is already installed");
         }
     }
     
@@ -852,6 +855,13 @@ fn TasksPage() -> impl IntoView {
 // 404 - Not Found
 #[component]
 fn NotFound() -> impl IntoView {
+    // Set a response status
+    #[cfg(feature = "ssr")]
+    {
+        let resp = expect_context::<leptos_axum::ResponseOptions>();
+        resp.set_status(axum::http::StatusCode::NOT_FOUND);
+    }
+
     view! {
         <div class="container">
             <h1>"404 - Not Found"</h1>
@@ -885,12 +895,12 @@ async fn main() {
     simple_logger::init_with_level(log::Level::Info).expect("couldn't initialize logging");
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
-    let conf = get_configuration(None).await.unwrap();
+    let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
 
-    // build our application with a route
+    // build our app with a route
     let app = Router::new()
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
         .leptos_routes(
@@ -1370,7 +1380,7 @@ This will create optimized WebAssembly files in the `dist` directory.
 ## Learn More
 
 - [Leptos Documentation](https://leptos.dev/)
-- [Leptos GitHub Repository](https://github.com/leptos-rs/leptos)
+- [Reactive Primitives in Leptos](https://docs.rs/leptos/latest/leptos/primitives/index.html)
 "#, app_name);
     
     std::fs::write(app_path.join("README.md"), readme)?;
@@ -1388,10 +1398,6 @@ pub fn create_leptos_router_project(app_path: &Path) -> Result<()> {
         .and_then(|name| name.to_str())
         .unwrap_or("leptos_app");
     
-    // Create src directory
-    let src_dir = app_path.join("src");
-    create_directory(&src_dir)?;
-    
     // Prompt for router feature
     let router_features = vec!["csr", "hydrate"];
     let router_feature = Select::new()
@@ -1402,6 +1408,10 @@ pub fn create_leptos_router_project(app_path: &Path) -> Result<()> {
     
     let selected_feature = router_features[router_feature];
     println!("Using feature: {}", selected_feature);
+    
+    // Create src directory
+    let src_dir = app_path.join("src");
+    create_directory(&src_dir)?;
     
     // Create Cargo.toml with Leptos dependencies including routing
     let cargo_toml = format!(r#"[package]
@@ -1483,6 +1493,13 @@ fn AboutPage() -> impl IntoView {
 
 #[component]
 fn NotFound() -> impl IntoView {
+    // Set a response status
+    #[cfg(feature = "ssr")]
+    {
+        let resp = expect_context::<leptos_axum::ResponseOptions>();
+        resp.set_status(axum::http::StatusCode::NOT_FOUND);
+    }
+
     view! {
         <div class="page">
             <h1>"404"</h1>
@@ -1616,10 +1633,10 @@ For simple client-side development with Trunk, you may want to switch to the "cs
 /target/
 /dist/
 
-# Remove Cargo.lock from gitignore if creating an executable, keep it for libraries
+# Cargo.lock from the project
 Cargo.lock
 
-# These are backup files generated by rustfmt
+# Remove Cargo.lock from gitignore if creating an executable, keep it for libraries
 **/*.rs.bk
 
 # Trunk artifacts
@@ -2076,7 +2093,7 @@ cd {}
 trunk serve --open
 ```
 
-This will start a development server and open your application in a browser.
+This will start a local development server and open the application in your default web browser.
 
 ## Building for Production
 
@@ -2110,6 +2127,17 @@ This will create optimized WebAssembly files in the `dist` directory.
 pub fn create_leptos_ssr_project(app_path: &Path) -> Result<()> {
     println!("📝 Creating a Leptos SSR (Server-Side Rendering) project...");
     
+    // Prompt user to select server technology
+    let server_options = vec!["Axum", "Actix Web"];
+    let server_selection = Select::new()
+        .with_prompt("Select server technology for your Leptos SSR application")
+        .items(&server_options)
+        .default(0)
+        .interact()?;
+    
+    let server_tech = server_options[server_selection];
+    println!("🚀 Using {} as the server technology", server_tech);
+    
     let app_name = app_path.file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("leptos_app");
@@ -2119,7 +2147,8 @@ pub fn create_leptos_ssr_project(app_path: &Path) -> Result<()> {
     create_directory(&src_dir)?;
     
     // Create Cargo.toml with Leptos dependencies for SSR
-    let cargo_toml = format!(r#"[package]
+    let cargo_toml = match server_tech {
+        "Axum" => format!(r#"[package]
 name = "{}"
 version = "0.1.0"
 edition = "2021"
@@ -2128,214 +2157,512 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-leptos = {{ version = "0.5", features = ["csr", "ssr"] }}
-leptos_meta = {{ version = "0.5", features = ["csr", "ssr"] }}
-leptos_router = {{ version = "0.5", features = ["csr", "ssr"] }}
-leptos_axum = {{ version = "0.5" }}
-axum = "0.6"
-tokio = {{ version = "1", features = ["full"] }}
-tower = "0.4"
-tower-http = {{ version = "0.4", features = ["fs"] }}
-wasm-bindgen = "0.2"
-log = "0.4"
-simple_logger = "4"
-thiserror = "1"
+leptos = {{ version = "0.7.0" }}
+leptos_router = {{ version = "0.7.0" }}
+leptos_meta = {{ version = "0.7.0" }}
+axum = {{ version = "0.7", optional = true }}
+console_error_panic_hook = {{ version = "0.1", optional = true }}
+leptos_axum = {{ version = "0.7.0", optional = true }}
+tokio = {{ version = "1", features = ["rt-multi-thread"], optional = true }}
+wasm-bindgen = {{ version = "=0.2.100", optional = true }}
+serde = {{ version = "1.0", features = ["derive"] }}
 
-[dev-dependencies]
-wasm-bindgen-test = "0.3"
-"#, app_name);
+[features]
+hydrate = [
+    "leptos/hydrate",
+    "dep:console_error_panic_hook",
+    "dep:wasm-bindgen",
+]
+ssr = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:leptos_axum",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+]
 
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "{}"
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+# [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
+style-file = "style/main.scss"
+# Assets source dir. All files found here will be copied and synchronized to site-root.
+# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+assets-dir = "public"
+# The IP and port where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:3000"
+# The port to use for automatic reload monitoring
+reload-port = 3001
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+# Set by cargo-leptos watch when building with the option --release.
+watch = false
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+# The profile to use for the lib target when compiling for release
+#
+# Optional. Defaults to "release".
+lib-profile-release = "wasm-release"
+"#, app_name, app_name),
+        "Actix Web" => format!(r#"[package]
+name = "{}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = {{ version = "0.7.0" }}
+leptos_router = {{ version = "0.7.0" }}
+leptos_meta = {{ version = "0.7.0" }}
+actix-web = {{ version = "4.4", optional = true }}
+actix-files = {{ version = "0.6", optional = true }}
+console_error_panic_hook = {{ version = "0.1", optional = true }}
+leptos_actix = {{ version = "0.7.0", optional = true }}
+tokio = {{ version = "1", features = ["rt-multi-thread"], optional = true }}
+wasm-bindgen = {{ version = "=0.2.100", optional = true }}
+serde = {{ version = "1.0", features = ["derive"] }}
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+    "dep:console_error_panic_hook",
+    "dep:wasm-bindgen",
+]
+ssr = [
+    "dep:actix-web",
+    "dep:actix-files",
+    "dep:tokio",
+    "dep:leptos_actix",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+]
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "{}"
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+# [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
+style-file = "style/main.scss"
+# Assets source dir. All files found here will be copied and synchronized to site-root.
+# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+assets-dir = "public"
+# The IP and port where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:3000"
+# The port to use for automatic reload monitoring
+reload-port = 3001
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+# Set by cargo-leptos watch when building with the option --release.
+watch = false
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+# The profile to use for the lib target when compiling for release
+#
+# Optional. Defaults to "release".
+lib-profile-release = "wasm-release"
+"#, app_name, app_name),
+        _ => return Err(anyhow!("Unsupported server technology selected")),
+    };
+    
     std::fs::write(app_path.join("Cargo.toml"), cargo_toml)?;
     
-    // Create lib.rs with app component
-    let lib_rs = r#"use leptos::*;
-use leptos_meta::*;
-use leptos_router::*;
+    // Create app.rs with Leptos components
+    let app_rs = match server_tech {
+        "Axum" => format!(r#"use leptos::prelude::*;
+use leptos_meta::{{provide_meta_context, MetaTags, Stylesheet, Title}};
+use leptos_router::{{
+    components::{{Route, Router, Routes}},
+    StaticSegment,
+}};
+
+pub fn shell(options: LeptosOptions) -> impl IntoView {{
+    view! {{
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }}
+}}
 
 #[component]
-pub fn App() -> impl IntoView {
+pub fn App() -> impl IntoView {{
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
-    view! {
+    view! {{
         // injects a stylesheet into the document <head>
-        <Stylesheet id="leptos" href="/pkg/leptos_start.css"/>
+        // id=leptos means cargo-leptos will hot-reload this stylesheet
+        <Stylesheet id="leptos" href="/pkg/{}.css"/>
 
         // sets the document title
-        <Title text="Leptos SSR Starter"/>
+        <Title text="Welcome to Leptos"/>
 
         // content for this welcome page
         <Router>
             <main>
-                <Routes>
-                    <Route path="/" view=HomePage/>
-                    <Route path="/about" view=AboutPage/>
-                    <Route path="/*any" view=NotFound/>
+                <Routes fallback=|| "Page not found.".into_view()>
+                    <Route path=StaticSegment("") view=HomePage/>
+                    <Route path=StaticSegment("about") view=AboutPage/>
                 </Routes>
             </main>
         </Router>
-    }
-}
+    }}
+}}
 
-/// Renders the home page of the application.
+/// Renders the home page of your application.
 #[component]
-fn HomePage() -> impl IntoView {
+fn HomePage() -> impl IntoView {{
     // Creates a reactive value to update the button
-    let (count, set_count) = create_signal(0);
-    let on_click = move |_| set_count.update(|count| *count += 1);
+    let count = RwSignal::new(0);
+    let on_click = move |_| *count.write() += 1;
 
-    view! {
+    view! {{
         <div class="container">
-            <h1>"Welcome to Leptos with Server-Side Rendering"</h1>
-            <p>"This is a simple example of a Leptos application with server-side rendering."</p>
-            
-            <div class="counter">
-                <button on:click=on_click>"Click me: " {count}</button>
-            </div>
-            
-            <p>"Try refreshing the page to see that the counter state is preserved on the server."</p>
-            
+            <h1>"Welcome to Leptos!"</h1>
+            <button on:click=on_click>"Click Me: " {{count}}</button>
+            <p>"This is a simple Leptos application with server-side rendering."</p>
             <div class="navigation">
                 <a href="/about">"About"</a>
             </div>
         </div>
-    }
-}
+    }}
+}}
 
 /// Renders the about page.
 #[component]
-fn AboutPage() -> impl IntoView {
-    view! {
+fn AboutPage() -> impl IntoView {{
+    view! {{
         <div class="container">
             <h1>"About"</h1>
-            <p>"This is a server-side rendered Leptos application."</p>
-            <p>"Server-side rendering (SSR) provides several benefits:"</p>
+            <p>"This is a simple Leptos application with server-side rendering."</p>
+            <p>"Here are some key features of Leptos:"</p>
             <ul>
-                <li>"Better SEO as search engines can crawl the fully rendered content"</li>
-                <li>"Faster initial page load, especially on slower networks"</li>
-                <li>"Better accessibility for users who may not have JavaScript enabled"</li>
+                <li>"Fine-grained reactivity"</li>
+                <li>"Server-side rendering"</li>
+                <li>"Hydration"</li>
+                <li>"Server functions"</li>
             </ul>
+            
             <div class="navigation">
                 <a href="/">"Back to Home"</a>
             </div>
         </div>
-    }
-}
+    }}
+}}
+"#, app_name),
+        "Actix Web" => format!(r#"use leptos::prelude::*;
+use leptos_meta::{{provide_meta_context, MetaTags, Stylesheet, Title}};
+use leptos_router::{{
+    components::{{Route, Router, Routes}},
+    StaticSegment,
+}};
 
-/// 404 - Not Found
+pub fn shell(options: LeptosOptions) -> impl IntoView {{
+    view! {{
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }}
+}}
+
 #[component]
-fn NotFound() -> impl IntoView {
-    // set a status code
-    let resp = expect_context::<leptos_actix::ResponseOptions>();
-    resp.set_status(actix_web::http::StatusCode::NOT_FOUND);
+pub fn App() -> impl IntoView {{
+    // Provides context that manages stylesheets, titles, meta tags, etc.
+    provide_meta_context();
 
-    view! {
+    view! {{
+        // injects a stylesheet into the document <head>
+        // id=leptos means cargo-leptos will hot-reload this stylesheet
+        <Stylesheet id="leptos" href="/pkg/{}.css"/>
+
+        // sets the document title
+        <Title text="Welcome to Leptos"/>
+
+        // content for this welcome page
+        <Router>
+            <main>
+                <Routes fallback=|| "Page not found.".into_view()>
+                    <Route path=StaticSegment("") view=HomePage/>
+                    <Route path=StaticSegment("about") view=AboutPage/>
+                </Routes>
+            </main>
+        </Router>
+    }}
+}}
+
+/// Renders the home page of your application.
+#[component]
+fn HomePage() -> impl IntoView {{
+    // Creates a reactive value to update the button
+    let count = RwSignal::new(0);
+    let on_click = move |_| *count.write() += 1;
+
+    view! {{
         <div class="container">
-            <h1>"404 - Not Found"</h1>
-            <p>"The page you were looking for does not exist."</p>
+            <h1>"Welcome to Leptos!"</h1>
+            <button on:click=on_click>"Click Me: " {{count}}</button>
+            <p>"This is a simple Leptos application with server-side rendering."</p>
+            <div class="navigation">
+                <a href="/about">"About"</a>
+            </div>
+        </div>
+    }}
+}}
+
+/// Renders the about page.
+#[component]
+fn AboutPage() -> impl IntoView {{
+    view! {{
+        <div class="container">
+            <h1>"About"</h1>
+            <p>"This is a simple Leptos application with server-side rendering."</p>
+            <p>"Here are some key features of Leptos:"</p>
+            <ul>
+                <li>"Fine-grained reactivity"</li>
+                <li>"Server-side rendering"</li>
+                <li>"Hydration"</li>
+                <li>"Server functions"</li>
+            </ul>
+            
             <div class="navigation">
                 <a href="/">"Back to Home"</a>
             </div>
         </div>
-    }
-}
-"#;
+    }}
+}}
+"#, app_name),
+        _ => return Err(anyhow!("Unsupported server technology selected")),
+    };
+    
+    std::fs::write(src_dir.join("app.rs"), app_rs)?;
+    
+    // Create lib.rs with Leptos components
+    let lib_rs = format!(r#"pub mod app;
+
+#[cfg(feature = "hydrate")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {{
+    use crate::app::*;
+    console_error_panic_hook::set_once();
+    leptos::mount::hydrate_body(App);
+}}
+"#);
 
     std::fs::write(src_dir.join("lib.rs"), lib_rs)?;
     
-    // Create main.rs for the server
-    let main_rs = r#"use axum::{
-    extract::{Extension, Path},
-    http::Request,
-    response::{IntoResponse, Response},
-    routing::post,
-    Router,
-};
-use leptos::*;
-use leptos_axum::{generate_route_list, LeptosRoutes};
-use std::{env, sync::Arc};
-
+    // Create main.rs with server setup
+    let main_rs = match server_tech {
+        "Axum" => format!(r#"#[cfg(feature = "ssr")]
 #[tokio::main]
-async fn main() {
-    // Initialize logging
-    simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
+async fn main() {{
+    use axum::Router;
+    use leptos::logging::log;
+    use leptos::prelude::*;
+    use leptos_axum::{{generate_route_list, LeptosRoutes}};
+    use {}::app::*;
 
-    // Setting get_configuration(None) means we'll be using cargo-leptos's env values
-    let conf = get_configuration(None).await.unwrap();
+    let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
-    let routes = generate_route_list(|cx| view! { cx, <App/> }).await;
+    let routes = generate_route_list(App);
 
-    // build our application with a route
+    // build our app with a route
     let app = Router::new()
-        .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
-        .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
-        .fallback(get(file_and_error_handler))
+        .leptos_routes(&leptos_options, routes, {{
+            let leptos_options = leptos_options.clone();
+            move || shell(leptos_options.clone())
+        }})
+        .fallback(leptos_axum::file_and_error_handler(shell))
         .with_state(leptos_options);
 
-    // run our app with hyper
-    log::info!("listening on http://{}", &addr);
-    axum::Server::bind(&addr.parse().unwrap())
-        .serve(app.into_make_service())
+    // run our app
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    log!("listening on http://{{}}", &addr);
+    axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
-}
+}}
 
-async fn file_and_error_handler(
-    path: Path<String>,
-    options: Extension<Arc<LeptosOptions>>,
-) -> Response {
-    let root = options.site_root.clone();
-    let path = path.0;
+#[cfg(not(feature = "ssr"))]
+pub fn main() {{
+    // no client-side main function
+    // unless we want this to work with e.g., Trunk for pure client-side testing
+    // see lib.rs for hydration function instead
+}}
+"#, app_name),
+        "Actix Web" => format!(r#"#[cfg(feature = "ssr")]
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {{
+    use actix_files::Files;
+    use actix_web::{{web, App, HttpServer}};
+    use leptos::logging::log;
+    use leptos::prelude::*;
+    use leptos_actix::{{generate_route_list, LeptosRoutes}};
+    use {}::app::*;
 
-    // try to serve a static file
-    if let Ok(file) = leptos_axum::handle_static_file(format!("{root}/{path}")).await {
-        return file.into_response();
-    }
+    let conf = get_configuration(None).unwrap();
+    let leptos_options = conf.leptos_options;
+    let addr = leptos_options.site_addr;
+    let routes = generate_route_list(App);
 
-    // if that fails, render the app and return the response
-    let handler = leptos_axum::render_app_to_stream(options.to_owned(), |cx| view! { cx, <App/> });
-    handler.await.into_response()
-}
-"#;
+    // Set up HTTP server
+    log!("listening on http://{{}}", &addr);
+    HttpServer::new(move || {{
+        let leptos_options = leptos_options.clone();
+        let site_root = leptos_options.site_root.clone();
+        let routes = routes.clone();
 
+        App::new()
+            .route("/api/{{tail:.*}}", leptos_actix::handle_server_fns())
+            // serve JS/WASM/CSS from site_root
+            .service(Files::new("/pkg", format!("{{}}/pkg", site_root)))
+            .service(Files::new("/assets", format!("{{}}/assets", site_root)))
+            // serve other assets from the site_root
+            .leptos_routes(leptos_options.clone(), routes, {{
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
+            }})
+            .app_data(web::Data::new(leptos_options))
+    }})
+    .bind(&addr)?
+    .run()
+    .await
+}}
+
+#[cfg(not(feature = "ssr"))]
+pub fn main() {{
+    // no client-side main function
+    // unless we want this to work with e.g., Trunk for pure client-side testing
+    // see lib.rs for hydration function instead
+}}
+"#, app_name),
+        _ => return Err(anyhow!("Unsupported server technology selected")),
+    };
+    
     std::fs::write(src_dir.join("main.rs"), main_rs)?;
     
     // Create assets directory
     let assets_dir = app_path.join("assets");
-    create_directory(&assets_dir)?;
+    std::fs::create_dir_all(&assets_dir)?;
     
     // Create style directory
     let style_dir = app_path.join("style");
-    create_directory(&style_dir)?;
+    std::fs::create_dir_all(&style_dir)?;
     
-    // Create main.scss in style directory
-    let main_scss = r#"/* This file is for your main application styles */
-html, body {
+    let main_scss = r#"html, body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     margin: 0;
     padding: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
 }
 
 .container {
     max-width: 800px;
     margin: 0 auto;
     padding: 2rem;
-    text-align: center;
 }
 
 h1 {
-    color: #2563eb;
+    color: #333;
     margin-bottom: 1rem;
 }
 
 p {
     margin-bottom: 1rem;
-    line-height: 1.5;
-}
-
-.counter {
-    margin: 2rem 0;
 }
 
 button {
@@ -2343,9 +2670,9 @@ button {
     color: white;
     border: none;
     border-radius: 4px;
-    padding: 8px 16px;
+    padding: 0.5rem 1rem;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 1rem;
     transition: background-color 0.2s;
 }
 
@@ -2360,70 +2687,94 @@ button:hover {
 .navigation a {
     color: #3b82f6;
     text-decoration: none;
-    font-weight: bold;
+    margin-right: 1rem;
 }
 
 .navigation a:hover {
     text-decoration: underline;
 }
 
+.counter {
+    margin: 2rem 0;
+}
+
 ul {
-    text-align: left;
-    display: inline-block;
-    margin: 0 auto;
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
 }
 
 li {
     margin-bottom: 0.5rem;
 }
 "#;
+    
     std::fs::write(style_dir.join("main.scss"), main_scss)?;
     
-    // Create input.css for TailwindCSS (optional)
-    let input_css = r#"@tailwind base;
-@tailwind components;
-@tailwind utilities;
-"#;
-    std::fs::write(app_path.join("input.css"), input_css)?;
+    // Create public directory instead of assets (to match Leptos 0.7 conventions)
+    let public_dir = app_path.join("public");
+    std::fs::create_dir_all(&public_dir)?;
+    
+    // Create a simple favicon.ico in the public directory
+    let favicon_path = public_dir.join("favicon.ico");
+    if !favicon_path.exists() {
+        // Create an empty favicon.ico file
+        std::fs::write(favicon_path, &[])?;
+    }
     
     // Create Leptos config file
     let leptos_config = r#"{
   "site-root": "target/site",
   "site-pkg-dir": "pkg",
   "style-file": "style/main.scss",
-  "assets-dir": "assets",
+  "assets-dir": "public",
   "site-addr": "127.0.0.1:3000",
   "reload-port": 3001,
-  "end-build-hook": "npx tailwindcss -i ./input.css -o ./style/main.scss"
-}
-"#;
+  "browserquery": "defaults",
+  "watch": false,
+  "env": "DEV"
+}"#;
     std::fs::write(app_path.join("Leptos.toml"), leptos_config)?;
     
+    // Create .gitignore
+    let gitignore = r#"# Generated files
+/target/
+/pkg/
+/dist/
+
+# Cargo lock file
+Cargo.lock
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+"#;
+    
+    std::fs::write(app_path.join(".gitignore"), gitignore)?;
+    
     // Create README.md
-    let readme = format!(r#"# {} - Leptos SSR Project
+    let readme = format!(r#"# {}
 
-A server-side rendered application built with [Leptos](https://github.com/leptos-rs/leptos) and [Axum](https://github.com/tokio-rs/axum).
+A Leptos SSR application using {} as the server technology.
 
-## Features
+## Getting Started
 
-- Server-side rendering
-- Client-side hydration
-- API endpoints
-- Clean, responsive UI
+1. Install Rust and cargo-leptos:
+   ```bash
+   rustup update
+   cargo install cargo-leptos --locked
+   ```
 
-## Prerequisites
+2. Run the development server:
+   ```bash
+   cargo leptos watch
+   ```
 
-- Rust and Cargo
-- WebAssembly target: `rustup target add wasm32-unknown-unknown`
-
-## Running the Application
-
-```bash
-cd {}
-cargo leptos watch
-```
-
-This will start a development server and open your application in a browser.
+3. Open your browser and navigate to http://localhost:3000
 
 ## Building for Production
 
@@ -2431,21 +2782,22 @@ This will start a development server and open your application in a browser.
 cargo leptos build --release
 ```
 
-## Learn More
+## Features
 
-- [Leptos Documentation](https://leptos.dev/)
-- [Leptos SSR Guide](https://book.leptos.dev/server/index.html)
-- [Axum Documentation](https://docs.rs/axum/latest/axum/)
-"#, app_name, app_name);
-    
+- Server-side rendering with {}
+- Hydration for client-side interactivity
+- Routing with leptos_router
+- Styling with SCSS
+"#, app_name, server_tech, server_tech);
+
     std::fs::write(app_path.join("README.md"), readme)?;
     
-    println!("✅ Successfully created a Leptos SSR project");
-    
+    println!("✅ Leptos SSR project with {} created successfully", server_tech);
     Ok(())
 }
 
-fn create_manual_dioxus_project(app_path: &Path, app_name: &str) -> Result<()> {
+// Helper function to create a manual Dioxus project
+pub fn create_manual_dioxus_project(app_path: &Path, app_name: &str) -> Result<()> {
     println!("⚠️ Creating manual Dioxus project structure");
     
     // Create src directory
@@ -2583,7 +2935,7 @@ fn App() -> Element {
 </body>
 </html>
 "#, app_name);
-    
+
     std::fs::write(app_path.join("index.html"), index_html)?;
     
     // Create Dioxus.toml configuration file
@@ -2606,7 +2958,7 @@ script = []
 
 [web.resource.dev]
 "#;
-    
+
     std::fs::write(app_path.join("Dioxus.toml"), dioxus_toml)?;
     
     // Create README.md
@@ -2626,7 +2978,7 @@ A simple web application built with [Dioxus](https://dioxuslabs.com/).
 - Dioxus CLI: `cargo install dioxus-cli --locked`
 - WebAssembly target: `rustup target add wasm32-unknown-unknown`
 
-## Running the Application
+## Development
 
 ```bash
 # Navigate to the project directory
@@ -2636,7 +2988,7 @@ cd {}
 dx serve --hot-reload
 ```
 
-This will start a local development server and open the application in your default web browser.
+This will start a local development server and open your application in a browser.
 
 ## Building for Production
 
@@ -2649,7 +3001,7 @@ This will create optimized WebAssembly files in the `dist` directory.
 ## Project Structure
 
 - `src/main.rs`: Contains the main application code and components
-- `index.html`: HTML template with styling
+- `index.html`: HTML template with Trunk directives
 - `Dioxus.toml`: Configuration file for the Dioxus CLI
 
 ## Learn More
