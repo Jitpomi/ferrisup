@@ -4,7 +4,7 @@ use dialoguer::{Confirm, Input, MultiSelect, Select};
 use std::path::PathBuf;
 use std::fs;
 
-use crate::templates::list_templates;
+use crate::template_manager::list_templates;
 
 pub fn execute() -> Result<()> {
     println!("{}", "FerrisUp Interactive Project Builder".bold().green());

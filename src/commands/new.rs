@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::Command;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
-use crate::templates;
+use crate::template_manager;
 
 // Helper function to create a directory
 fn create_directory(path: &Path) -> Result<()> {
@@ -50,7 +50,7 @@ pub fn execute(
             }
             
             // Get available templates from the templates module
-            let templates_with_desc = templates::list_templates()?;
+            let templates_with_desc = template_manager::list_templates()?;
             let templates: Vec<&str> = templates_with_desc.iter().map(|(name, _)| name.as_str()).collect();
             
             let selection = Select::new()
@@ -1290,7 +1290,7 @@ main {
 
 h1 {
     text-align: center;
-    color: #2563eb;
+    color: #333;
     margin-top: 0;
 }
 

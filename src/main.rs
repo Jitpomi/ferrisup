@@ -4,7 +4,7 @@ use colored::*;
 
 mod commands;
 mod config;
-pub mod templates;
+pub mod template_manager;
 mod utils;
 
 #[derive(Parser)]

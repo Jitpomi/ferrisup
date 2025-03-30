@@ -3,7 +3,7 @@ use colored::Colorize;
 use dialoguer::{Confirm, Select};
 use std::collections::HashMap;
 
-use crate::templates::{get_template, list_templates};
+use crate::template_manager::{get_template, list_templates};
 use crate::config::{Config, Components, Client, Server, Database, AI, Edge, Embedded};
 
 /// Execute the preview command to visualize a template without actually creating files

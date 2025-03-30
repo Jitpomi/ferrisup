@@ -1,7 +1,7 @@
 use anyhow::Result;
 use colored::*;
 
-use crate::templates::get_all_templates;
+use crate::template_manager::get_all_templates;
 
 pub fn execute() -> Result<()> {
     let templates = get_all_templates()?;

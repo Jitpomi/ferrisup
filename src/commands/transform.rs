@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use colored::*;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
 
-use crate::templates::{get_template, list_templates};
+use crate::template_manager::{get_template, list_templates};
 use crate::utils::{create_directory, read_cargo_toml, update_workspace_members};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
