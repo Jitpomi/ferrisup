@@ -1,0 +1,11 @@
+{
+  "site-root": "target/site",
+  "site-pkg-dir": "pkg",
+  "style-file": "style/main.scss",
+  "assets-dir": "public",
+  "site-addr": "127.0.0.1:3000",
+  "reload-port": 3001,
+  "browserquery": "defaults",
+  "watch": false,
+  "env": "DEV"
+}

@@ -1,0 +1,41 @@
+# {{project_name}}
+
+A Leptos Fullstack application using Actix Web as the server technology.
+
+## Features
+
+- Server-side rendering with Actix Web
+- Server functions for backend API calls
+- Hydration for client-side interactivity
+- Routing with leptos_router
+- Styling with SCSS
+- Todo application example with CRUD operations
+
+## Getting Started
+
+1. Install Rust and cargo-leptos:
+   ```bash
+   rustup update
+   cargo install cargo-leptos --locked
+   ```
+
+2. Run the development server:
+   ```bash
+   cargo leptos watch
+   ```
+
+3. Open your browser and navigate to http://localhost:3000
+
+## Building for Production
+
+```bash
+cargo leptos build --release
+```
+
+## Project Structure
+
+- `src/app.rs` - Contains the main application components and UI
+- `src/api.rs` - Contains server functions that can be called from the client
+- `src/lib.rs` - Library entry point with hydration setup
+- `src/main.rs` - Server entry point
+- `style/main.scss` - Styling for the application

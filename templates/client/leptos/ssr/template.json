@@ -1,0 +1,81 @@
+{
+  "name": "ssr",
+  "description": "Server-side rendered Leptos application",
+  "files": [
+    {
+      "source": "Cargo.toml",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "src/app.rs",
+      "target": "src/app.rs"
+    },
+    {
+      "source": "src/lib.rs",
+      "target": "src/lib.rs"
+    },
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "style/main.scss",
+      "target": "style/main.scss"
+    },
+    {
+      "source": "Leptos.toml",
+      "target": "Leptos.toml"
+    },
+    {
+      "source": ".gitignore",
+      "target": ".gitignore"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "dependencies": {
+    "axum": [
+      "leptos = { version = \"0.7.8\" }",
+      "leptos_router = { version = \"0.7.8\" }",
+      "leptos_meta = { version = \"0.7.8\" }",
+      "axum = { version = \"0.7\", optional = true }",
+      "console_error_panic_hook = { version = \"0.1.7\", optional = true }",
+      "leptos_axum = { version = \"0.7.8\", optional = true }",
+      "tokio = { version = \"1.39\", features = [\"rt-multi-thread\"], optional = true }",
+      "wasm-bindgen = { version = \"0.2.93\", optional = true }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "http = \"1.1\"",
+      "futures = \"0.3.30\""
+    ],
+    "actix": [
+      "leptos = { version = \"0.7.8\" }",
+      "leptos_router = { version = \"0.7.8\" }",
+      "leptos_meta = { version = \"0.7.8\" }",
+      "actix-web = { version = \"4.4\", optional = true }",
+      "actix-files = { version = \"0.6\", optional = true }",
+      "console_error_panic_hook = { version = \"0.1.7\", optional = true }",
+      "leptos_actix = { version = \"0.7.8\", optional = true }",
+      "tokio = { version = \"1.39\", features = [\"rt-multi-thread\"], optional = true }",
+      "wasm-bindgen = { version = \"0.2.93\", optional = true }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "http = \"1.1\"",
+      "futures = \"0.3.30\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": []
+  },
+  "options": [
+    {
+      "name": "server_tech",
+      "description": "Server technology to use",
+      "type": "select",
+      "options": ["Axum", "Actix Web"],
+      "default": "Axum"
+    }
+  ]
+}

@@ -1,9 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use colored::Colorize;
 use dialoguer::{Confirm, Select};
 use std::collections::HashMap;
+use std::path::Path;
 
-use crate::template_manager::{get_template, list_templates};
+use crate::template_manager::{get_template, list_templates, find_template_directory};
 use crate::config::{Config, Components, Client, Server, Database, AI, Edge, Embedded};
 
 /// Execute the preview command to visualize a template without actually creating files
@@ -66,7 +67,12 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
         .interact()?
     {
         // Call the new command with the selected template
-        crate::commands::new::execute(None, Some(&selected_template), false, false, false)?;
+        println!("Using template: {}", selected_template);
+        
+        // Create a temporary project with the selected template
+        if let Err(e) = crate::commands::new::execute(None, Some(&selected_template), false, false, false, None) {
+            return Err(anyhow!("Failed to create preview: {}", e));
+        }
     }
     
     Ok(())
@@ -296,77 +302,99 @@ fn generate_project_tree(config: &Config) -> String {
 
 /// Display notable features for a given template
 fn display_template_features(template_name: &str, config: &Config) {
-    let features = match template_name {
-        "minimal" => vec![
-            "Single binary application",
-            "Clean workspace structure",
-            "Ready for expansion",
-        ],
-        "library" => vec![
-            "Library crate with lib.rs",
-            "Documentation setup",
-            "Test infrastructure",
-        ],
-        "full-stack" => vec![
-            "Client applications using Dioxus/Tauri",
-            "Server services with Poem/Axum",
-            "Shared libraries for code reuse",
-            "Database integration",
-            "Workspace structure for efficient development",
-        ],
-        "gen-ai" => vec![
-            "AI model integration (LLaMA, BERT, Whisper, Stable Diffusion)",
-            "Inference server architecture",
-            "Model management and serving",
-            "Web UI for interaction",
-        ],
-        "edge-app" => vec![
-            "WebAssembly compilation targets",
-            "Edge deployment configurations", 
-            "Cloudflare Workers integration",
-            "Deno Deploy support",
-        ],
-        "embedded" => vec![
-            "No-std Rust configuration",
-            "Hardware abstraction layers",
-            "Memory-safe peripheral management",
-            "Support for RP2040, ESP32, STM32, Arduino",
-        ],
-        "iot-device" => vec![
-            "Connectivity protocols (MQTT, HTTP, BLE)",
-            "Secure boot and OTA updates",
-            "Power management utilities",
-            "Server integration for device management",
-        ],
-        "serverless" => vec![
-            "AWS Lambda/Azure Functions compatible",
-            "Deployment configurations",
-            "Local development environment",
-            "Database connectors for serverless",
-        ],
-        "ml-pipeline" => vec![
-            "Data ingestion components",
-            "Transformation pipeline",
-            "Model training infrastructure",
-            "Inference API endpoints",
-        ],
-        "data-science" => vec![
-            "Data loading and processing utilities",
-            "Statistical analysis components",
-            "Visualization and reporting tools",
-            "Integration with popular data science libraries",
-        ],
-        _ => vec![
-            "Basic Rust project structure",
-            "Command-line interface",
-        ],
+    let mut features_from_metadata = Vec::new();
+    
+    if let Ok(template_dir) = find_template_directory(template_name) {
+        let template_json_path = template_dir.join("template.json");
+        if template_json_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&template_json_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(features) = json.get("features").and_then(|f| f.as_array()) {
+                        for feature in features {
+                            if let Some(feature_str) = feature.as_str() {
+                                features_from_metadata.push(feature_str.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    let features = if !features_from_metadata.is_empty() {
+        features_from_metadata.iter().map(|s| s.as_str()).collect::<Vec<&str>>()
+    } else {
+        match template_name {
+            "minimal" => vec![
+                "Single binary application",
+                "Clean workspace structure",
+                "Ready for expansion",
+            ],
+            "library" => vec![
+                "Library crate with lib.rs",
+                "Documentation setup",
+                "Test infrastructure",
+            ],
+            "full-stack" => vec![
+                "Client applications using Dioxus/Tauri",
+                "Server services with Poem/Axum",
+                "Shared libraries for code reuse",
+                "Database integration",
+                "Workspace structure for efficient development",
+            ],
+            "gen-ai" => vec![
+                "AI model integration (LLaMA, BERT, Whisper, Stable Diffusion)",
+                "Inference server architecture",
+                "Model management and serving",
+                "Web UI for interaction",
+            ],
+            "edge-app" => vec![
+                "WebAssembly compilation targets",
+                "Edge deployment configurations", 
+                "Cloudflare Workers integration",
+                "Deno Deploy support",
+            ],
+            "embedded" => vec![
+                "No-std Rust configuration",
+                "Hardware abstraction layers",
+                "Memory-safe peripheral management",
+                "Support for RP2040, ESP32, STM32, Arduino",
+            ],
+            "iot-device" => vec![
+                "Connectivity protocols (MQTT, HTTP, BLE)",
+                "Secure boot and OTA updates",
+                "Power management utilities",
+                "Server integration for device management",
+            ],
+            "serverless" => vec![
+                "AWS Lambda/Azure Functions compatible",
+                "Deployment configurations",
+                "Local development environment",
+                "Database connectors for serverless",
+            ],
+            "ml-pipeline" => vec![
+                "Data ingestion components",
+                "Transformation pipeline",
+                "Model training infrastructure",
+                "Inference API endpoints",
+            ],
+            "data-science" => vec![
+                "Data loading and processing utilities",
+                "Statistical analysis components",
+                "Visualization and reporting tools",
+                "Integration with popular data science libraries",
+            ],
+            _ => vec![
+                "Basic Rust project structure",
+                "Command-line interface",
+            ],
+        }
     };
     
     for feature in features {
         println!("  ✓ {}", feature);
     }
     
-    // Show tech stack based on config components
     println!("\n{}", "Technology Stack:".bold());
     
     if let Some(client) = &config.components.client {
@@ -401,17 +429,59 @@ fn display_template_features(template_name: &str, config: &Config) {
 
 /// Display sample files from the template
 fn display_sample_files(template_name: &str) {
-    let sample_files = match template_name {
-        "minimal" => {
-            let mut files = HashMap::new();
-            files.insert("src/main.rs", r#"fn main() {
+    println!("  📄 Sample files from template:");
+    
+    if let Ok(template_dir) = find_template_directory(template_name) {
+        let key_files = vec![
+            "src/main.rs",
+            "src/lib.rs",
+            "Cargo.toml",
+            "README.md",
+            "index.html",
+            "style.css"
+        ];
+        
+        let mut found_files = false;
+        
+        for file in key_files {
+            let file_path = template_dir.join(file);
+            if file_path.exists() && file_path.is_file() {
+                found_files = true;
+                
+                println!("\n{} {}", "File:".cyan().bold(), file.cyan());
+                println!("{}", "----------------------------------------".dimmed());
+                
+                match std::fs::read_to_string(&file_path) {
+                    Ok(content) => {
+                        let preview_content = if content.len() > 500 {
+                            format!("{}...\n(Content truncated, showing first 500 characters)", &content[..500])
+                        } else {
+                            content
+                        };
+                        println!("{}", preview_content);
+                    },
+                    Err(_) => println!("(Unable to read file content)"),
+                }
+                
+                println!("{}", "----------------------------------------".dimmed());
+            }
+        }
+        
+        if !found_files {
+            println!("  (No sample files found in template)");
+        }
+    } else {
+        let sample_files = match template_name {
+            "minimal" => {
+                let mut files = HashMap::new();
+                files.insert("src/main.rs", r#"fn main() {
     println!("Hello from FerrisUp minimal project!");
 }"#);
-            files
-        },
-        "library" => {
-            let mut files = HashMap::new();
-            files.insert("src/lib.rs", r#"//! Library crate
+                files
+            },
+            "library" => {
+                let mut files = HashMap::new();
+                files.insert("src/lib.rs", r#"//! Library crate
 /// Example function
 pub fn hello() -> &'static str {
     "Hello from FerrisUp library!"
@@ -426,11 +496,11 @@ mod tests {
         assert_eq!(hello(), "Hello from FerrisUp library!");
     }
 }"#);
-            files
-        },
-        "full-stack" => {
-            let mut files = HashMap::new();
-            files.insert("client/web/src/main.rs", r#"use dioxus::prelude::*;
+                files
+            },
+            "full-stack" => {
+                let mut files = HashMap::new();
+                files.insert("client/web/src/main.rs", r#"use dioxus::prelude::*;
 
 fn main() {
     dioxus::web::launch(App);
@@ -441,8 +511,8 @@ fn App(cx: Scope) -> Element {
         div { "Hello from Dioxus!" }
     })
 }"#);
-            
-            files.insert("server/api/src/main.rs", r#"use poem::{get, handler, Route, Server};
+                
+                files.insert("server/api/src/main.rs", r#"use poem::{get, handler, Route, Server};
 use poem::web::{Html, Path};
 
 #[handler]
@@ -459,11 +529,11 @@ async fn main() -> Result<(), std::io::Error> {
         .run(app)
         .await
 }"#);
-            files
-        },
-        _ => {
-            let mut files = HashMap::new();
-            files.insert("README.md", r#"# Custom Project
+                files
+            },
+            _ => {
+                let mut files = HashMap::new();
+                files.insert("README.md", r#"# Custom Project
 
 A Rust project created with FerrisUp.
 
@@ -481,15 +551,16 @@ cargo build
 cargo test
 cargo run
 ```"#);
-            files
+                files
+            }
+        };
+        
+        for (path, content) in sample_files {
+            println!("\n{} {}", "File:".cyan().bold(), path.cyan());
+            println!("{}", "----------------------------------------".dimmed());
+            println!("{}", content);
+            println!("{}", "----------------------------------------".dimmed());
         }
-    };
-    
-    for (path, content) in sample_files {
-        println!("\n{} {}", "File:".cyan().bold(), path.cyan());
-        println!("{}", "----------------------------------------".dimmed());
-        println!("{}", content);
-        println!("{}", "----------------------------------------".dimmed());
     }
 }
 
@@ -499,14 +570,12 @@ mod tests {
     
     #[test]
     fn test_create_preview_config() {
-        // Test minimal template
         let config = create_preview_config("minimal").expect("Should create minimal preview config");
         assert_eq!(config.project_name, "example_project");
         assert_eq!(config.template, "minimal");
         assert!(config.components.client.is_none());
         assert!(config.components.server.is_none());
         
-        // Test full-stack template
         let config = create_preview_config("full-stack").expect("Should create full-stack preview config");
         assert_eq!(config.project_name, "example_project");
         assert_eq!(config.template, "full-stack");
@@ -519,7 +588,6 @@ mod tests {
             assert!(client.frameworks.contains(&"dioxus".to_string()));
         }
         
-        // Test gen-ai template
         let config = create_preview_config("gen-ai").expect("Should create gen-ai preview config");
         assert_eq!(config.template, "gen-ai");
         assert!(config.components.ai.is_some());
@@ -531,7 +599,6 @@ mod tests {
     
     #[test]
     fn test_generate_project_tree() {
-        // Test minimal template tree generation
         let config = create_preview_config("minimal").expect("Should create minimal preview config");
         let tree = generate_project_tree(&config);
         
@@ -540,7 +607,6 @@ mod tests {
         assert!(tree.contains("src/"));
         assert!(tree.contains("main.rs"));
         
-        // Test library template tree generation
         let config = create_preview_config("library").expect("Should create library preview config");
         let tree = generate_project_tree(&config);
         
@@ -549,27 +615,18 @@ mod tests {
         assert!(tree.contains("src/"));
         assert!(tree.contains("lib.rs"));
         
-        // Test full-stack template tree generation
         let config = create_preview_config("full-stack").expect("Should create full-stack preview config");
         let tree = generate_project_tree(&config);
-        
-        // Print the tree for debugging
-        println!("Full-stack tree structure:\n{}", tree);
         
         assert!(tree.contains("client/"));
         assert!(tree.contains("server/"));
         
-        // Look for database-related content in the tree
         if let Some(db) = &config.components.database {
-            println!("Database config: enabled={}, engines={:?}, migration_tool={}", db.enabled, db.engines, db.migration_tool);
-            
-            // Re-enable the database check now that we've fixed the tree generator
             assert!(
                 tree.contains("database/"),
                 "Tree should contain database directory"
             );
             
-            // Check for database schema/models
             assert!(
                 tree.contains("migrations/") || 
                 tree.contains("models.rs") || 
@@ -581,7 +638,6 @@ mod tests {
     
     #[test]
     fn test_display_template_features() {
-        // This is mainly a visual function, so we're just testing it doesn't crash
         let config = create_preview_config("minimal").expect("Should create minimal preview config");
         display_template_features("minimal", &config);
         
@@ -590,17 +646,12 @@ mod tests {
         
         let config = create_preview_config("gen-ai").expect("Should create gen-ai preview config");
         display_template_features("gen-ai", &config);
-        
-        // No assertions needed - we're just making sure it executes without panicking
     }
     
     #[test]
     fn test_display_sample_files() {
-        // Similar to the previous test, we're just ensuring it runs without errors
         display_sample_files("minimal");
         display_sample_files("library");
         display_sample_files("full-stack");
-        
-        // No assertions needed - we're just making sure it executes without panicking
     }
 }

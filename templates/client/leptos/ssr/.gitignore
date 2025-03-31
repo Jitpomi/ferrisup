@@ -1,0 +1,16 @@
+# Generated files
+/target/
+/pkg/
+/dist/
+
+# Cargo lock file
+Cargo.lock
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store

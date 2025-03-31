@@ -1,0 +1,46 @@
+#[cfg(feature = "ssr")]
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    use actix_files::Files;
+    use actix_web::{web, App, HttpServer};
+    use leptos::logging::log;
+    use leptos::prelude::*;
+    use leptos_actix::{generate_route_list, LeptosRoutes};
+    use {{project_name}}::app::*;
+
+    // Initialize the server-side rendering for Leptos
+    let conf = get_configuration(None).unwrap();
+    let leptos_options = conf.leptos_options;
+    let addr = leptos_options.site_addr;
+    let routes = generate_route_list(App);
+
+    // Set up HTTP server
+    log!("listening on http://{}", &addr);
+    HttpServer::new(move || {
+        let leptos_options = leptos_options.clone();
+        let site_root = leptos_options.site_root.clone();
+        let routes = routes.clone();
+
+        App::new()
+            .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
+            // serve JS/WASM/CSS from site_root
+            .service(Files::new("/pkg", format!("{}/pkg", site_root)))
+            .service(Files::new("/assets", format!("{}/assets", site_root)))
+            // serve other assets from the site_root
+            .leptos_routes(leptos_options.clone(), routes, {
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
+            })
+            .app_data(web::Data::new(leptos_options))
+    })
+    .bind(&addr)?
+    .run()
+    .await
+}
+
+#[cfg(not(feature = "ssr"))]
+pub fn main() {
+    // no client-side main function
+    // unless we want this to work with e.g., Trunk for pure client-side testing
+    // see lib.rs for hydration function instead
+}

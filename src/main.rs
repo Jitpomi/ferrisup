@@ -32,6 +32,10 @@ enum Commands {
         #[arg(short, long)]
         template: Option<String>,
 
+        /// Project type for framework-specific options (e.g., desktop, web, mobile for Dioxus)
+        #[arg(short, long)]
+        project_type: Option<String>,
+
         /// Initialize a git repository
         #[arg(short, long)]
         git: bool,
@@ -136,7 +140,7 @@ fn main() -> Result<()> {
 
     // Match the CLI command and execute
     match cli.command {
-        Some(Commands::New { name, template, git, build, no_interactive }) => {
+        Some(Commands::New { name, template, project_type, git, build, no_interactive }) => {
             match &name {
                 Some(n) => println!(
                     "{} {} {} {}",
@@ -152,7 +156,7 @@ fn main() -> Result<()> {
                     "project".green().bold()
                 )
             }
-            commands::new::execute(name.as_deref(), template.as_deref(), git, build, no_interactive)
+            commands::new::execute(name.as_deref(), template.as_deref(), git, build, no_interactive, project_type.as_deref())
         }
         Some(Commands::Transform { project, template }) => {
             match &project {
