@@ -21,6 +21,10 @@
     {
       "source": "style.css",
       "target": "style.css"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -30,7 +34,9 @@
       "log = \"0.4.22\"",
       "console_error_panic_hook = \"0.1.7\"",
       "gloo-timers = { version = \"0.3.0\", features = [\"futures\"] }",
-      "uuid = { version = \"1.6\", features = [\"v4\", \"js\"] }"
+      "uuid = { version = \"1.6\", features = [\"v4\", \"js\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
     ]
   },
   "dev-dependencies": {

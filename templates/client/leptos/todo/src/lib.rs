@@ -1,347 +1,375 @@
-use leptos::*;
-use leptos::prelude::*;
-use leptos::ev;
+use leptos::{ev, html::Input, prelude::*};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use wasm_bindgen::prelude::*;
-use web_sys;
+use web_sys::KeyboardEvent;
 
-// Local storage interaction
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = localStorage)]
-    fn getItem(key: &str) -> Option<String>;
-    
-    #[wasm_bindgen(js_namespace = localStorage)]
-    fn setItem(key: &str, val: &str);
-}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Todos(pub Vec<Todo>);
 
-// Todo item model
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Todo {
-    id: String,
-    text: String,
-    completed: bool,
-}
+const STORAGE_KEY: &str = "todos-leptos";
 
-// Filter options for todos
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Filter {
-    All,
-    Active,
-    Completed,
-}
-
-impl Filter {
-    fn matches(&self, todo: &Todo) -> bool {
-        match self {
-            Filter::All => true,
-            Filter::Active => !todo.completed,
-            Filter::Completed => todo.completed,
-        }
+impl Default for Todos {
+    fn default() -> Self {
+        let starting_todos =
+            window()
+                .local_storage()
+                .ok()
+                .flatten()
+                .and_then(|storage| {
+                    storage.get_item(STORAGE_KEY).ok().flatten().and_then(
+                        |value| serde_json::from_str::<Vec<Todo>>(&value).ok(),
+                    )
+                })
+                .unwrap_or_default();
+        Self(starting_todos)
     }
 }
 
-// Main app component
-#[component]
-pub fn App() -> impl IntoView {
-    // Load todos from local storage or use defaults
-    let initial_todos = move || -> Vec<Todo> {
-        if let Some(stored) = getItem("leptos-todos") {
-            match serde_json::from_str(&stored) {
-                Ok(todos) => todos,
-                Err(_) => default_todos(),
+// Basic operations to manipulate the todo list: nothing really interesting here
+impl Todos {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn add(&mut self, todo: Todo) {
+        self.0.push(todo);
+    }
+
+    pub fn remove(&mut self, id: Uuid) {
+        self.retain(|todo| todo.id != id);
+    }
+
+    pub fn remaining(&self) -> usize {
+        // `todo.completed` is a signal, so we call .get() to access its value
+        self.0.iter().filter(|todo| !todo.completed.get()).count()
+    }
+
+    pub fn completed(&self) -> usize {
+        // `todo.completed` is a signal, so we call .get() to access its value
+        self.0.iter().filter(|todo| todo.completed.get()).count()
+    }
+
+    pub fn toggle_all(&self) {
+        // if all are complete, mark them all active
+        if self.remaining() == 0 {
+            for todo in &self.0 {
+                todo.completed.update(|completed| {
+                    if *completed {
+                        *completed = false
+                    }
+                });
             }
-        } else {
-            default_todos()
+        }
+        // otherwise, mark them all complete
+        else {
+            for todo in &self.0 {
+                todo.completed.set(true);
+            }
+        }
+    }
+
+    fn clear_completed(&mut self) {
+        self.retain(|todo| !todo.completed.get());
+    }
+
+    fn retain(&mut self, mut f: impl FnMut(&Todo) -> bool) {
+        self.0.retain(|todo| {
+            let retain = f(todo);
+            // because these signals are created at the top level,
+            // they are owned by the <TodoMVC/> component and not
+            // by the individual <Todo/> components. This means
+            // that if they are not manually disposed when removed, they
+            // will be held onto until the <TodoMVC/> is unmounted.
+            if !retain {
+                todo.title.dispose();
+                todo.completed.dispose();
+            }
+            retain
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct Todo {
+    pub id: Uuid,
+    pub title: RwSignal<String>,
+    pub completed: RwSignal<bool>,
+}
+
+impl Todo {
+    pub fn new(id: Uuid, title: String) -> Self {
+        Self::new_with_completed(id, title, false)
+    }
+
+    pub fn new_with_completed(
+        id: Uuid,
+        title: String,
+        completed: bool,
+    ) -> Self {
+        // RwSignal combines the getter and setter in one struct, rather than separating
+        // the getter from the setter. This makes it more convenient in some cases, such
+        // as when we're putting the signals into a struct and passing it around.
+        let title = RwSignal::new(title);
+        let completed = RwSignal::new(completed);
+        Self {
+            id,
+            title,
+            completed,
+        }
+    }
+
+    pub fn toggle(&self) {
+        // A signal's `update()` function gives you a mutable reference to the current value
+        // You can use that to modify the value in place, which will notify any subscribers.
+        self.completed.update(|completed| *completed = !*completed);
+    }
+}
+
+const ESCAPE_KEY: u32 = 27;
+const ENTER_KEY: u32 = 13;
+
+#[component]
+pub fn TodoMVC() -> impl IntoView {
+    // The `todos` are a signal, since we need to reactively update the list
+    let (todos, set_todos) = signal(Todos::default());
+
+    // We provide a context that each <Todo/> component can use to update the list
+    // Here, I'm just passing the `WriteSignal`; a <Todo/> doesn't need to read the whole list
+    // (and shouldn't try to, as that would cause each individual <Todo/> to re-render when
+    // a new todo is added! This kind of hygiene is why `signal` defaults to read-write
+    // segregation.)
+    provide_context(set_todos);
+
+    // Handle the three filter modes: All, Active, and Completed
+    let (mode, set_mode) = signal(Mode::All);
+
+    window_event_listener(ev::hashchange, move |_| {
+        let new_mode =
+            location_hash().map(|hash| route(&hash)).unwrap_or_default();
+        set_mode.set(new_mode);
+    });
+
+    // Callback to add a todo on pressing the `Enter` key, if the field isn't empty
+    let input_ref = NodeRef::<Input>::new();
+    let add_todo = move |ev: KeyboardEvent| {
+        let input = input_ref.get().unwrap();
+        ev.stop_propagation();
+        let key_code = ev.key_code();
+        if key_code == ENTER_KEY {
+            let title = input.value();
+            let title = title.trim();
+            if !title.is_empty() {
+                let new = Todo::new(Uuid::new_v4(), title.to_string());
+                set_todos.update(|t| t.add(new));
+                input.set_value("");
+            }
         }
     };
 
-    // Create reactive signals using the newer API
-    let todos = RwSignal::new(initial_todos());
-    let filter = RwSignal::new(Filter::All);
-    let new_todo_text = RwSignal::new(String::new());
-    let editing = RwSignal::new(None::<String>);
-    let edit_text = RwSignal::new(String::new());
-    
-    // Save todos to local storage whenever they change using Effect
+    // A derived signal that filters the list of the todos depending on the filter mode
+    // This doesn't need to be a `Memo`, because we're only reading it in one place
+    let filtered_todos = move || {
+        todos.with(|todos| match mode.get() {
+            Mode::All => todos.0.to_vec(),
+            Mode::Active => todos
+                .0
+                .iter()
+                .filter(|todo| !todo.completed.get())
+                .cloned()
+                .collect(),
+            Mode::Completed => todos
+                .0
+                .iter()
+                .filter(|todo| todo.completed.get())
+                .cloned()
+                .collect(),
+        })
+    };
+
+    // Serialization
+    //
+    // the effect reads the `todos` signal, and each `Todo`'s title and completed
+    // status,  so it will automatically re-run on any change to the list of tasks
+    //
+    // this is the main point of effects: to synchronize reactive state
+    // with something outside the reactive system (like localStorage)
+
     Effect::new(move |_| {
-        let todos_json = serde_json::to_string(&todos.get()).unwrap_or_default();
-        setItem("leptos-todos", &todos_json);
-    });
-    
-    // Derived signal for filtered todos using Memo::new
-    let filtered_todos = Memo::new(move |_| {
-        todos.get()
-            .into_iter()
-            .filter(|todo| filter.get().matches(todo))
-            .collect::<Vec<_>>()
-    });
-    
-    // Derived signal for active todo count
-    let active_count = Memo::new(move |_| {
-        todos.get()
-            .iter()
-            .filter(|todo| !todo.completed)
-            .count()
-    });
-    
-    // Derived signal for completed todo count
-    let completed_count = Memo::new(move |_| {
-        todos.get()
-            .iter()
-            .filter(|todo| todo.completed)
-            .count()
-    });
-    
-    // Add a new todo
-    let add_todo = move |ev: ev::SubmitEvent| {
-        ev.prevent_default();
-        let text = new_todo_text.get().trim().to_string();
-        if !text.is_empty() {
-            let new_todo = Todo {
-                id: Uuid::new_v4().to_string(),
-                text,
-                completed: false,
-            };
-            
-            todos.update(|t| {
-                t.push(new_todo);
-            });
-            
-            new_todo_text.set(String::new());
-        }
-    };
-    
-    // Toggle a todo's completed status
-    let toggle_todo = move |id: &str| {
-        todos.update(|t| {
-            if let Some(todo) = t.iter_mut().find(|t| t.id == id) {
-                todo.completed = !todo.completed;
+        if let Ok(Some(storage)) = window().local_storage() {
+            let json = serde_json::to_string(&todos)
+                .expect("couldn't serialize Todos");
+            if storage.set_item(STORAGE_KEY, &json).is_err() {
+                leptos::logging::error!(
+                    "error while trying to set item in localStorage"
+                );
             }
-        });
-    };
-    
-    // Start editing a todo
-    let start_editing = move |id: String, current_text: String| {
-        editing.set(Some(id));
-        edit_text.set(current_text);
-    };
-    
-    // Save edits to a todo
-    let save_edit = move |id: &str| {
-        let trimmed_text = edit_text.get().trim().to_string();
-        
-        if trimmed_text.is_empty() {
-            // If empty, remove the todo
-            todos.update(|t| {
-                t.retain(|todo| todo.id != id);
-            });
-        } else {
-            // Otherwise update the text
-            todos.update(|t| {
-                if let Some(todo) = t.iter_mut().find(|t| t.id == id) {
-                    todo.text = trimmed_text;
-                }
-            });
         }
-        
-        // Clear editing state
-        editing.set(None);
-    };
-    
-    // Cancel editing
-    let cancel_edit = move |_| {
-        editing.set(None);
-    };
-    
-    // Delete a todo
-    let delete_todo = move |id: &str| {
-        todos.update(|t| {
-            t.retain(|todo| todo.id != id);
-        });
-    };
-    
-    // Toggle all todos
-    let toggle_all = move |_| {
-        let all_completed = todos.get().iter().all(|todo| todo.completed);
-        
-        todos.update(|t| {
-            for todo in t.iter_mut() {
-                todo.completed = !all_completed;
-            }
-        });
-    };
-    
-    // Clear completed todos
-    let clear_completed = move |_| {
-        todos.update(|t| {
-            t.retain(|todo| !todo.completed);
-        });
-    };
-    
+    });
+
+    // focus the main input on load
+    Effect::new(move |_| {
+        if let Some(input) = input_ref.get() {
+            let _ = input.focus();
+        }
+    });
+
     view! {
-        <div class="todoapp">
-            <header class="header">
-                <h1>"todos"</h1>
-                <form on:submit=add_todo>
-                    <input 
+        <main>
+            <section class="todoapp">
+                <header class="header">
+                    <h1>"todos"</h1>
+                    <input
                         class="new-todo"
                         placeholder="What needs to be done?"
                         autofocus
-                        prop:value=move || new_todo_text.get()
-                        on:input=move |ev| new_todo_text.set(event_target_value(&ev))
+                        on:keydown=add_todo
+                        node_ref=input_ref
                     />
-                </form>
-            </header>
-            
-            <Show
-                when=move || !todos.get().is_empty()
-                fallback=move || view! { <div class="empty-state">"Add your first todo above!"</div> }
-            >
-                <section class="main">
-                    <input 
+                </header>
+                <section class="main" class:hidden=move || todos.with(|t| t.is_empty())>
+                    <input
                         id="toggle-all"
                         class="toggle-all"
                         type="checkbox"
-                        prop:checked=move || todos.get().iter().all(|todo| todo.completed)
-                        on:change=toggle_all
+                        prop:checked=move || todos.with(|t| t.remaining() > 0)
+                        on:input=move |_| todos.with(|t| t.toggle_all())
                     />
                     <label for="toggle-all">"Mark all as complete"</label>
-                    
                     <ul class="todo-list">
-                        <For
-                            each=move || filtered_todos.get()
-                            key=|todo| todo.id.clone()
-                            children=move |todo| {
-                                // Clone the ID once to avoid multiple clones in closures
-                                let todo_id = todo.id.clone();
-                                
-                                let view_fn = move || view! {
-                                    <li class="todo-item" 
-                                        class:completed=move || todo.completed
-                                        class:editing=move || editing.get() == Some(todo_id.clone())
-                                    >
-                                        <Show
-                                            when=move || editing.get() == Some(todo_id.clone())
-                                            fallback=move || view! {
-                                                <div class="view">
-                                                    <input 
-                                                        class="toggle"
-                                                        type="checkbox"
-                                                        prop:checked=move || todo.completed
-                                                        on:change=move |_| toggle_todo(&todo_id)
-                                                    />
-                                                    <label 
-                                                        on:dblclick=move |_| start_editing(todo_id.clone(), todo.text.clone())
-                                                    >
-                                                        {todo.text.clone()}
-                                                    </label>
-                                                    <button 
-                                                        class="destroy"
-                                                        on:click=move |_| delete_todo(&todo_id)
-                                                    />
-                                                </div>
-                                            }
-                                        >
-                                            <input 
-                                                class="edit"
-                                                prop:value=move || edit_text.get()
-                                                on:input=move |ev| edit_text.set(event_target_value(&ev))
-                                                on:blur=move |_: ev::FocusEvent| save_edit(&todo_id)
-                                                on:keyup=move |ev: ev::KeyboardEvent| {
-                                                    match ev.key().as_str() {
-                                                        "Escape" => cancel_edit(()),
-                                                        "Enter" => save_edit(&todo_id),
-                                                        _ => {}
-                                                    }
-                                                }
-                                                node_ref={
-                                                    let input_ref = NodeRef::new();
-                                                    
-                                                    // Focus the input when it's rendered
-                                                    Effect::new(move |_| {
-                                                        if let Some(element) = input_ref.get() {
-                                                            let input = wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(&element);
-                                                            if let Some(input) = input {
-                                                                let _ = input.focus();
-                                                                let _ = input.select();
-                                                            }
-                                                        }
-                                                    });
-                                                    
-                                                    input_ref
-                                                }
-                                            />
-                                        </Show>
-                                    </li>
-                                };
-                                view_fn()
-                            }
-                        />
+                        <For each=filtered_todos key=|todo| todo.id let:todo>
+                            <Todo todo/>
+                        </For>
                     </ul>
                 </section>
-                
-                <footer class="footer">
+                <footer class="footer" class:hidden=move || todos.with(|t| t.is_empty())>
                     <span class="todo-count">
-                        <strong>{active_count}</strong>
-                        {move || if active_count.get() == 1 { " item " } else { " items " }}
-                        "left"
+                        <strong>{move || todos.with(|t| t.remaining().to_string())}</strong>
+                        {move || {
+                            if todos.with(|t| t.remaining()) == 1 { " item" } else { " items" }
+                        }}
+
+                        " left"
                     </span>
-                    
                     <ul class="filters">
                         <li>
-                            <a 
-                                class="filter-btn"
-                                class:selected=move || filter.get() == Filter::All
-                                on:click=move |_| filter.set(Filter::All)
+                            <a
+                                href="#/"
+                                class="selected"
+                                class:selected=move || mode.get() == Mode::All
                             >
                                 "All"
                             </a>
                         </li>
                         <li>
-                            <a 
-                                class="filter-btn"
-                                class:selected=move || filter.get() == Filter::Active
-                                on:click=move |_| filter.set(Filter::Active)
-                            >
+                            <a href="#/active" class:selected=move || mode.get() == Mode::Active>
                                 "Active"
                             </a>
                         </li>
                         <li>
-                            <a 
-                                class="filter-btn"
-                                class:selected=move || filter.get() == Filter::Completed
-                                on:click=move |_| filter.set(Filter::Completed)
+                            <a
+                                href="#/completed"
+                                class:selected=move || mode.get() == Mode::Completed
                             >
                                 "Completed"
                             </a>
                         </li>
                     </ul>
-                    
-                    <Show when=move || completed_count.get() != 0>
-                        <button 
-                            class="clear-completed"
-                            on:click=clear_completed
-                        >
-                            "Clear completed"
-                        </button>
-                    </Show>
+                    <button
+                        class="clear-completed hidden"
+                        class:hidden=move || todos.with(|t| t.completed() == 0)
+                        on:click=move |_| set_todos.update(|t| t.clear_completed())
+                    >
+                        "Clear completed"
+                    </button>
                 </footer>
-            </Show>
-            
+            </section>
             <footer class="info">
                 <p>"Double-click to edit a todo"</p>
-                <p>"Created with " <a href="https://leptos.dev">"Leptos"</a></p>
-                <p>"Part of " <a href="https://todomvc.com">"TodoMVC"</a></p>
+                <p>"Created by " <a href="http://todomvc.com">"Greg Johnston"</a></p>
+                <p>"Part of " <a href="http://todomvc.com">"TodoMVC"</a></p>
             </footer>
-        </div>
+        </main>
     }
 }
 
-// Default todos for new users
-fn default_todos() -> Vec<Todo> {
-    vec![
-        Todo { id: Uuid::new_v4().to_string(), text: "Learn Leptos".to_string(), completed: true },
-        Todo { id: Uuid::new_v4().to_string(), text: "Build an awesome app".to_string(), completed: false },
-    ]
+#[component]
+pub fn Todo(todo: Todo) -> impl IntoView {
+    let (editing, set_editing) = signal(false);
+    let set_todos = use_context::<WriteSignal<Todos>>().unwrap();
+
+    // this will be filled by node_ref=input below
+    let todo_input = NodeRef::<Input>::new();
+
+    let save = move |value: &str| {
+        let value = value.trim();
+        if value.is_empty() {
+            set_todos.update(|t| t.remove(todo.id));
+        } else {
+            todo.title.set(value.to_string());
+        }
+        set_editing.set(false);
+    };
+
+    view! {
+        <li class="todo" class:editing=editing class:completed=move || todo.completed.get()>
+            <div class="view">
+                <input
+                    node_ref=todo_input
+                    class="toggle"
+                    type="checkbox"
+                    bind:checked=todo.completed
+                />
+
+                <label on:dblclick=move |_| {
+                    set_editing.set(true);
+                    if let Some(input) = todo_input.get() {
+                        _ = input.focus();
+                    }
+                }>{move || todo.title.get()}</label>
+                <button
+                    class="destroy"
+                    on:click=move |_| set_todos.update(|t| t.remove(todo.id))
+                ></button>
+            </div>
+            {move || {
+                editing
+                    .get()
+                    .then(|| {
+                        view! {
+                            <input
+                                class="edit"
+                                class:hidden=move || !editing.get()
+                                prop:value=move || todo.title.get()
+                                on:focusout:target=move |ev| save(&ev.target().value())
+                                on:keyup:target=move |ev| {
+                                    let key_code = ev.key_code();
+                                    if key_code == ENTER_KEY {
+                                        save(&ev.target().value());
+                                    } else if key_code == ESCAPE_KEY {
+                                        set_editing.set(false);
+                                    }
+                                }
+                            />
+                        }
+                    })
+            }}
+
+        </li>
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Active,
+    Completed,
+    #[default]
+    All,
+}
+
+pub fn route(hash: &str) -> Mode {
+    match hash {
+        "/active" => Mode::Active,
+        "/completed" => Mode::Completed,
+        _ => Mode::All,
+    }
 }
