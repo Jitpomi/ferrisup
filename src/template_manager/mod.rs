@@ -173,10 +173,24 @@ pub fn apply_template(
                 fs::create_dir_all(parent)?;
             }
             
-            // Read the source file
-            let source_path = template_dir.join(source);
-            let content = fs::read_to_string(&source_path)
-                .map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", source, e))?;
+            // Try to find the appropriate source file
+            let mut source_path = template_dir.join(source);
+            let mut content = fs::read_to_string(&source_path);
+            
+            // If the file doesn't exist and we have a web_framework variable, try the framework-specific version
+            if content.is_err() && template_vars.get("web_framework").is_some() {
+                let web_framework = template_vars["web_framework"].as_str().unwrap_or("");
+                let framework_specific_path = format!("{}.{}", source, web_framework);
+                let alt_source_path = template_dir.join(&framework_specific_path);
+                
+                if alt_source_path.exists() {
+                    source_path = alt_source_path;
+                    content = fs::read_to_string(&source_path);
+                }
+            }
+            
+            // If we still couldn't find the file, return an error
+            let content = content.map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", source_path.display(), e))?;
             
             // Replace variables in content
             let processed_content = replace_variables(&content, &template_vars);
