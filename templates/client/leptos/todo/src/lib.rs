@@ -76,10 +76,10 @@ impl Todos {
         self.0.retain(|todo| {
             let retain = f(todo);
             // because these signals are created at the top level,
-            // they are owned by the <TodoMVC/> component and not
+            // they are owned by the <App/> component and not
             // by the individual <Todo/> components. This means
             // that if they are not manually disposed when removed, they
-            // will be held onto until the <TodoMVC/> is unmounted.
+            // will be held onto until the <App/> is unmounted.
             if !retain {
                 todo.title.dispose();
                 todo.completed.dispose();
@@ -129,7 +129,7 @@ const ESCAPE_KEY: u32 = 27;
 const ENTER_KEY: u32 = 13;
 
 #[component]
-pub fn TodoMVC() -> impl IntoView {
+pub fn App() -> impl IntoView {
     // The `todos` are a signal, since we need to reactively update the list
     let (todos, set_todos) = signal(Todos::default());
 
