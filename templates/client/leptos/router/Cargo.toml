@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 leptos = { version = "0.7.8", features = ["csr"] }
-leptos_router = { version = "0.7.8", features = ["csr"] }
-leptos_meta = { version = "0.7.8", features = ["csr"] }
+leptos_router = { version = "0.7.8" }
+leptos_meta = { version = "0.7.8" }
 console_log = "1.0"
 log = "0.4.22"
 console_error_panic_hook = "0.1.7"
