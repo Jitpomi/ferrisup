@@ -12,6 +12,8 @@ pub fn create_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
+// Currently unused but kept for future use
+#[allow(dead_code)]
 pub fn write_cargo_toml(project_dir: &Path, config: &crate::config::Config) -> Result<()> {
     let cargo_toml = format!(
         r#"[package]
@@ -30,6 +32,8 @@ edition = "2021"
     Ok(())
 }
 
+// Currently unused but kept for future use
+#[allow(dead_code)]
 pub fn write_env_file(project_dir: &Path) -> Result<()> {
     let env_sample = r#"# Database connection
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/rust_workspace

@@ -4,6 +4,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::io::Write;
 use serde_json::{Value, json};
+use regex::Regex;
 
 pub fn get_template(name: &str) -> Result<String> {
     let templates = get_all_templates()?;
@@ -193,7 +194,14 @@ pub fn apply_template(
             let content = content.map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", source_path.display(), e))?;
             
             // Replace variables in content
-            let processed_content = replace_variables(&content, &template_vars);
+            let mut processed_content = replace_variables(&content, &template_vars);
+            
+            // Apply transformations if available
+            if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
+                if let Some(web_framework) = template_vars.get("web_framework").and_then(|w| w.as_str()) {
+                    processed_content = apply_transformations(&processed_content, transformations, web_framework)?;
+                }
+            }
             
             // Write to the target file
             let mut file = File::create(&target_file_path)
@@ -216,6 +224,29 @@ pub fn apply_template(
     
     println!("✅ Successfully applied template: {}", template_name);
     Ok(())
+}
+
+/// Apply transformations to content based on the selected web framework
+fn apply_transformations(content: &str, transformations: &[Value], web_framework: &str) -> Result<String> {
+    let mut result = content.to_string();
+    
+    for transformation in transformations {
+        if let (Some(pattern), Some(replacement)) = (
+            transformation.get("pattern").and_then(|p| p.as_str()),
+            transformation.get("replacement")
+        ) {
+            if let Some(framework_replacement) = replacement.get(web_framework).and_then(|r| r.as_str()) {
+                // Compile the regex pattern
+                let regex = Regex::new(pattern)
+                    .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {}", e))?;
+                
+                // Apply the replacement
+                result = regex.replace_all(&result, framework_replacement).to_string();
+            }
+        }
+    }
+    
+    Ok(result)
 }
 
 /// Find the directory containing a template

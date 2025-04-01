@@ -2,7 +2,6 @@ use anyhow::{Context, Result, anyhow};
 use colored::Colorize;
 use dialoguer::{Confirm, Select};
 use std::collections::HashMap;
-use std::path::Path;
 
 use crate::template_manager::{get_template, list_templates, find_template_directory};
 use crate::config::{Config, Components, Client, Server, Database, AI, Edge, Embedded};

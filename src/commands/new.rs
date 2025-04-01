@@ -17,7 +17,7 @@ pub fn execute(
     git: bool,
     build: bool,
     no_interactive: bool,
-    project_type: Option<&str>,
+    _project_type: Option<&str>,
 ) -> Result<()> {
     // Get project name
     let name = match name {
@@ -68,7 +68,7 @@ pub fn execute(
         println!("Using template: client");
         
         // Get client framework
-        let frameworks = vec!["dioxus", "tauri", "leptos", "yew"];
+        let frameworks = vec!["dioxus", "tauri", "leptos"];
         let selection = Select::new()
             .with_prompt("Select Rust client framework")
             .items(&frameworks)
@@ -132,8 +132,6 @@ pub fn execute(
                 "Counter - Simple counter with reactive state",
                 "Router - Multi-page application with routing",
                 "Todo - Todo application with filtering",
-                "SSR - Server-side rendered application",
-                "Fullstack - Complete application with API endpoints",
             ];
             
             let leptos_selection = Select::new()
@@ -147,8 +145,6 @@ pub fn execute(
                 0 => "counter".to_string(),
                 1 => "router".to_string(),
                 2 => "todo".to_string(),
-                3 => "ssr".to_string(),
-                4 => "fullstack".to_string(),
                 _ => "counter".to_string(), // Default to counter if somehow none selected
             };
             
@@ -157,27 +153,8 @@ pub fn execute(
             // Use template_manager to apply the template instead of hardcoded functions
             let template_path = format!("client/leptos/{}", template);
             
-            // For SSR and fullstack templates, ask for web framework
-            let mut additional_vars = None;
-            if template == "ssr" || template == "fullstack" {
-                let web_frameworks = vec!["axum", "actix"];
-                let framework_selection = Select::new()
-                    .with_prompt("Select web framework")
-                    .items(&web_frameworks)
-                    .default(0)
-                    .interact()?;
-                
-                let web_framework = web_frameworks[framework_selection];
-                println!("Using {} as the web framework", web_framework);
-                
-                // Create variables for template substitution
-                additional_vars = Some(serde_json::json!({
-                    "web_framework": web_framework
-                }));
-            }
-            
             // Apply the template using the template manager
-            template_manager::apply_template(&template_path, app_path, &name, additional_vars)?;
+            template_manager::apply_template(&template_path, app_path, &name, None)?;
             
         } else if framework == "dioxus" {
             println!("📦 Creating Dioxus project with dioxus-cli");
@@ -278,23 +255,6 @@ pub fn execute(
             println!("  npm run tauri dev");
             
             return Ok(());
-        } else if framework == "yew" {
-            // Use template_manager to apply the template instead of hardcoded functions
-            template_manager::apply_template("client/yew", app_path, &name, None)?;
-            
-            // Ensure WASM target is installed
-            println!("🔧 Ensuring WASM target is installed...");
-            let _ = Command::new("rustup")
-                .args(["target", "add", "wasm32-unknown-unknown"])
-                .status();
-            
-            // Print success message with instructions
-            println!("\n🎉 Project {} created successfully!", name);
-            println!("\nNext steps:");
-            println!("  cd {}", name);
-            println!("  trunk serve --open");
-            
-            return Ok(());
         } else {
             // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
             template = framework.to_string();
@@ -310,7 +270,7 @@ pub fn execute(
         template_manager::apply_template(&template, app_path, &name, None)?;
     } else {
         // For Leptos templates, prepend "client/leptos/"
-        if template == "counter" || template == "router" || template == "todo" || template == "ssr" || template == "fullstack" {
+        if template == "counter" || template == "router" || template == "todo" {
             let template_path = format!("client/leptos/{}", template);
             template_manager::apply_template(&template_path, app_path, &name, None)?;
         } else {
@@ -360,10 +320,6 @@ pub fn execute(
     
     // Provide appropriate next steps based on the template
     if template == "counter" || template == "router" || template == "todo" || template.contains("client/leptos/counter") || template.contains("client/leptos/router") || template.contains("client/leptos/todo") {
-        println!("  trunk serve --open");
-    } else if template == "ssr" || template == "fullstack" || template.contains("client/leptos/ssr") || template.contains("client/leptos/fullstack") {
-        println!("  cargo leptos watch");
-    } else if template.contains("client/yew") {
         println!("  trunk serve --open");
     } else if template.contains("client/dioxus") {
         println!("  dx serve --hot-reload true");
@@ -423,34 +379,6 @@ fn check_dependencies(template: &str) -> Result<()> {
                     println!("✅ Trunk installed successfully");
                 }
             }
-        }
-    }
-    
-    // Check for cargo-leptos (needed for ssr and fullstack templates)
-    if template == "ssr" || template == "fullstack" {
-        println!("🔍 Checking for cargo-leptos...");
-        let cargo_install_output = Command::new("cargo")
-            .args(["install", "--list"])
-            .output()
-            .expect("Failed to execute cargo install --list");
-        
-        let cargo_install_output_str = String::from_utf8_lossy(&cargo_install_output.stdout);
-        
-        if !cargo_install_output_str.contains("cargo-leptos") {
-            println!("⚠️ cargo-leptos not found. Installing...");
-            let install_result = Command::new("cargo")
-                .args(["install", "cargo-leptos"])
-                .status()
-                .expect("Failed to install cargo-leptos");
-            
-            if !install_result.success() {
-                println!("❌ Failed to install cargo-leptos.");
-                println!("Please install it manually with: cargo install cargo-leptos");
-            } else {
-                println!("✅ cargo-leptos installed successfully");
-            }
-        } else {
-            println!("✅ cargo-leptos is already installed");
         }
     }
     
