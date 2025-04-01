@@ -17,6 +17,10 @@
     {
       "source": "index.html",
       "target": "index.html"
+    },
+    {
+      "source": "style.css",
+      "target": "style.css"
     }
   ],
   "dependencies": {
