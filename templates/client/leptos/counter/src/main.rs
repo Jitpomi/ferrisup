@@ -1,5 +1,5 @@
 use {{project_name}}::App;
-use leptos::*;
+use leptos::prelude::mount_to_body;
 
 pub fn main() {
     // Initialize logging for debugging
