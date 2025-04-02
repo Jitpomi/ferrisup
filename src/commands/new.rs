@@ -343,6 +343,31 @@ npx create-tauri-app {}
             // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
             template = framework_selected.to_string();
         }
+    } else if template == "data-science" {
+        // For data science templates, prompt for specific template
+        println!("\n📊 Select a Data Science template:");
+        
+        let ds_templates = template_manager::list_data_science_templates()?;
+        
+        // Create a vector of items for the select widget
+        let items: Vec<String> = ds_templates
+            .iter()
+            .map(|(name, desc)| format!("{} - {}", name.replace("data-science/", ""), desc))
+            .collect();
+        
+        // Use the select widget with the formatted items
+        let selection = Select::new()
+            .items(&items)
+            .default(0)
+            .interact()?;
+            
+        let (selected_template, _) = &ds_templates[selection];
+        template = selected_template.clone();
+        
+        println!("🔍 Checking for wasm32-unknown-unknown target...");
+        check_dependencies(&template)?;
+        
+        println!("\n📊 Setting up {} data science project...", template.replace("data-science/", ""));
     }
 
     // Check for required dependencies based on template

@@ -69,6 +69,38 @@ enum Commands {
         confidence: f64,
     },
     
+    {{#if (eq visualization "yes")}}
+    /// Create visualizations from data
+    Visualize {
+        /// Path to the data file (CSV, JSON, or Parquet)
+        #[arg(short, long)]
+        file: PathBuf,
+        
+        /// File format (csv, json, parquet)
+        #[arg(short = 't', long, default_value = "{{#if (eq data_source "CSV files")}}csv{{else}}{{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}{{/if}}")]
+        format: String,
+        
+        {{#if (eq data_source "JSON data")}}
+        /// JSON format (records, lines) - only used for JSON files
+        #[arg(long, default_value = "records")]
+        json_format: String,
+        {{/if}}
+        {{#if (eq data_source "Multiple sources")}}
+        /// JSON format (records, lines) - only used for JSON files
+        #[arg(long, default_value = "records")]
+        json_format: String,
+        {{/if}}
+        
+        /// Column to visualize (must be numeric)
+        #[arg(short = 'c', long)]
+        column: String,
+        
+        /// Output file path (defaults to column_name_histogram.png)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    {{/if}}
+    
     /// Generate a sample dataset
     Generate {
         /// Number of rows to generate
@@ -255,79 +287,81 @@ fn main() -> Result<()> {
                 for col_name in result_df.get_column_names() {
                     if let Ok(col) = result_df.column(col_name) {
                         // Check if the column is numeric
-                        if matches!(col.dtype(), 
+                        if !matches!(col.dtype(), 
                             DataType::Int8 | DataType::Int16 | DataType::Int32 | 
                             DataType::Int64 | DataType::UInt8 | DataType::UInt16 | 
                             DataType::UInt32 | DataType::UInt64 | DataType::Float32 | 
                             DataType::Float64) {
                             
-                            println!("\nColumn: {}", col_name);
-                            
-                            // Calculate basic statistics manually
-                            let series = match col {
-                                Column::Series(s) => s,
-                                _ => continue,
-                            };
-                            
-                            // Get count
-                            let count = series.len() as f64;
-                            println!("  Count: {}", count);
-                            
-                            // Get min and max
-                            if let Ok(Some(min_val)) = series.min::<f64>() {
-                                println!("  Min: {}", min_val);
-                            }
-                            
-                            if let Ok(Some(max_val)) = series.max::<f64>() {
-                                println!("  Max: {}", max_val);
-                            }
-                            
-                            // Get mean
-                            let mean = if let Some(mean_val) = series.mean() {
-                                println!("  Mean: {:.4}", mean_val);
-                                mean_val
-                            } else {
-                                0.0
-                            };
-                            
-                            // Get standard deviation
-                            let std_dev = if let Some(std_val) = series.std(1) {
-                                println!("  Std Dev: {:.4}", std_val);
-                                std_val
-                            } else {
-                                0.0
-                            };
-                            
-                            // Confidence interval
-                            let z_score = match *confidence {
-                                0.90 => 1.645,
-                                0.99 => 2.576,
-                                _ => 1.96, // 0.95 is default
-                            };
-                            
-                            let margin_error = z_score * std_dev / count.sqrt();
-                            println!("  {}% Confidence Interval: {:.4} ± {:.4}", 
-                                     confidence * 100.0, mean, margin_error);
+                            continue;
+                        }
+                        
+                        println!("\nColumn: {}", col_name);
+                        
+                        // Calculate basic statistics manually
+                        let series = match col {
+                            Column::Series(s) => s,
+                            _ => continue,
+                        };
+                        
+                        // Get count
+                        let count = series.len() as f64;
+                        println!("  Count: {}", count);
+                        
+                        // Get min and max
+                        if let Ok(Some(min_val)) = series.min::<f64>() {
+                            println!("  Min: {}", min_val);
+                        }
+                        
+                        if let Ok(Some(max_val)) = series.max::<f64>() {
+                            println!("  Max: {}", max_val);
+                        }
+                        
+                        // Get mean
+                        let mean = if let Some(mean_val) = series.mean() {
+                            println!("  Mean: {:.4}", mean_val);
+                            mean_val
+                        } else {
+                            0.0
+                        };
+                        
+                        // Get standard deviation
+                        let std_dev = if let Some(std_val) = series.std(1) {
+                            println!("  Std Dev: {:.4}", std_val);
+                            std_val
+                        } else {
+                            0.0
+                        };
+                        
+                        // Confidence interval
+                        let z_score = match *confidence {
+                            0.90 => 1.645,
+                            0.99 => 2.576,
+                            _ => 1.96, // 0.95 is default
+                        };
+                        
+                        let margin_error = z_score * std_dev / count.sqrt();
+                        println!("  {}% Confidence Interval: {:.4} ± {:.4}", 
+                                 confidence * 100.0, mean, margin_error);
                                      
-                            {{#if (eq visualization "yes")}}
-                            // Generate a simple histogram for this column
-                            if let Some(numeric_col) = series.cast(&DataType::Float64).ok() {
-                                if let Ok(values) = numeric_col.f64() {
-                                    let output_path = file.with_file_name(format!(
-                                        "{}_histogram_{}.png",
-                                        file.file_stem().unwrap().to_string_lossy(),
-                                        col_name
-                                    ));
-                                    
-                                    if let Err(e) = plot_histogram(&values, col_name, &output_path) {
-                                        println!("  Warning: Could not generate histogram: {}", e);
-                                    } else {
-                                        println!("  Histogram saved to: {}", output_path.display());
-                                    }
+                        {{#if (eq visualization "yes")}}
+                        // Generate a simple histogram for this column
+                        if let Some(numeric_col) = series.cast(&DataType::Float64).ok() {
+                            if let Ok(values) = numeric_col.f64() {
+                                let output_path = file.with_file_name(format!(
+                                    "{}_histogram_{}.png",
+                                    file.file_stem().unwrap().to_string_lossy(),
+                                    col_name
+                                ));
+                                
+                                if let Err(e) = plot_histogram(&values, col_name, &output_path) {
+                                    println!("  Warning: Could not generate histogram: {}", e);
+                                } else {
+                                    println!("  Histogram saved to: {}", output_path.display());
                                 }
                             }
-                            {{/if}}
                         }
+                        {{/if}}
                     }
                 }
             }
@@ -399,6 +433,114 @@ fn main() -> Result<()> {
             
             println!("\n💾 Results saved to: {}", output_path.display());
         }
+        
+        {{#if (eq visualization "yes")}}
+        Commands::Visualize { file, format, {{#if (eq data_source "JSON data")}} json_format, {{/if}} {{#if (eq data_source "Multiple sources")}} json_format, {{/if}} column, output } => {
+            println!("📊 Loading data from {}: {}", format, file.display());
+            
+            // Read the data file based on format
+            let df = match format.to_lowercase().as_str() {
+                {{#if (eq data_source "JSON data")}}
+                "json" => {
+                    println!("Using JSON format: {}", json_format);
+                    let json_fmt = match json_format.to_lowercase().as_str() {
+                        "lines" => JsonFormat::JsonLines,
+                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
+                    };
+                    
+                    let file = File::open(file)
+                        .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
+                    
+                    JsonReader::new(file)
+                        .with_json_format(json_fmt)
+                        .finish()
+                        .with_context(|| format!("Failed to read JSON file"))?
+                },
+                {{/if}}
+                {{#if (eq data_source "Parquet files")}}
+                "parquet" => {
+                    let file = File::open(file)
+                        .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
+                    
+                    ParquetReader::new(file)
+                        .finish()
+                        .with_context(|| format!("Failed to read Parquet file"))?
+                },
+                {{/if}}
+                {{#if (eq data_source "Multiple sources")}}
+                "json" => {
+                    println!("Using JSON format: {}", json_format);
+                    let json_fmt = match json_format.to_lowercase().as_str() {
+                        "lines" => JsonFormat::JsonLines,
+                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
+                    };
+                    
+                    let file = File::open(file)
+                        .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
+                    
+                    JsonReader::new(file)
+                        .with_json_format(json_fmt)
+                        .finish()
+                        .with_context(|| format!("Failed to read JSON file"))?
+                },
+                "parquet" => {
+                    let file = File::open(file)
+                        .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
+                    
+                    ParquetReader::new(file)
+                        .finish()
+                        .with_context(|| format!("Failed to read Parquet file"))?
+                },
+                {{/if}}
+                _ => {
+                    // Default to CSV
+                    let file = File::open(file)
+                        .with_context(|| format!("Failed to open CSV file: {}", file.display()))?;
+                    
+                    CsvReader::new(file)
+                        .finish()
+                        .with_context(|| "Failed to parse CSV data")?
+                }
+            };
+            
+            // Check if the column exists
+            let column_exists = df.get_column_names().iter().any(|c| c.as_str() == column);
+            if !column_exists {
+                println!("Error: Column '{}' does not exist in the data", column);
+                return Ok(());
+            }
+            
+            // Get the column
+            let col = df.column(column).unwrap();
+            
+            // Check if the column is numeric
+            if !matches!(col.dtype(), 
+                DataType::Int8 | DataType::Int16 | DataType::Int32 | 
+                DataType::Int64 | DataType::UInt8 | DataType::UInt16 | 
+                DataType::UInt32 | DataType::UInt64 | DataType::Float32 | 
+                DataType::Float64) {
+                
+                println!("Error: Column '{}' is not numeric", column);
+                return Ok(());
+            }
+            
+            // Get the output path
+            let output_path = output.clone().unwrap_or_else(|| {
+                file.with_file_name(format!("{}_histogram.png", column))
+            });
+            
+            // Generate the histogram
+            if let Some(numeric_col) = col.cast(&DataType::Float64).ok() {
+                if let Ok(values) = numeric_col.f64() {
+                    if let Err(e) = plot_histogram(&values, column, &output_path) {
+                        println!("Error: Could not generate histogram: {}", e);
+                    } else {
+                        println!("Histogram saved to: {}", output_path.display());
+                    }
+                }
+            }
+        },
+        {{/if}}
         
         Commands::Generate { rows, output, format } => {
             println!("🔄 Generating sample dataset with {} rows", rows);
@@ -554,8 +696,8 @@ fn plot_histogram(values: &ChunkedArray<Float64Type>, column_name: &str, output_
     root.fill(&WHITE)?;
     
     // Find min and max for the x-axis range
-    let min_val = values.min::<f64>().unwrap_or(Some(0.0)).unwrap_or(0.0);
-    let max_val = values.max::<f64>().unwrap_or(Some(100.0)).unwrap_or(100.0);
+    let min_val = values.min().unwrap_or(0.0);
+    let max_val = values.max().unwrap_or(100.0);
     
     // Create bins for the histogram
     let bin_count = 10;
@@ -594,7 +736,14 @@ fn plot_histogram(values: &ChunkedArray<Float64Type>, column_name: &str, output_
     
     chart.configure_mesh()
         .x_labels(bin_count)
-        .x_label_formatter(&|x| bin_labels[*x as usize].clone())
+        .x_label_formatter(&|x| {
+            let idx = *x as usize;
+            if idx < bin_labels.len() {
+                bin_labels[idx].clone()
+            } else {
+                "".to_string()
+            }
+        })
         .x_desc("Value")
         .y_desc("Count")
         .draw()?;
