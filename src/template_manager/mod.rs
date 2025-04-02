@@ -201,7 +201,7 @@ pub fn apply_template(
             
             let data_source = prompt_with_options(
                 "What type of data will you be working with?",
-                &["CSV files", "Parquet files", "JSON data", "Database connections", "Multiple sources"]
+                &["CSV files", "Parquet files", "JSON data"]
             )?;
             additional_vars.insert("data_source".to_string(), json!(data_source));
             
