@@ -1,12 +1,14 @@
 use anyhow::Result;
 use std::fs;
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Write, BufRead};
 use std::path::{Path, PathBuf};
 use serde_json::{Value, json, Map};
 use std::sync::{Arc, RwLock};
 use lazy_static::lazy_static;
 use handlebars::Handlebars;
+use colored::Colorize;
+use dialoguer::Select;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -16,9 +18,19 @@ pub fn get_template(name: &str) -> Result<String> {
     let templates = get_all_templates()?;
     
     if templates.contains(&name.to_string()) {
-        Ok(name.to_string())
+        // Check if the template has a valid template.json file
+        let template_dir = format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), name);
+        let template_json = Path::new(&template_dir).join("template.json");
+        
+        if template_json.exists() {
+            Ok(name.to_string())
+        } else {
+            println!("⚠️ Template '{}' does not have a valid configuration. Using minimal template instead.", name);
+            Ok("minimal".to_string())
+        }
     } else {
         // Fall back to minimal if template not found
+        println!("⚠️ Template '{}' not found. Using minimal template instead.", name);
         Ok("minimal".to_string())
     }
 }
@@ -28,13 +40,10 @@ pub fn get_all_templates() -> Result<Vec<String>> {
     let templates = vec![
         "minimal".to_string(),
         "library".to_string(),
-        "full-stack".to_string(),
-        "gen-ai".to_string(),
-        "edge-app".to_string(),
         "embedded".to_string(),
+        "server".to_string(),
         "serverless".to_string(),
-        "iot-device".to_string(),
-        "ml-pipeline".to_string(),
+        "client".to_string(),
         "data-science".to_string(),
     ];
     
@@ -46,6 +55,11 @@ pub fn get_all_templates() -> Result<Vec<String>> {
         for entry in entries.flatten() {
             if entry.path().is_dir() {
                 if let Some(dir_name) = entry.file_name().to_str() {
+                    // Skip templates that are known to be incomplete
+                    if dir_name == "web" || !entry.path().join("template.json").exists() {
+                        continue;
+                    }
+                    
                     // Only add if not already in the list
                     if !all_templates.contains(&dir_name.to_string()) {
                         all_templates.push(dir_name.to_string());
@@ -67,17 +81,11 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
     let mut templates = vec![
         ("minimal".to_string(), "Simple binary with a single main.rs file".to_string()),
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
-        ("full-stack".to_string(), "Complete application with client, server, and shared libraries".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
         ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
         ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
         ("client".to_string(), "Frontend client application".to_string()),
-        ("ai".to_string(), "Artificial intelligence project".to_string()),
-        ("edge".to_string(), "Edge computing application".to_string()),
-        ("gen-ai".to_string(), "AI-focused project with inference and model components".to_string()),
-        ("ml-pipeline".to_string(), "Machine learning data processing pipeline".to_string()),
-        ("data-science".to_string(), "Data science project with analysis tools".to_string()),
-        ("iot-device".to_string(), "IoT device firmware with connectivity features".to_string()),
+        ("data-science".to_string(), "Data science and machine learning projects".to_string()),
     ];
     
     // Track template names we've already added to avoid duplicates
@@ -89,8 +97,15 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
         for entry in entries.flatten() {
             if entry.path().is_dir() {
                 if let Some(dir_name) = entry.file_name().to_str() {
-                    // Skip templates we've already added
-                    if template_names.contains(&dir_name.to_string()) {
+                    // Skip templates we've already added or those that are known to be incomplete
+                    if template_names.contains(&dir_name.to_string()) || 
+                       dir_name == "web" || 
+                       !entry.path().join("template.json").exists() {
+                        continue;
+                    }
+                    
+                    // Skip data-science subdirectories in the main list
+                    if dir_name.starts_with("data-science/") {
                         continue;
                     }
                     
@@ -121,6 +136,15 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
     }
     
     Ok(templates)
+}
+
+/// Get data science templates with descriptions
+pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
+    Ok(vec![
+        ("data-science/polars-cli".to_string(), "Data analysis CLI using Polars (similar to pandas in Python)".to_string()),
+        ("data-science/burn-net".to_string(), "Deep learning with Burn (similar to PyTorch in Python)".to_string()),
+        ("data-science/linfa-lab".to_string(), "Machine learning with Linfa (similar to scikit-learn in Python)".to_string()),
+    ])
 }
 
 /// Apply a template to a target directory
@@ -165,111 +189,107 @@ pub fn apply_template(
         }
     }
     
-    // Update CURRENT_VARIABLES
-    *CURRENT_VARIABLES.write().unwrap() = template_vars.as_object().unwrap().clone();
-    
-    // Check if this template redirects to another template
-    if let Some(redirect) = template_config.get("redirect") {
-        // Find the appropriate redirect based on variables
-        let redirect_template = if let Some(redirect_obj) = redirect.as_object() {
-            let mut selected_redirect = None;
-            
-            // First, check if we have a framework variable (server_framework, client_framework, cloud_provider)
-            // and use it to determine the redirect
-            if let Some(obj) = template_vars.as_object() {
-                // Look for framework variables first (most common case)
-                for framework_key in &["server_framework", "client_framework", "cloud_provider"] {
-                    if let Some(framework_value) = obj.get(*framework_key) {
-                        if let Some(framework_str) = framework_value.as_str() {
-                            if let Some(redirect_value) = redirect_obj.get(framework_str) {
-                                if let Some(redirect_str) = redirect_value.as_str() {
-                                    selected_redirect = Some(redirect_str);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // If we still don't have a redirect, try the direct key-value matching approach
-            if selected_redirect.is_none() {
-                for (key, value) in redirect_obj {
-                    if let Some(obj) = template_vars.as_object() {
-                        for (var_key, var_value) in obj {
-                            if var_key == key && var_value.as_str().is_some() && var_value.as_str() == value.as_str() {
-                                selected_redirect = Some(value.as_str().unwrap());
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if selected_redirect.is_some() {
-                        break;
-                    }
-                }
-            }
-            
-            // If no redirect was selected but we have a value in template_vars that matches a key in redirect_obj,
-            // use that key's value as the redirect
-            if selected_redirect.is_none() {
-                if let Some(obj) = template_vars.as_object() {
-                    for (var_key, var_value) in obj {
-                        if redirect_obj.contains_key(var_key) && var_value.as_str().is_some() {
-                            if let Some(redirect_value) = redirect_obj.get(var_value.as_str().unwrap()) {
-                                if redirect_value.as_str().is_some() {
-                                    selected_redirect = Some(redirect_value.as_str().unwrap());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Fall back to the first value in the redirect object if we still don't have a redirect
-            selected_redirect.unwrap_or_else(|| {
-                redirect_obj.values().next()
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| {
-                        eprintln!("Warning: Could not determine redirect template. Using original template.");
-                        template_name
-                    })
-            })
-        } else if redirect.as_str().is_some() {
-            redirect.as_str().unwrap()
-        } else {
-            eprintln!("Warning: Invalid redirect format. Using original template.");
-            template_name
-        };
+    // Handle data science template-specific prompts
+    if template_name.starts_with("data-science/") {
+        let mut additional_vars = Map::new();
         
-        // Apply the redirected template
-        return apply_template(redirect_template, target_dir, project_name, Some(template_vars));
+        // Common data science questions
+        println!("\n{}", "📊 Data Science Project Configuration".bold().green());
+        
+        if template_name == "data-science/polars-cli" {
+            println!("\n{}", "Polars DataFrame Analysis Configuration:".bold());
+            
+            let data_source = prompt_with_options(
+                "What type of data will you be working with?",
+                &["CSV files", "Parquet files", "JSON data", "Database connections", "Multiple sources"]
+            )?;
+            additional_vars.insert("data_source".to_string(), json!(data_source));
+            
+            let analysis_type = prompt_with_options(
+                "What type of analysis do you plan to perform?",
+                &["Exploratory data analysis", "Data cleaning & transformation", "Statistical analysis", "Time series analysis", "Custom analysis"]
+            )?;
+            additional_vars.insert("analysis_type".to_string(), json!(analysis_type));
+            
+            let visualization = prompt_with_default(
+                "Do you need data visualization capabilities?",
+                "yes"
+            )?;
+            additional_vars.insert("visualization".to_string(), json!(visualization.to_lowercase()));
+            
+            println!("\n✅ Polars DataFrame project configured successfully!");
+        } else if template_name == "data-science/burn-net" {
+            println!("\n{}", "Burn Neural Network Configuration:".bold());
+            
+            let model_type = prompt_with_options(
+                "What type of neural network model do you want to build?",
+                &["Feedforward (MLP)", "Convolutional (CNN)", "Recurrent (RNN/LSTM)", "Transformer", "Custom architecture"]
+            )?;
+            additional_vars.insert("model_type".to_string(), json!(model_type));
+            
+            let dataset = prompt_with_options(
+                "What dataset will you be working with?",
+                &["MNIST", "CIFAR-10", "Custom dataset", "Synthetic data", "Text corpus"]
+            )?;
+            additional_vars.insert("dataset".to_string(), json!(dataset));
+            
+            let hardware = prompt_with_options(
+                "Which hardware acceleration do you plan to use?",
+                &["CPU only", "CUDA (NVIDIA GPU)", "Metal (Apple GPU)", "WebGPU", "Multiple backends"]
+            )?;
+            additional_vars.insert("hardware".to_string(), json!(hardware));
+            
+            println!("\n✅ Burn neural network project configured successfully!");
+        } else if template_name == "data-science/linfa-lab" {
+            println!("\n{}", "Linfa Machine Learning Configuration:".bold());
+            
+            let ml_task = prompt_with_options(
+                "What machine learning task will you be working on?",
+                &["Classification", "Regression", "Clustering", "Dimensionality reduction", "Multiple tasks"]
+            )?;
+            additional_vars.insert("ml_task".to_string(), json!(ml_task));
+            
+            let algorithm = prompt_with_options(
+                "Which algorithm would you like to start with?",
+                &["Linear models", "Decision trees", "Support vector machines", "K-means clustering", "PCA"]
+            )?;
+            additional_vars.insert("algorithm".to_string(), json!(algorithm));
+            
+            let dataset_size = prompt_with_options(
+                "What is the expected size of your dataset?",
+                &["Small (fits in memory)", "Medium (needs batching)", "Large (distributed processing)", "Unknown/variable"]
+            )?;
+            additional_vars.insert("dataset_size".to_string(), json!(dataset_size));
+            
+            println!("\n✅ Linfa machine learning project configured successfully!");
+        }
+        
+        // Add the additional variables to the template variables
+        if let Some(obj_mut) = template_vars.as_object_mut() {
+            for (key, value) in additional_vars {
+                obj_mut.insert(key, value);
+            }
+        }
     }
     
-    // Process files
+    // Register handlebars helpers
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
+    
+    // Copy template files to target directory
     if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-        let mut handlebars = Handlebars::new();
-        
-        // Configure Handlebars for better template processing
-        handlebars.set_strict_mode(false);
-        
         for file_entry in files {
             process_file(file_entry, &template_dir, target_dir, &template_vars, &mut handlebars)?;
         }
     }
     
-    // Process dependencies if present
+    // Process dependencies if specified
     if let Some(dependencies) = template_config.get("dependencies") {
         process_dependencies(dependencies, target_dir, "dependencies")?;
     }
     
-    // Process dev-dependencies if present
-    if let Some(dev_dependencies) = template_config.get("dev-dependencies") {
-        process_dependencies(dev_dependencies, target_dir, "dev-dependencies")?;
-    }
-    
     println!("✅ Successfully applied template: {}", template_name);
+    
     Ok(())
 }
 
@@ -588,4 +608,44 @@ fn get_template_dir(template_name: &str) -> Result<PathBuf> {
     }
     
     Err(anyhow::anyhow!("Template '{}' not found", template_name))
+}
+
+/// Prompt the user with a question and return their answer
+fn prompt(question: &str) -> Result<String> {
+    print!("{} ", question);
+    io::stdout().flush()?;
+    
+    let stdin = io::stdin();
+    let mut line = String::new();
+    stdin.lock().read_line(&mut line)?;
+    
+    Ok(line.trim().to_string())
+}
+
+/// Prompt the user with a question and a set of options
+fn prompt_with_options(question: &str, options: &[&str]) -> Result<String> {
+    let selection = Select::new()
+        .with_prompt(question)
+        .items(options)
+        .default(0)
+        .interact()?;
+    
+    Ok(options[selection].to_string())
+}
+
+/// Prompt the user with a question and a default value
+fn prompt_with_default(question: &str, default: &str) -> Result<String> {
+    print!("{} [{}]: ", question, default);
+    io::stdout().flush()?;
+    
+    let stdin = io::stdin();
+    let mut line = String::new();
+    stdin.lock().read_line(&mut line)?;
+    
+    let input = line.trim();
+    if input.is_empty() {
+        Ok(default.to_string())
+    } else {
+        Ok(input.to_string())
+    }
 }
