@@ -1,0 +1,27 @@
+{
+  "name": "client",
+  "description": "Frontend client application",
+  "version": "0.1.0",
+  "options": [
+    {
+      "name": "client_framework",
+      "type": "select",
+      "prompt": "Client framework",
+      "default": "leptos",
+      "options": [
+        {
+          "value": "leptos",
+          "label": "Leptos"
+        },
+        {
+          "value": "tauri",
+          "label": "Tauri (with Leptos)"
+        }
+      ]
+    }
+  ],
+  "redirect": {
+    "leptos": "client/leptos",
+    "tauri": "client/tauri"
+  }
+}

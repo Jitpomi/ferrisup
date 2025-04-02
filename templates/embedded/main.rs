@@ -1,4 +1,4 @@
-//! DEVICE_NAME firmware
+//! {{project_name}} firmware
 //! 
 //! This is a template for embedded devices created with FerrisUp
 
@@ -9,22 +9,13 @@
 use panic_halt as _;
 use cortex_m_rt::entry;
 
-// Device-specific imports would go here
-// For example, for RP2040:
-// use rp2040_hal as hal;
-// use hal::pac;
+// This file is a placeholder that will be replaced with a specific implementation
+// based on the selected microcontroller target.
+// See the target-specific files for detailed implementations.
 
 #[entry]
 fn main() -> ! {
     // Device initialization would go here
-    // For example, for RP2040:
-    // let mut pac = pac::Peripherals::take().unwrap();
-    // let core = pac::CorePeripherals::take().unwrap();
-    
-    // Initialize clocks, GPIO, etc.
-    
-    // In a real application, you would set up peripherals, 
-    // initialize hardware, and implement your firmware logic
     
     // Main application loop
     loop {

@@ -1,0 +1,56 @@
+{
+  "name": "polars-cli",
+  "description": "Data analysis CLI using Polars (similar to pandas in Python)",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "example_data.csv",
+      "target": "data/example_data.csv"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "data_source",
+      "question": "What type of data will you be working with?",
+      "options": [
+        "CSV files",
+        "Parquet files",
+        "JSON data"
+      ],
+      "default": "CSV files"
+    },
+    {
+      "name": "analysis_type",
+      "question": "What type of analysis do you plan to perform?",
+      "options": [
+        "Exploratory data analysis",
+        "Statistical analysis",
+        "Time series analysis",
+        "Text analysis",
+        "Machine learning preprocessing"
+      ],
+      "default": "Exploratory data analysis"
+    },
+    {
+      "name": "visualization",
+      "question": "Do you need data visualization capabilities?",
+      "options": [
+        "yes",
+        "no"
+      ],
+      "default": "yes"
+    }
+  ]
+}

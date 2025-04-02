@@ -18,4 +18,4 @@
 pub mod utils;
 pub mod config;
 pub mod commands;
-pub mod templates;
+pub mod template_manager;

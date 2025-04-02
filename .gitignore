@@ -99,6 +99,10 @@ desktop.ini
 # Generated examples
 /examples/generated/
 
+# Test applications
+/test_leptos_app/
+/app/
+
 # Temporary files
 *.tmp
 *.bak

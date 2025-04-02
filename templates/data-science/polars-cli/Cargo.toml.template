@@ -1,0 +1,42 @@
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A data science CLI application using Polars for DataFrame operations"
+
+[dependencies]
+# Core dependencies for all data sources
+polars-lazy = "0.46.0"
+polars-plan = "0.46.0"
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1.0"
+chrono = "0.4"
+comfy-table = "7.1"
+rand = "0.8"
+
+# Data source specific dependencies
+{{#if (eq data_source "CSV files")}}
+polars = { version = "0.46.0", features = ["lazy", "csv", "strings", "temporal", "random", "object", "dtype-full"] }
+polars-io = { version = "0.46.0", features = ["csv"] }
+{{/if}}
+
+{{#if (eq data_source "Parquet files")}}
+polars = { version = "0.46.0", features = ["lazy", "parquet", "strings", "temporal", "random", "object", "dtype-full"] }
+polars-io = { version = "0.46.0", features = ["parquet"] }
+{{/if}}
+
+{{#if (eq data_source "JSON data")}}
+polars = { version = "0.46.0", features = ["lazy", "json", "strings", "temporal", "random", "object", "dtype-full"] }
+polars-io = { version = "0.46.0", features = ["json"] }
+{{/if}}
+
+{{#if (eq data_source "Multiple sources")}}
+polars = { version = "0.46.0", features = ["lazy", "csv", "parquet", "json", "strings", "temporal", "random", "object", "dtype-full"] }
+polars-io = { version = "0.46.0", features = ["csv", "parquet", "json"] }
+{{/if}}
+
+# Visualization dependencies
+{{#if (eq visualization "yes")}}
+plotters = "0.3"
+{{/if}}

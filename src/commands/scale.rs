@@ -4,7 +4,7 @@ use dialoguer::{Confirm, Input, MultiSelect, Select};
 use std::path::PathBuf;
 use std::fs;
 
-use crate::templates::list_templates;
+use crate::template_manager::list_templates;
 
 pub fn execute() -> Result<()> {
     println!("{}", "FerrisUp Interactive Project Builder".bold().green());
@@ -71,7 +71,7 @@ pub fn execute() -> Result<()> {
         println!("\n{}", "Generating project from template...".green());
         
         // Here we would call the new::execute function with the selected template
-        // commands::new::execute(&project_dir.file_name().unwrap().to_string_lossy(), &selected_template, false, false)?;
+        // commands::new::execute(&project_dir.file_name().unwrap().to_string_lossy(), &selected_template, false, false, false, None)?;
         
         println!("{}", "Project successfully generated!".bold().green());
         println!("Your new Rust project is ready at: {}", project_dir.display().to_string().cyan());

@@ -54,7 +54,7 @@ fn test_all_templates() -> Result<()> {
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
     
-    let template_tuples = ferrisup::templates::list_templates()?;
+    let template_tuples = ferrisup::template_manager::list_templates()?;
     let template_count = template_tuples.len();
     println!("Found {} templates to test", template_count);
     
