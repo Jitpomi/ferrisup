@@ -34,11 +34,6 @@ enum Commands {
         #[arg(long, default_value = "records")]
         json_format: String,
         {{/if}}
-        {{#if (eq data_source "Multiple sources")}}
-        /// JSON format (records, lines) - only used for JSON files
-        #[arg(long, default_value = "records")]
-        json_format: String,
-        {{/if}}
         
         /// Optional column to filter on
         #[arg(short = 'c', long)]
@@ -85,11 +80,6 @@ enum Commands {
         #[arg(long, default_value = "records")]
         json_format: String,
         {{/if}}
-        {{#if (eq data_source "Multiple sources")}}
-        /// JSON format (records, lines) - only used for JSON files
-        #[arg(long, default_value = "records")]
-        json_format: String,
-        {{/if}}
         
         /// Column to visualize (must be numeric)
         #[arg(short = 'c', long)]
@@ -115,31 +105,6 @@ enum Commands {
         #[arg(short = 't', long, default_value = "{{#if (eq data_source "CSV files")}}csv{{else}}{{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}{{/if}}")]
         format: String,
     },
-    
-    {{#if (eq data_source "Multiple sources")}}
-    /// Convert between file formats (CSV, JSON, Parquet)
-    Convert {
-        /// Input file path
-        #[arg(short, long)]
-        input: PathBuf,
-        
-        /// Input file format (csv, json, parquet)
-        #[arg(short = 'f', long, default_value = "csv")]
-        input_format: String,
-        
-        /// Output file path
-        #[arg(short, long)]
-        output: PathBuf,
-        
-        /// Output file format (csv, json, parquet)
-        #[arg(short = 't', long, default_value = "csv")]
-        output_format: String,
-        
-        /// JSON format for input/output (records, lines) - only used for JSON files
-        #[arg(long, default_value = "records")]
-        json_format: String,
-    },
-    {{/if}}
 }
 
 fn main() -> Result<()> {
@@ -150,9 +115,6 @@ fn main() -> Result<()> {
             file,
             format,
             {{#if (eq data_source "JSON data")}}
-            json_format,
-            {{/if}}
-            {{#if (eq data_source "Multiple sources")}}
             json_format,
             {{/if}}
             filter_column,
@@ -185,31 +147,6 @@ fn main() -> Result<()> {
                 },
                 {{/if}}
                 {{#if (eq data_source "Parquet files")}}
-                "parquet" => {
-                    let file = File::open(file)
-                        .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
-                    
-                    ParquetReader::new(file)
-                        .finish()
-                        .with_context(|| format!("Failed to read Parquet file"))?
-                },
-                {{/if}}
-                {{#if (eq data_source "Multiple sources")}}
-                "json" => {
-                    println!("Using JSON format: {}", json_format);
-                    let json_fmt = match json_format.to_lowercase().as_str() {
-                        "lines" => JsonFormat::JsonLines,
-                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
-                    };
-                    
-                    let file = File::open(file)
-                        .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
-                    
-                    JsonReader::new(file)
-                        .with_json_format(json_fmt)
-                        .finish()
-                        .with_context(|| format!("Failed to read JSON file"))?
-                },
                 "parquet" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
@@ -380,10 +317,6 @@ fn main() -> Result<()> {
                     {{#if (eq data_source "Parquet files")}}
                     "parquet" => "parquet",
                     {{/if}}
-                    {{#if (eq data_source "Multiple sources")}}
-                    "json" => "json",
-                    "parquet" => "parquet",
-                    {{/if}}
                     _ => "csv",
                 }
             ));
@@ -409,21 +342,6 @@ fn main() -> Result<()> {
                     parquet_writer.finish(&mut result_df_mut)?;
                 },
                 {{/if}}
-                {{#if (eq data_source "Multiple sources")}}
-                "json" => {
-                    let json_fmt = match json_format.to_lowercase().as_str() {
-                        "lines" => JsonFormat::JsonLines,
-                        _ => JsonFormat::Json,
-                    };
-                    let mut json_writer = JsonWriter::new(&mut output_file)
-                        .with_json_format(json_fmt);
-                    json_writer.finish(&mut result_df_mut)?;
-                },
-                "parquet" => {
-                    let mut parquet_writer = ParquetWriter::new(&mut output_file);
-                    parquet_writer.finish(&mut result_df_mut)?;
-                },
-                {{/if}}
                 _ => {
                     // Default to CSV
                     let mut csv_writer = CsvWriter::new(&mut output_file);
@@ -435,7 +353,7 @@ fn main() -> Result<()> {
         }
         
         {{#if (eq visualization "yes")}}
-        Commands::Visualize { file, format, {{#if (eq data_source "JSON data")}} json_format, {{/if}} {{#if (eq data_source "Multiple sources")}} json_format, {{/if}} column, output } => {
+        Commands::Visualize { file, format, {{#if (eq data_source "JSON data")}} json_format, {{/if}} column, output } => {
             println!("📊 Loading data from {}: {}", format, file.display());
             
             // Read the data file based on format
@@ -458,31 +376,6 @@ fn main() -> Result<()> {
                 },
                 {{/if}}
                 {{#if (eq data_source "Parquet files")}}
-                "parquet" => {
-                    let file = File::open(file)
-                        .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
-                    
-                    ParquetReader::new(file)
-                        .finish()
-                        .with_context(|| format!("Failed to read Parquet file"))?
-                },
-                {{/if}}
-                {{#if (eq data_source "Multiple sources")}}
-                "json" => {
-                    println!("Using JSON format: {}", json_format);
-                    let json_fmt = match json_format.to_lowercase().as_str() {
-                        "lines" => JsonFormat::JsonLines,
-                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
-                    };
-                    
-                    let file = File::open(file)
-                        .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
-                    
-                    JsonReader::new(file)
-                        .with_json_format(json_fmt)
-                        .finish()
-                        .with_context(|| format!("Failed to read JSON file"))?
-                },
                 "parquet" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
@@ -591,17 +484,6 @@ fn main() -> Result<()> {
                     parquet_writer.finish(&mut df)?;
                 },
                 {{/if}}
-                {{#if (eq data_source "Multiple sources")}}
-                "json" => {
-                    let mut json_writer = JsonWriter::new(&mut file)
-                        .with_json_format(JsonFormat::Json);
-                    json_writer.finish(&mut df)?;
-                },
-                "parquet" => {
-                    let mut parquet_writer = ParquetWriter::new(&mut file);
-                    parquet_writer.finish(&mut df)?;
-                },
-                {{/if}}
                 _ => {
                     // Default to CSV
                     let mut csv_writer = CsvWriter::new(&mut file);
@@ -613,78 +495,6 @@ fn main() -> Result<()> {
             println!("\nTry analyzing it with:");
             println!("cargo run -- analyze -f {}", output.display());
         }
-        
-        {{#if (eq data_source "Multiple sources")}}
-        Commands::Convert { input, input_format, output, output_format, json_format } => {
-            println!("🔄 Converting {} to {}: {}", input_format, output_format, input.display());
-            
-            let mut df = match input_format.to_lowercase().as_str() {
-                "json" => {
-                    println!("Using JSON format: {}", json_format);
-                    let json_fmt = match json_format.to_lowercase().as_str() {
-                        "lines" => JsonFormat::JsonLines,
-                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
-                    };
-                    
-                    let file = File::open(input)
-                        .with_context(|| format!("Failed to open JSON file: {}", input.display()))?;
-                    
-                    JsonReader::new(file)
-                        .with_json_format(json_fmt)
-                        .finish()
-                        .with_context(|| format!("Failed to read JSON file"))?
-                },
-                "parquet" => {
-                    let file = File::open(input)
-                        .with_context(|| format!("Failed to open Parquet file: {}", input.display()))?;
-                    
-                    ParquetReader::new(file)
-                        .finish()
-                        .with_context(|| format!("Failed to read Parquet file"))?
-                },
-                _ => {
-                    // Default to CSV
-                    let file = File::open(input)
-                        .with_context(|| format!("Failed to open CSV file: {}", input.display()))?;
-                    
-                    CsvReader::new(file)
-                        .finish()
-                        .with_context(|| "Failed to parse CSV data")?
-                }
-            };
-            
-            if let Some(parent) = output.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            
-            let mut output_file = File::create(output)?;
-            
-            match output_format.to_lowercase().as_str() {
-                "json" => {
-                    println!("Using JSON format: {}", json_format);
-                    let json_fmt = match json_format.to_lowercase().as_str() {
-                        "lines" => JsonFormat::JsonLines,
-                        _ => JsonFormat::Json, // Use Json instead of JsonRecords in Polars 0.46.0
-                    };
-                    
-                    let mut json_writer = JsonWriter::new(&mut output_file)
-                        .with_json_format(json_fmt);
-                    json_writer.finish(&mut df)?;
-                },
-                "parquet" => {
-                    let mut parquet_writer = ParquetWriter::new(&mut output_file);
-                    parquet_writer.finish(&mut df)?;
-                },
-                _ => {
-                    // Default to CSV
-                    let mut csv_writer = CsvWriter::new(&mut output_file);
-                    csv_writer.finish(&mut df)?;
-                }
-            }
-            
-            println!("✅ Converted data saved to: {}", output.display());
-        }
-        {{/if}}
     }
 
     Ok(())

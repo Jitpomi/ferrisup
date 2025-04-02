@@ -27,10 +27,9 @@
       "options": [
         "CSV files",
         "Parquet files",
-        "JSON data",
-        "Multiple sources"
+        "JSON data"
       ],
-      "default": "Multiple sources"
+      "default": "CSV files"
     },
     {
       "name": "analysis_type",
