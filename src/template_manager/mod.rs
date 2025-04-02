@@ -128,87 +128,93 @@ pub fn apply_template(
     project_name: &str,
     variables: Option<Value>,
 ) -> Result<()> {
-    // Create the target directory if it doesn't exist
-    if !target_dir.exists() {
-        fs::create_dir_all(target_dir)?;
-    }
+    let template_dir = get_template_dir(template_name)?;
     
-    // Combine default variables with provided variables
+    // Read the template configuration
+    let template_config_path = template_dir.join("template.json");
+    let template_config_str = fs::read_to_string(template_config_path)?;
+    let template_config: Value = serde_json::from_str(&template_config_str)?;
+    
+    // Create the target directory if it doesn't exist
+    fs::create_dir_all(target_dir)?;
+    
+    // Create a map of variables for template substitution
     let mut template_vars = json!({
         "project_name": project_name,
     });
     
+    // Add additional variables if provided
     if let Some(vars) = variables {
-        if let Some(obj) = template_vars.as_object_mut() {
-            for (k, v) in vars.as_object().unwrap() {
-                obj.insert(k.clone(), v.clone());
+        if let (Some(obj), Some(template_obj)) = (vars.as_object(), template_vars.as_object_mut()) {
+            for (key, value) in obj {
+                template_obj.insert(key.clone(), value.clone());
             }
         }
     }
     
-    // Find the template directory
-    let template_dir = find_template_directory(template_name)?;
-    
-    // Read the template.json file
-    let template_json_path = template_dir.join("template.json");
-    let template_json = fs::read_to_string(&template_json_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read template.json: {}", e))?;
-    
-    let template_config: Value = serde_json::from_str(&template_json)
-        .map_err(|e| anyhow::anyhow!("Failed to parse template.json: {}", e))?;
-    
-    // Process each file in the template
+    // Process files
     if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-        for file_entry in files {
-            let source = file_entry.get("source").and_then(|s| s.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'source' in template file entry"))?;
-            let target = file_entry.get("target").and_then(|t| t.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'target' in template file entry"))?;
-            
-            // Replace variables in target path
-            let target_path = replace_variables(target, &template_vars);
-            let target_file_path = target_dir.join(target_path);
-            
-            // Create parent directories if they don't exist
-            if let Some(parent) = target_file_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            
-            // Try to find the appropriate source file
-            let mut source_path = template_dir.join(source);
-            let mut content = fs::read_to_string(&source_path);
-            
-            // If the file doesn't exist and we have a web_framework variable, try the framework-specific version
-            if content.is_err() && template_vars.get("web_framework").is_some() {
-                let web_framework = template_vars["web_framework"].as_str().unwrap_or("");
-                let framework_specific_path = format!("{}.{}", source, web_framework);
-                let alt_source_path = template_dir.join(&framework_specific_path);
+        for file in files {
+            if let (Some(source), Some(target)) = (
+                file.get("source").and_then(|s| s.as_str()),
+                file.get("target").and_then(|t| t.as_str()),
+            ) {
+                let source_path = template_dir.join(source);
+                let target_path = target_dir.join(target);
                 
-                if alt_source_path.exists() {
-                    source_path = alt_source_path;
-                    content = fs::read_to_string(&source_path);
+                // Check if we need to apply a transformation for this file
+                let mut transformed_source_path = source_path.clone();
+                if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
+                    for transformation in transformations {
+                        if let (Some(pattern), Some(replacement)) = (
+                            transformation.get("pattern").and_then(|p| p.as_str()),
+                            transformation.get("replacement")
+                        ) {
+                            // If the source file matches the pattern
+                            if source == pattern {
+                                // Check for variable keys in the replacement object
+                                if let Some(obj) = template_vars.as_object() {
+                                    for (key, value) in obj {
+                                        if let Some(value_str) = value.as_str() {
+                                            // Check if this variable has a replacement defined
+                                            if let Some(var_replacement) = replacement.get(value_str).and_then(|r| r.as_str()) {
+                                                // Use the transformed source path
+                                                transformed_source_path = template_dir.join(var_replacement);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-            
-            // If we still couldn't find the file, return an error
-            let content = content.map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", source_path.display(), e))?;
-            
-            // Replace variables in content
-            let mut processed_content = replace_variables(&content, &template_vars);
-            
-            // Apply transformations if available
-            if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
-                if let Some(web_framework) = template_vars.get("web_framework").and_then(|w| w.as_str()) {
-                    processed_content = apply_transformations(&processed_content, transformations, web_framework)?;
+                
+                // Create parent directories if they don't exist
+                if let Some(parent) = target_path.parent() {
+                    fs::create_dir_all(parent)?;
                 }
+                
+                // Read the source file
+                let mut content = fs::read_to_string(&transformed_source_path)
+                    .map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", transformed_source_path.display(), e))?;
+                
+                // Replace variables in the content
+                let processed_content = replace_variables(&content, &template_vars);
+                
+                // Apply transformations if available for content within files
+                let mut final_content = processed_content;
+                if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
+                    final_content = apply_transformations(&final_content, transformations, &template_vars)?;
+                }
+                
+                // Write to the target file
+                let mut file = File::create(&target_path)
+                    .map_err(|e| anyhow::anyhow!("Failed to create target file {}: {}", target_path.display(), e))?;
+                
+                file.write_all(final_content.as_bytes())
+                    .map_err(|e| anyhow::anyhow!("Failed to write to target file {}: {}", target_path.display(), e))?;
             }
-            
-            // Write to the target file
-            let mut file = File::create(&target_file_path)
-                .map_err(|e| anyhow::anyhow!("Failed to create target file {}: {}", target, e))?;
-            
-            file.write_all(processed_content.as_bytes())
-                .map_err(|e| anyhow::anyhow!("Failed to write to target file {}: {}", target, e))?;
         }
     }
     
@@ -226,8 +232,8 @@ pub fn apply_template(
     Ok(())
 }
 
-/// Apply transformations to content based on the selected web framework
-fn apply_transformations(content: &str, transformations: &[Value], web_framework: &str) -> Result<String> {
+/// Apply transformations to content based on the selected variable value
+fn apply_transformations(content: &str, transformations: &[Value], variables: &Value) -> Result<String> {
     let mut result = content.to_string();
     
     for transformation in transformations {
@@ -235,13 +241,21 @@ fn apply_transformations(content: &str, transformations: &[Value], web_framework
             transformation.get("pattern").and_then(|p| p.as_str()),
             transformation.get("replacement")
         ) {
-            if let Some(framework_replacement) = replacement.get(web_framework).and_then(|r| r.as_str()) {
-                // Compile the regex pattern
-                let regex = Regex::new(pattern)
-                    .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {}", e))?;
-                
-                // Apply the replacement
-                result = regex.replace_all(&result, framework_replacement).to_string();
+            // Check for variable keys in the replacement object
+            if let Some(obj) = variables.as_object() {
+                for (key, value) in obj {
+                    if let Some(value_str) = value.as_str() {
+                        // Check if this variable has a replacement defined
+                        if let Some(var_replacement) = replacement.get(value_str).and_then(|r| r.as_str()) {
+                            // Compile the regex pattern
+                            let regex = Regex::new(pattern)
+                                .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {}", e))?;
+                            
+                            // Apply the replacement
+                            result = regex.replace_all(&result, var_replacement).to_string();
+                        }
+                    }
+                }
             }
         }
     }
@@ -333,4 +347,54 @@ fn process_dependencies(dependencies: &Value, _target_dir: &Path, section: &str)
     }
     
     Ok(())
+}
+
+fn get_template_dir(template_name: &str) -> Result<PathBuf> {
+    let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
+    
+    // Check if it's a direct template
+    let direct_path = Path::new(&templates_dir).join(template_name);
+    if direct_path.exists() && direct_path.is_dir() {
+        return Ok(direct_path);
+    }
+    
+    // Check if it's a nested template (e.g., client/leptos/counter)
+    let parts: Vec<&str> = template_name.split('/').collect();
+    if parts.len() > 1 {
+        let nested_path = Path::new(&templates_dir).join(parts.join("/"));
+        if nested_path.exists() && nested_path.is_dir() {
+            return Ok(nested_path);
+        }
+    }
+    
+    // Search for the template in subdirectories
+    for entry in fs::read_dir(&templates_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_dir() {
+            // Check if this directory contains our template
+            let potential_template = path.join(template_name);
+            if potential_template.exists() && potential_template.is_dir() {
+                return Ok(potential_template);
+            }
+            
+            // Check one level deeper
+            if let Ok(subentries) = fs::read_dir(&path) {
+                for subentry in subentries {
+                    let subentry = subentry?;
+                    let subpath = subentry.path();
+                    
+                    if subpath.is_dir() {
+                        let subdir_name = subpath.file_name().unwrap().to_string_lossy();
+                        if subdir_name == template_name {
+                            return Ok(subpath);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Err(anyhow::anyhow!("Template '{}' not found", template_name))
 }
