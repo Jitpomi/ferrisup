@@ -1,0 +1,40 @@
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Common embedded dependencies
+panic-halt = "0.2"
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+embedded-hal = "0.2"
+
+# Target-specific dependencies for {{mcu_target}}
+{{mcu_target_deps}}
+
+[dev-dependencies]
+defmt = "0.3"
+defmt-rtt = "0.4"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+
+# this lets you use `cargo fix`!
+[[bin]]
+name = "{{project_name}}"
+test = false
+bench = false
+
+[profile.dev]
+opt-level = 1      # Enable better optimizations in debug mode
+debug = true       # Keep debug info
+lto = false        # No Link Time Optimization
+
+[profile.release]
+opt-level = "s"    # Optimize for size
+debug = true       # Keep debug info
+lto = true         # Enable Link Time Optimization
+codegen-units = 1  # Better optimizations
+panic = "abort"    # Abort on panic

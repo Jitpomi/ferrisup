@@ -4,6 +4,27 @@ use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
 use crate::utils::create_directory;
+use serde_json;
+use std::fs;
+use std::io;
+
+// Helper function to recursively copy directories
+fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        
+        if ty.is_dir() {
+            copy_dir_all(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
 
 // Note: For frameworks and libraries that have official CLIs (like Dioxus and Tauri),
 // we use those CLIs directly instead of maintaining our own templates.
@@ -26,18 +47,14 @@ pub fn execute(
             if no_interactive {
                 return Err(anyhow!("Project name is required in non-interactive mode"));
             }
-            Input::new()
-                .with_prompt("Project name:")
-                .default("my_app".to_string())
+            Input::<String>::new()
+                .with_prompt("Project name")
                 .interact()?
         }
     };
 
     // Create project directory
     let app_path = Path::new(&name);
-    if app_path.exists() {
-        return Err(anyhow!("Directory {} already exists", name));
-    }
     create_directory(app_path)?;
 
     // Get template
@@ -48,12 +65,11 @@ pub fn execute(
                 return Err(anyhow!("Template is required in non-interactive mode"));
             }
             
-            // Get available templates from the templates module
             let templates_with_desc = template_manager::list_templates()?;
             let templates: Vec<&str> = templates_with_desc.iter().map(|(name, _)| name.as_str()).collect();
             
             let selection = Select::new()
-                .with_prompt("Select a template:")
+                .with_prompt("Select a template")
                 .items(&templates)
                 .default(0)
                 .interact()?;
@@ -61,7 +77,13 @@ pub fn execute(
             templates[selection].to_string()
         }
     };
-    
+
+    // Declare additional_vars here
+    let mut additional_vars = None;
+
+    // Handle special cases for client frameworks
+    let mut _framework = String::new();
+
     // For client template, prompt for framework selection
     if template == "client" {
         println!("Template description: Custom template: client");
@@ -75,10 +97,10 @@ pub fn execute(
             .default(0)
             .interact()?;
             
-        let framework = frameworks[selection];
+        let framework_selected = frameworks[selection];
         
         // For Leptos, prompt for specific template type
-        if framework == "leptos" {
+        if framework_selected == "leptos" {
             println!("📦 Using Leptos templates to bootstrap the project");
             println!("🔧 Checking for required dependencies...");
             
@@ -154,9 +176,9 @@ pub fn execute(
             let template_path = format!("client/leptos/{}", template);
             
             // Apply the template using the template manager
-            template_manager::apply_template(&template_path, app_path, &name, None)?;
+            template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
             
-        } else if framework == "dioxus" {
+        } else if framework_selected == "dioxus" {
             println!("📦 Creating Dioxus project with dioxus-cli");
             
             // Check if dioxus-cli is installed
@@ -213,7 +235,7 @@ pub fn execute(
             
             return Ok(());
             
-        } else if framework == "tauri" {
+        } else if framework_selected == "tauri" {
             println!("📦 Creating Tauri project with create-tauri-app");
             
             // Create project directory
@@ -257,7 +279,7 @@ pub fn execute(
             return Ok(());
         } else {
             // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
-            template = framework.to_string();
+            template = framework_selected.to_string();
         }
     }
 
@@ -267,16 +289,173 @@ pub fn execute(
     // Apply the template using the template_manager
     if template.starts_with("client/") {
         // Template path is already fully qualified
-        template_manager::apply_template(&template, app_path, &name, None)?;
-    } else {
-        // For Leptos templates, prepend "client/leptos/"
-        if template == "counter" || template == "router" || template == "todo" {
-            let template_path = format!("client/leptos/{}", template);
-            template_manager::apply_template(&template_path, app_path, &name, None)?;
+        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+    } else if template == "embedded" {
+        // For embedded template, prompt for microcontroller selection
+        println!("📦 Creating embedded project for microcontrollers");
+        
+        // Ask if user wants to use a framework
+        let use_framework = Select::new()
+            .with_prompt("Do you want to use an embedded framework?")
+            .items(&["No, use standard embedded template", "Yes, use Embassy framework"])
+            .default(0)
+            .interact()?;
+            
+        if use_framework == 1 {
+            // User selected Embassy framework
+            println!("📦 Creating Embassy project using cargo-embassy");
+            
+            // Check if cargo-embassy is installed
+            println!("🔍 Checking for cargo-embassy...");
+            let embassy_check = Command::new("cargo")
+                .args(["install", "--list"])
+                .output()?;
+                
+            let embassy_output = String::from_utf8_lossy(&embassy_check.stdout);
+            let is_embassy_installed = embassy_output.contains("cargo-embassy");
+                
+            if is_embassy_installed {
+                println!("✅ cargo-embassy is already installed");
+            } else {
+                println!("⚠️ cargo-embassy not found. Installing...");
+                let status = Command::new("cargo")
+                    .args(["install", "cargo-embassy"])
+                    .status()?;
+                
+                if !status.success() {
+                    println!("❌ Failed to install cargo-embassy.");
+                    println!("Please install it manually with: cargo install cargo-embassy");
+                    return Err(anyhow!("Failed to install cargo-embassy"));
+                } else {
+                    println!("✅ cargo-embassy installed successfully");
+                }
+            }
+            
+            // Get microcontroller target
+            let mcu_targets = vec!["rp2040", "stm32f4", "nrf52840", "esp32c3"];
+            let selection = Select::new()
+                .with_prompt("Select microcontroller chip")
+                .items(&mcu_targets)
+                .default(0)
+                .interact()?;
+                
+            let mcu_chip = mcu_targets[selection];
+            println!("Using {} as the microcontroller chip", mcu_chip);
+            
+            // Create the project using cargo-embassy
+            println!("🔄 Creating new Embassy project...");
+            
+            // Create a parent directory for the Embassy project
+            let parent_dir = Path::new(".").join("embassy_temp");
+            fs::create_dir_all(&parent_dir)?;
+            
+            // Run cargo-embassy init from the parent directory
+            let status = Command::new("cargo")
+                .args(["embassy", "init", "--chip", mcu_chip, &name])
+                .current_dir(&parent_dir)
+                .status()?;
+                
+            if !status.success() {
+                println!("❌ Failed to create Embassy project.");
+                return Err(anyhow!("Failed to create Embassy project"));
+            }
+            
+            // Move the generated project to the target directory
+            let project_dir = parent_dir.join(&name);
+            if project_dir.exists() {
+                // Copy all files from the generated project to the target directory
+                let target_dir = Path::new(&name);
+                if !target_dir.exists() {
+                    fs::create_dir_all(target_dir)?;
+                }
+                
+                copy_dir_all(&project_dir, target_dir)?;
+                
+                // Clean up the temporary directory
+                fs::remove_dir_all(parent_dir)?;
+                
+                println!("🎉 Embassy project {} created successfully!", name);
+                println!("\nNext steps:");
+                println!("  cd {}", name);
+                println!("  # Build the project");
+                println!("  cargo build --release");
+                println!("  # Run the project");
+                println!("  cargo run --release");
+                
+                return Ok(());
+            } else {
+                println!("❌ Failed to create Embassy project.");
+                return Err(anyhow!("Failed to create Embassy project: Project directory not found"));
+            }
         } else {
-            // For other templates, use as is
-            template_manager::apply_template(&template, app_path, &name, None)?;
+            // Standard embedded template
+            // Get microcontroller target
+            let mcu_targets = vec!["rp2040", "stm32", "esp32", "arduino"];
+            let selection = Select::new()
+                .with_prompt("Select microcontroller target")
+                .items(&mcu_targets)
+                .default(0)
+                .interact()?;
+                
+            let mcu_target = mcu_targets[selection];
+            println!("Using {} as the microcontroller target", mcu_target);
+            
+            // Create target-specific dependencies string
+            let mcu_target_deps = match mcu_target {
+                "rp2040" => "rp2040-hal = \"0.9\"\nrp2040-boot2 = \"0.3\"\nusb-device = \"0.2\"\nusbd-serial = \"0.1\"",
+                "stm32" => "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }",
+                "esp32" => "esp32-hal = \"0.16\"\nesp-backtrace = \"0.9\"\nesp-println = \"0.6\"",
+                "arduino" => "arduino-hal = \"0.1\"\navr-device = \"0.5\"\nufmt = \"0.2\"",
+                _ => "",
+            };
+            
+            // Create variables for template substitution
+            additional_vars = Some(serde_json::json!({
+                "mcu_target": mcu_target,
+                "mcu_target_deps": mcu_target_deps
+            }));
+            
+            // Apply the template using the template manager
+            template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+            
+            // Suggest installing the appropriate Rust target
+            let rust_target = match mcu_target {
+                "rp2040" => "thumbv6m-none-eabi",
+                "stm32" => "thumbv7em-none-eabihf",
+                "esp32" => "xtensa-esp32-none-elf",
+                "arduino" => "avr-unknown-gnu-atmega328",
+                _ => "thumbv6m-none-eabi",
+            };
+            
+            println!("\nℹ️ You'll need to install the appropriate Rust target:");
+            println!("  rustup target add {}", rust_target);
+            
+            match mcu_target {
+                "rp2040" => {
+                    println!("  cargo install probe-run");
+                    println!("  cargo run --target {}", rust_target);
+                },
+                "esp32" => {
+                    println!("  cargo install espflash");
+                    println!("  cargo build --target {}", rust_target);
+                    println!("  espflash flash --monitor target/{}/debug/{}", rust_target, name);
+                },
+                "arduino" => {
+                    println!("  cargo install ravedude");
+                    println!("  cargo run --target {}", rust_target);
+                },
+                _ => {
+                    println!("  cargo build --target {}", rust_target);
+                }
+            }
         }
+    } else if template == "counter" || template == "router" || template == "todo" {
+        // For Leptos templates, prepend "client/leptos/"
+        let template_path = format!("client/leptos/{}", template);
+        template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
+    } else {
+        // For other templates, use as is
+        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
     }
 
     // Initialize git repository if requested
@@ -325,6 +504,43 @@ pub fn execute(
         println!("  dx serve --hot-reload true");
     } else if template.contains("client/tauri") {
         println!("  cargo tauri dev");
+    } else if template == "embedded" {
+        // For embedded template, provide target-specific instructions
+        if let Some(vars) = &additional_vars {
+            if let Some(mcu_target) = vars.get("mcu_target").and_then(|v| v.as_str()) {
+                let rust_target = match mcu_target {
+                    "rp2040" => "thumbv6m-none-eabi",
+                    "stm32" => "thumbv7em-none-eabihf",
+                    "esp32" => "xtensa-esp32-none-elf",
+                    "arduino" => "avr-unknown-gnu-atmega328",
+                    _ => "thumbv6m-none-eabi",
+                };
+                
+                println!("\nℹ️ You'll need to install the appropriate Rust target:");
+                println!("  rustup target add {}", rust_target);
+                
+                match mcu_target {
+                    "rp2040" => {
+                        println!("  cargo install probe-run");
+                        println!("  cargo run --target {}", rust_target);
+                    },
+                    "esp32" => {
+                        println!("  cargo install espflash");
+                        println!("  cargo build --target {}", rust_target);
+                        println!("  espflash flash --monitor target/{}/debug/{}", rust_target, name);
+                    },
+                    "arduino" => {
+                        println!("  cargo install ravedude");
+                        println!("  cargo run --target {}", rust_target);
+                    },
+                    _ => {
+                        println!("  cargo build --target {}", rust_target);
+                    }
+                }
+            }
+        } else {
+            println!("  cargo build");
+        }
     } else {
         println!("  cargo run");
     }

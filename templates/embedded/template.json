@@ -6,6 +6,42 @@
     {
       "source": "main.rs",
       "target": "src/main.rs"
+    },
+    {
+      "source": "memory.x",
+      "target": "memory.x"
+    },
+    {
+      "source": ".cargo/config.toml",
+      "target": ".cargo/config.toml"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "options": [
+    {
+      "name": "mcu_target",
+      "description": "Microcontroller target",
+      "type": "select",
+      "options": ["rp2040", "stm32", "esp32", "arduino"],
+      "default": "rp2040"
+    }
+  ],
+  "transformations": [
+    {
+      "pattern": "main.rs",
+      "replacement": {
+        "rp2040": "main.rs.rp2040",
+        "stm32": "main.rs.stm32",
+        "esp32": "main.rs.esp32",
+        "arduino": "main.rs.arduino"
+      }
     }
   ],
   "dependencies": {
@@ -14,21 +50,6 @@
       "cortex-m = \"0.7\"",
       "cortex-m-rt = \"0.7\"",
       "embedded-hal = \"0.2\""
-    ],
-    "rp2040": [
-      "rp2040-hal = \"0.9\"",
-      "rp2040-boot2 = \"0.3\""
-    ],
-    "esp32": [
-      "esp32-hal = \"0.16\"",
-      "esp-backtrace = \"0.9\""
-    ],
-    "stm32": [
-      "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }"
-    ],
-    "arduino": [
-      "arduino-hal = \"0.1\"",
-      "avr-device = \"0.5\""
     ]
   },
   "dev-dependencies": {
