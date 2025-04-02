@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
 use crate::utils::create_directory;
-use serde_json;
+use serde_json::{self, json};
 use std::fs;
 use std::io;
 
@@ -80,6 +80,50 @@ pub fn execute(
 
     // Declare additional_vars here
     let mut additional_vars = None;
+
+    // Get template configuration to check for options
+    let template_config = template_manager::get_template_config(&template)?;
+    
+    // Check if the template has options that need user input
+    if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
+        let mut vars = serde_json::Map::new();
+        
+        for option in options {
+            if let (Some(name), Some(desc), Some(option_type)) = (
+                option.get("name").and_then(|n| n.as_str()),
+                option.get("description").and_then(|d| d.as_str()),
+                option.get("type").and_then(|t| t.as_str())
+            ) {
+                if option_type == "select" && option.get("options").is_some() {
+                    let option_values: Vec<&str> = option.get("options")
+                        .and_then(|o| o.as_array())
+                        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+                        .unwrap_or_default();
+                    
+                    if !option_values.is_empty() {
+                        let default_idx = option.get("default")
+                            .and_then(|d| d.as_str())
+                            .and_then(|d| option_values.iter().position(|&v| v == d))
+                            .unwrap_or(0);
+                        
+                        let selection = Select::new()
+                            .with_prompt(desc)
+                            .items(&option_values)
+                            .default(default_idx)
+                            .interact()?;
+                        
+                        let selected_value = option_values[selection];
+                        vars.insert(name.to_string(), json!(selected_value));
+                        println!("Using {} as the {}", selected_value, name);
+                    }
+                }
+            }
+        }
+        
+        if !vars.is_empty() {
+            additional_vars = Some(serde_json::Value::Object(vars));
+        }
+    }
 
     // Handle special cases for client frameworks
     let mut _framework = String::new();

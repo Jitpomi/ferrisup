@@ -3,11 +3,12 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
+    Json, Router, serve,
 };
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
+use tokio::net::TcpListener;
 
 // Application state
 struct AppState {
@@ -57,10 +58,8 @@ async fn main() {
     tracing::info!("Listening on http://{}", addr);
 
     // Run the server
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let listener = TcpListener::bind(addr).await.unwrap();
+    serve(listener, app).await.unwrap();
 }
 
 // Route handlers

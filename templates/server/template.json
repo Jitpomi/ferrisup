@@ -1,0 +1,19 @@
+{
+  "name": "server",
+  "description": "A Rust web server template",
+  "type": "binary",
+  "options": [
+    {
+      "name": "server_framework",
+      "description": "Server framework",
+      "type": "select",
+      "options": ["axum", "actix", "poem"],
+      "default": "axum"
+    }
+  ],
+  "redirect": {
+    "axum": "server/axum",
+    "actix": "server/actix",
+    "poem": "server/poem"
+  }
+}

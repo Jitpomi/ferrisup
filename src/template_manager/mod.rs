@@ -135,9 +135,6 @@ pub fn apply_template(
     let template_config_str = fs::read_to_string(template_config_path)?;
     let template_config: Value = serde_json::from_str(&template_config_str)?;
     
-    // Create the target directory if it doesn't exist
-    fs::create_dir_all(target_dir)?;
-    
     // Create a map of variables for template substitution
     let mut template_vars = json!({
         "project_name": project_name,
@@ -151,6 +148,24 @@ pub fn apply_template(
             }
         }
     }
+    
+    // Check if this template redirects to another template
+    if let Some(redirect) = template_config.get("redirect") {
+        // Find the appropriate redirect based on variables
+        if let Some(obj) = template_vars.as_object() {
+            for (key, value) in obj {
+                if let Some(value_str) = value.as_str() {
+                    if let Some(redirect_template) = redirect.get(value_str).and_then(|r| r.as_str()) {
+                        println!("Redirecting to {} template", redirect_template);
+                        return apply_template(redirect_template, target_dir, project_name, Some(template_vars));
+                    }
+                }
+            }
+        }
+    }
+    
+    // Create the target directory if it doesn't exist
+    fs::create_dir_all(target_dir)?;
     
     // Process files
     if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
@@ -312,6 +327,18 @@ pub fn find_template_directory(template_name: &str) -> Result<PathBuf> {
     }
     
     Err(anyhow::anyhow!("Template '{}' not found", template_name))
+}
+
+/// Get the template configuration
+pub fn get_template_config(template_name: &str) -> Result<Value> {
+    let template_dir = get_template_dir(template_name)?;
+    
+    // Read the template configuration
+    let template_config_path = template_dir.join("template.json");
+    let template_config_str = fs::read_to_string(template_config_path)?;
+    let template_config: Value = serde_json::from_str(&template_config_str)?;
+    
+    Ok(template_config)
 }
 
 /// Replace template variables in a string
