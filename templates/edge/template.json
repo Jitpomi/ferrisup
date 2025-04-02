@@ -2,11 +2,64 @@
   "name": "edge-app",
   "description": "A Rust edge computing application template with WebAssembly support",
   "type": "library",
+  "options": {
+    "testing_approach": {
+      "type": "select",
+      "prompt": "How would you like to test your WebAssembly code?",
+      "default": "browser_example",
+      "values": [
+        "browser_example",
+        "headless_tests",
+        "both"
+      ],
+      "help": {
+        "browser_example": "Create an example HTML page to load and test your WebAssembly in a browser",
+        "headless_tests": "Set up headless browser testing with wasm-pack test",
+        "both": "Set up both browser example and headless tests"
+      }
+    },
+    "static_server": {
+      "type": "select",
+      "prompt": "Which static file server would you like to use for browser testing?",
+      "default": "miniserve",
+      "values": [
+        "miniserve",
+        "static-web-server",
+        "none"
+      ],
+      "help": {
+        "miniserve": "A simple, zero-configuration static file server",
+        "static-web-server": "A very fast and asynchronous web server for static files",
+        "none": "Don't install any static file server"
+      }
+    }
+  },
   "files": [
     {
       "source": "lib.rs",
       "target": "src/lib.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "index.html.template",
+      "target": "index.html",
+      "condition": "testing_approach == 'browser_example' || testing_approach == 'both'"
+    },
+    {
+      "source": "tests/web.rs.template",
+      "target": "tests/web.rs",
+      "condition": "testing_approach == 'headless_tests' || testing_approach == 'both'"
     }
+  ],
+  "next_steps": [
+    "cd {{project_name}}",
+    "wasm-pack build --target web",
+    "# For browser testing: open index.html in your browser or use a static file server",
+    "# For headless testing: wasm-pack test --headless --firefox",
+    "# If you selected a static file server: {{static_server_command}}"
   ],
   "dependencies": {
     "default": [

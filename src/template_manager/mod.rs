@@ -9,6 +9,7 @@ use lazy_static::lazy_static;
 use handlebars::Handlebars;
 use colored::Colorize;
 use dialoguer::Select;
+use std::process::Command;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -176,6 +177,7 @@ pub fn apply_template(
     // Prepare template variables
     let mut template_vars = json!({
         "project_name": project_name,
+        "project_name_pascal_case": to_pascal_case(project_name),
     });
     
     // Add user-provided variables
@@ -272,6 +274,152 @@ pub fn apply_template(
         }
     }
     
+    // Handle edge template-specific setup
+    if template_name == "edge" {
+        // Process edge template options first
+        println!("\n{}", "WebAssembly Edge App Configuration:".bold().green());
+        
+        let mut additional_vars = Map::new();
+        
+        if let Some(options) = template_config.get("options") {
+            if let Some(obj) = options.as_object() {
+                // Process testing_approach option
+                if let Some(testing_approach_option) = obj.get("testing_approach") {
+                    if let Some(testing_approach_obj) = testing_approach_option.as_object() {
+                        let prompt = testing_approach_obj.get("prompt")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("How would you like to test your WebAssembly code?");
+                        
+                        let values = testing_approach_obj.get("values")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+                            .unwrap_or_else(|| vec!["browser_example", "headless_tests", "both"]);
+                        
+                        // Display help text if available
+                        if let Some(help_obj) = testing_approach_obj.get("help").and_then(|h| h.as_object()) {
+                            println!("\nTesting approach options:");
+                            for value in &values {
+                                if let Some(help_text) = help_obj.get(*value).and_then(|h| h.as_str()) {
+                                    println!("  {} - {}", value, help_text);
+                                }
+                            }
+                            println!("");
+                        }
+                        
+                        let testing_approach = prompt_with_options(prompt, &values)?;
+                        additional_vars.insert("testing_approach".to_string(), json!(testing_approach));
+                    }
+                }
+                
+                // Process static_server option
+                if let Some(static_server_option) = obj.get("static_server") {
+                    if let Some(static_server_obj) = static_server_option.as_object() {
+                        let prompt = static_server_obj.get("prompt")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("Which static file server would you like to use for browser testing?");
+                        
+                        let values = static_server_obj.get("values")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+                            .unwrap_or_else(|| vec!["miniserve", "static-web-server", "none"]);
+                        
+                        // Display help text if available
+                        if let Some(help_obj) = static_server_obj.get("help").and_then(|h| h.as_object()) {
+                            println!("\nStatic file server options:");
+                            for value in &values {
+                                if let Some(help_text) = help_obj.get(*value).and_then(|h| h.as_str()) {
+                                    println!("  {} - {}", value, help_text);
+                                }
+                            }
+                            println!("");
+                        }
+                        
+                        let static_server = prompt_with_options(prompt, &values)?;
+                        additional_vars.insert("static_server".to_string(), json!(static_server));
+                    }
+                }
+            }
+        }
+        
+        // Add the additional variables to the template variables
+        if let Some(obj_mut) = template_vars.as_object_mut() {
+            for (key, value) in additional_vars {
+                obj_mut.insert(key, value);
+            }
+        }
+        
+        // Now check for and install dependencies
+        println!("🔍 Checking for wasm32-unknown-unknown target...");
+        let output = Command::new("rustup")
+            .args(&["target", "list", "--installed"])
+            .output()?;
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if !output_str.contains("wasm32-unknown-unknown") {
+            println!("⚠️ wasm32-unknown-unknown target not found, installing...");
+            let install_output = Command::new("rustup")
+                .args(&["target", "add", "wasm32-unknown-unknown"])
+                .output()?;
+            
+            if install_output.status.success() {
+                println!("✅ wasm32-unknown-unknown target installed successfully");
+            } else {
+                println!("❌ Failed to install wasm32-unknown-unknown target");
+                println!("{}", String::from_utf8_lossy(&install_output.stderr));
+            }
+        } else {
+            println!("✅ wasm32-unknown-unknown target is already installed");
+        }
+        
+        // Check if wasm-pack is installed
+        println!("🔍 Checking for wasm-pack...");
+        let wasm_pack_output = Command::new("which")
+            .arg("wasm-pack")
+            .output()?;
+        
+        if !wasm_pack_output.status.success() {
+            println!("⚠️ wasm-pack not found, installing...");
+            let install_output = Command::new("cargo")
+                .args(&["install", "wasm-pack"])
+                .output()?;
+            
+            if install_output.status.success() {
+                println!("✅ wasm-pack installed successfully");
+            } else {
+                println!("❌ Failed to install wasm-pack");
+                println!("{}", String::from_utf8_lossy(&install_output.stderr));
+            }
+        } else {
+            println!("✅ wasm-pack is already installed");
+        }
+        
+        // Check if static file server is installed (if selected)
+        if let Some(static_server) = template_vars.get("static_server").and_then(|s| s.as_str()) {
+            if static_server != "none" {
+                println!("🔍 Checking for {}...", static_server);
+                let server_output = Command::new("which")
+                    .arg(static_server)
+                    .output()?;
+                
+                if !server_output.status.success() {
+                    println!("⚠️ {} not found, installing...", static_server);
+                    let install_output = Command::new("cargo")
+                        .args(&["install", static_server])
+                        .output()?;
+                    
+                    if install_output.status.success() {
+                        println!("✅ {} installed successfully", static_server);
+                    } else {
+                        println!("❌ Failed to install {}", static_server);
+                        println!("{}", String::from_utf8_lossy(&install_output.stderr));
+                    }
+                } else {
+                    println!("✅ {} is already installed", static_server);
+                }
+            }
+        }
+    }
+    
     // Register handlebars helpers
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
@@ -286,6 +434,14 @@ pub fn apply_template(
     // Process dependencies if specified
     if let Some(dependencies) = template_config.get("dependencies") {
         process_dependencies(dependencies, target_dir, "dependencies")?;
+    }
+    
+    // Display next steps if available
+    if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
+        println!("\nNext steps:");
+        for step in next_steps {
+            println!("  {}", step);
+        }
     }
     
     println!("✅ Successfully applied template: {}", template_name);
@@ -612,6 +768,88 @@ fn get_template_dir(template_name: &str) -> Result<PathBuf> {
     Err(anyhow::anyhow!("Template '{}' not found", template_name))
 }
 
+/// Get the template's custom next steps if available
+pub fn get_template_next_steps(template_name: &str, project_name: &str, variables: Option<Value>) -> Option<Vec<String>> {
+    let template_dir = match get_template_dir(template_name) {
+        Ok(dir) => dir,
+        Err(_) => return None,
+    };
+    let template_json_path = template_dir.join("template.json");
+    
+    if !template_json_path.exists() {
+        return None;
+    }
+    
+    let template_json = match fs::read_to_string(&template_json_path) {
+        Ok(content) => content,
+        Err(_) => return None,
+    };
+    
+    let template_config: Value = match serde_json::from_str(&template_json) {
+        Ok(config) => config,
+        Err(_) => return None,
+    };
+    
+    // Get the next_steps from the template.json
+    if let Some(next_steps) = template_config.get("next_steps") {
+        if let Some(steps_array) = next_steps.as_array() {
+            let mut result = Vec::new();
+            
+            // Get the variables for substitution
+            let current_vars = match variables {
+                Some(vars) => {
+                    if let Some(obj) = vars.as_object() {
+                        obj.clone()
+                    } else {
+                        Map::new()
+                    }
+                },
+                None => Map::new(),
+            };
+            
+            // Process each step
+            for step in steps_array {
+                if let Some(step_str) = step.as_str() {
+                    let mut processed_step = step_str.to_string();
+                    
+                    // Replace {{project_name}} with the actual project name
+                    if processed_step.contains("{{project_name}}") {
+                        processed_step = processed_step.replace("{{project_name}}", project_name);
+                    }
+                    
+                    // Replace {{static_server_command}} with the actual command if applicable
+                    if processed_step.contains("{{static_server_command}}") {
+                        if let Some(static_server) = current_vars.get("static_server") {
+                            if let Some(server) = static_server.as_str() {
+                                if server != "none" {
+                                    processed_step = processed_step.replace(
+                                        "{{static_server_command}}", 
+                                        &format!("{} . --port 8080", server)
+                                    );
+                                } else {
+                                    // Skip this step if no static server was selected
+                                    continue;
+                                }
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            // Skip this step if static_server is not in variables
+                            continue;
+                        }
+                    }
+                    
+                    result.push(processed_step);
+                }
+            }
+            
+            return Some(result);
+        }
+    }
+    
+    None
+}
+
 /// Prompt the user with a question and return their answer
 #[allow(dead_code)]
 fn prompt(question: &str) -> Result<String> {
@@ -651,4 +889,24 @@ fn prompt_with_default(question: &str, default: &str) -> Result<String> {
     } else {
         Ok(input.to_string())
     }
+}
+
+fn to_pascal_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    
+    for c in s.chars() {
+        if c == '-' || c == '_' || c == ' ' {
+            capitalize_next = true;
+        } else {
+            if capitalize_next {
+                result.push(c.to_uppercase().next().unwrap());
+                capitalize_next = false;
+            } else {
+                result.push(c);
+            }
+        }
+    }
+    
+    result
 }

@@ -556,6 +556,53 @@ npx create-tauri-app {}
         // For Leptos templates, prepend "client/leptos/"
         let template_path = format!("client/leptos/{}", template);
         template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
+    } else if template == "edge" {
+        println!("🔍 Checking for wasm32-unknown-unknown target...");
+        let wasm_check = Command::new("rustup")
+            .args(["target", "list", "--installed"])
+            .output()?;
+        
+        let wasm_output = String::from_utf8_lossy(&wasm_check.stdout);
+        if !wasm_output.contains("wasm32-unknown-unknown") {
+            println!("⚠️ wasm32-unknown-unknown target not found. Installing...");
+            let status = Command::new("rustup")
+                .args(["target", "add", "wasm32-unknown-unknown"])
+                .status()?;
+            
+            if !status.success() {
+                println!("❌ Failed to install wasm32-unknown-unknown target.");
+                println!("Please install it manually with: rustup target add wasm32-unknown-unknown");
+            } else {
+                println!("✅ wasm32-unknown-unknown target installed successfully");
+            }
+        } else {
+            println!("✅ wasm32-unknown-unknown target is already installed");
+        }
+        
+        // Check for wasm-pack
+        println!("🔍 Checking for wasm-pack...");
+        let wasm_pack_check = Command::new("wasm-pack")
+            .arg("--version")
+            .output();
+        
+        match wasm_pack_check {
+            Ok(_) => println!("✅ wasm-pack is already installed"),
+            Err(_) => {
+                println!("⚠️ wasm-pack not found. Installing...");
+                let status = Command::new("cargo")
+                    .args(["install", "wasm-pack"])
+                    .status()?;
+                
+                if !status.success() {
+                    println!("❌ Failed to install wasm-pack.");
+                    println!("Please install it manually with: cargo install wasm-pack");
+                } else {
+                    println!("✅ wasm-pack installed successfully");
+                }
+            }
+        }
+        
+        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
     } else {
         // For other templates, use as is
         template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
@@ -597,59 +644,9 @@ npx create-tauri-app {}
 
     // Print success message with instructions
     println!("\n🎉 Project {} created successfully!", name);
-    println!("\nNext steps:");
-    println!("  cd {}", name);
     
-    // Provide appropriate next steps based on the template
-    if template == "counter" || template == "router" || template == "todo" || template.contains("client/leptos/counter") || template.contains("client/leptos/router") || template.contains("client/leptos/todo") {
-        println!("  trunk serve --open");
-    } else if template.contains("client/dioxus") {
-        println!("  dx serve --hot-reload true");
-    } else if template.contains("client/tauri") {
-        println!("  cargo tauri dev");
-    } else if template == "embedded" {
-        // For embedded template, provide target-specific instructions
-        if let Some(vars) = &additional_vars {
-            if let Some(mcu_target) = vars.get("mcu_target").and_then(|v| v.as_str()) {
-                let rust_target = match mcu_target {
-                    "rp2040" => "thumbv6m-none-eabi",
-                    "stm32" => "thumbv7em-none-eabihf",
-                    "esp32" => "xtensa-esp32-none-elf",
-                    "arduino" => "avr-unknown-gnu-atmega328",
-                    _ => "thumbv6m-none-eabi",
-                };
-                
-                println!("\nℹ️ You'll need to install the appropriate Rust target:");
-                println!("  rustup target add {}", rust_target);
-                
-                match mcu_target {
-                    "rp2040" => {
-                        println!("  cargo install probe-run");
-                        println!("  cargo run --target {}", rust_target);
-                    },
-                    "esp32" => {
-                        println!("  cargo install espflash");
-                        println!("  cargo build --target {}", rust_target);
-                        println!("  espflash flash --monitor target/{}/debug/{}", rust_target, name);
-                    },
-                    "arduino" => {
-                        println!("  cargo install ravedude");
-                        println!("  cargo run --target {}", rust_target);
-                    },
-                    _ => {
-                        println!("  cargo build --target {}", rust_target);
-                    }
-                }
-            }
-        } else {
-            println!("  cargo build");
-        }
-    } else if template == "library" {
-        println!("  cargo test");
-        println!("  cargo doc --open");
-    } else {
-        println!("  cargo run");
-    }
+    // We don't need to print next steps here as they're already printed in apply_template
+    // The next steps include the static server command if applicable
 
     Ok(())
 }
