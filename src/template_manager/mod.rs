@@ -316,8 +316,8 @@ fn process_file(
                 let var_name = parts[0].trim();
                 let expected_value = parts[1].trim().trim_matches('\'').trim_matches('"');
                 
-                if let Some(var_value) = vars.get(var_name) {
-                    if let Some(value_str) = var_value.as_str() {
+                if let Some(_var_value) = vars.get(var_name) {
+                    if let Some(value_str) = _var_value.as_str() {
                         if value_str != expected_value {
                             // Condition not met, skip this file
                             return Ok(());
@@ -431,6 +431,7 @@ fn process_conditional_blocks(content: &str, variables: &Value) -> Result<String
 }
 
 /// Apply transformations to content based on the selected variable value
+#[allow(dead_code)]
 fn apply_transformations(content: &str, transformations: &[Value], variables: &Value) -> Result<String> {
     let mut result = content.to_string();
     
@@ -441,7 +442,7 @@ fn apply_transformations(content: &str, transformations: &[Value], variables: &V
                 if let Some(replacement_obj) = replacement_value.as_object() {
                     // Check for variable matches in the replacement object
                     if let Some(vars) = variables.as_object() {
-                        for (var_key, var_value) in vars {
+                        for (var_key, _var_value) in vars {
                             if let Some(replacement) = replacement_obj.get(var_key) {
                                 if let Some(replacement_str) = replacement.as_str() {
                                     result = result.replace(pattern, replacement_str);
@@ -524,6 +525,7 @@ pub fn get_template_config(template_name: &str) -> Result<Value> {
 }
 
 /// Replace template variables in a string
+#[allow(dead_code)]
 fn replace_variables(content: &str, variables: &Value) -> String {
     let mut result = content.to_string();
     
@@ -611,6 +613,7 @@ fn get_template_dir(template_name: &str) -> Result<PathBuf> {
 }
 
 /// Prompt the user with a question and return their answer
+#[allow(dead_code)]
 fn prompt(question: &str) -> Result<String> {
     print!("{} ", question);
     io::stdout().flush()?;
