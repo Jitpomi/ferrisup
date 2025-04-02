@@ -57,18 +57,25 @@ pub fn get_all_templates() -> Result<Vec<String>> {
 /// Returns a list of templates with their descriptions
 /// Format: Vec<(name, description)>
 pub fn list_templates() -> Result<Vec<(String, String)>> {
+    // Define core templates with descriptions
     let mut templates = vec![
         ("minimal".to_string(), "Simple binary with a single main.rs file".to_string()),
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
         ("full-stack".to_string(), "Complete application with client, server, and shared libraries".to_string()),
-        ("gen-ai".to_string(), "AI-focused project with inference and model components".to_string()),
-        ("edge-app".to_string(), "WebAssembly-based application for edge computing".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
+        ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
         ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
-        ("iot-device".to_string(), "IoT device firmware with connectivity features".to_string()),
+        ("client".to_string(), "Frontend client application".to_string()),
+        ("ai".to_string(), "Artificial intelligence project".to_string()),
+        ("edge".to_string(), "Edge computing application".to_string()),
+        ("gen-ai".to_string(), "AI-focused project with inference and model components".to_string()),
         ("ml-pipeline".to_string(), "Machine learning data processing pipeline".to_string()),
         ("data-science".to_string(), "Data science project with analysis tools".to_string()),
+        ("iot-device".to_string(), "IoT device firmware with connectivity features".to_string()),
     ];
+    
+    // Track template names we've already added to avoid duplicates
+    let template_names: Vec<String> = templates.iter().map(|(name, _)| name.clone()).collect();
     
     // Check for custom templates in the templates directory
     let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
@@ -77,7 +84,7 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
             if entry.path().is_dir() {
                 if let Some(dir_name) = entry.file_name().to_str() {
                     // Skip templates we've already added
-                    if templates.iter().any(|(name, _)| name == dir_name) {
+                    if template_names.contains(&dir_name.to_string()) {
                         continue;
                     }
                     

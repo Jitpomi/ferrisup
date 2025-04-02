@@ -6,6 +6,10 @@
     {
       "source": "main.rs",
       "target": "src/main.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
     }
   ],
   "database": {
