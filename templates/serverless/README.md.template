@@ -1,0 +1,235 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting {{cloud_provider}}.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main function code
+├── Cargo.toml          # Rust dependencies
+{{#if (eq cloud_provider "aws")}}
+├── template.yml        # AWS SAM template
+└── Makefile            # Build and deployment commands
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+├── cloudbuild.yaml     # Google Cloud Build configuration
+└── Dockerfile          # Container configuration
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+├── host.json           # Azure Functions host configuration
+└── function.json       # Function trigger configuration
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+└── vercel.json         # Vercel deployment configuration
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+└── netlify.toml        # Netlify deployment configuration
+{{/if}}
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+{{#if (eq cloud_provider "aws")}}
+- [AWS CLI](https://aws.amazon.com/cli/) - For deploying to AWS Lambda
+- [Cargo Lambda](https://github.com/cargo-lambda/cargo-lambda) - For local testing and deployment
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) - For deploying to Google Cloud Functions
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) - For deploying to Azure Functions
+- [Azure Functions Core Tools](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local) - For local testing
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+- [Vercel CLI](https://vercel.com/docs/cli) - For deploying to Vercel
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+- [Netlify CLI](https://docs.netlify.com/cli/get-started/) - For deploying to Netlify
+{{/if}}
+
+### Local Development
+
+{{#if (eq cloud_provider "aws")}}
+1. Build the project:
+   ```
+   make build
+   ```
+
+2. Run locally:
+   ```
+   make local
+   ```
+
+3. Test with an HTTP request:
+   ```
+   curl http://localhost:9000/lambda-url/{{project_name}}/
+   ```
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+1. Build the project:
+   ```
+   cargo build --release
+   ```
+
+2. Run locally:
+   ```
+   cargo run
+   ```
+
+3. Test with an HTTP request:
+   ```
+   curl http://localhost:8080
+   ```
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+1. Build the project:
+   ```
+   cargo build --release
+   ```
+
+2. Run locally with Azure Functions Core Tools:
+   ```
+   func start
+   ```
+
+3. Test with an HTTP request:
+   ```
+   curl http://localhost:7071/api/{{project_name}}
+   ```
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+1. Build the project:
+   ```
+   cargo build --release
+   ```
+
+2. Run locally with Vercel CLI:
+   ```
+   vercel dev
+   ```
+
+3. Test with an HTTP request:
+   ```
+   curl http://localhost:3000/api
+   ```
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+1. Build the project:
+   ```
+   cargo build --release
+   ```
+
+2. Run locally with Netlify CLI:
+   ```
+   netlify dev
+   ```
+
+3. Test with an HTTP request:
+   ```
+   curl http://localhost:8888/.netlify/functions/{{project_name}}
+   ```
+{{/if}}
+
+### Deployment
+
+{{#if (eq cloud_provider "aws")}}
+Deploy to AWS Lambda:
+```
+make deploy
+```
+
+This will:
+1. Build your Rust code with cargo-lambda
+2. Package your function with AWS SAM
+3. Deploy to AWS Lambda
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+Deploy to Google Cloud Functions:
+```
+gcloud builds submit --config cloudbuild.yaml
+```
+
+This will:
+1. Build your Rust code in a Docker container
+2. Deploy to Google Cloud Functions
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+Deploy to Azure Functions:
+```
+func azure functionapp publish <your-function-app-name>
+```
+
+Make sure to create a Function App in Azure Portal first.
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+Deploy to Vercel:
+```
+vercel --prod
+```
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+Deploy to Netlify:
+```
+netlify deploy --prod
+```
+{{/if}}
+
+## Customizing Your Function
+
+The main function code is in `src/main.rs`. You can modify this file to implement your business logic.
+
+{{#if (eq cloud_provider "aws")}}
+For AWS Lambda, you can:
+- Add more event triggers in the `template.yml` file
+- Configure environment variables in the `template.yml` file
+- Adjust memory and timeout settings in the `template.yml` file
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+For Google Cloud Functions, you can:
+- Modify the `cloudbuild.yaml` file to customize the deployment
+- Add environment variables in the Google Cloud Console
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+For Azure Functions, you can:
+- Add more bindings in the `function.json` file
+- Configure environment variables in the Azure Portal
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+For Vercel Functions, you can:
+- Customize routing in the `vercel.json` file
+- Add environment variables in the Vercel Dashboard
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+For Netlify Functions, you can:
+- Customize routing in the `netlify.toml` file
+- Add environment variables in the Netlify Dashboard
+{{/if}}
+
+## Resources
+
+{{#if (eq cloud_provider "aws")}}
+- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
+- [cargo-lambda Documentation](https://www.cargo-lambda.info/)
+- [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
+{{/if}}
+{{#if (eq cloud_provider "gcp")}}
+- [Google Cloud Functions Documentation](https://cloud.google.com/functions/docs)
+- [Cloud Build Documentation](https://cloud.google.com/build/docs)
+{{/if}}
+{{#if (eq cloud_provider "azure")}}
+- [Azure Functions Documentation](https://docs.microsoft.com/en-us/azure/azure-functions/)
+- [Azure Functions Rust Custom Handler](https://docs.microsoft.com/en-us/azure/azure-functions/functions-custom-handlers)
+{{/if}}
+{{#if (eq cloud_provider "vercel")}}
+- [Vercel Documentation](https://vercel.com/docs)
+- [Vercel Rust Runtime](https://vercel.com/docs/functions/runtimes/rust)
+{{/if}}
+{{#if (eq cloud_provider "netlify")}}
+- [Netlify Functions Documentation](https://docs.netlify.com/functions/overview/)
+- [Netlify Rust Functions](https://docs.netlify.com/functions/build-with-rust/)
+{{/if}}

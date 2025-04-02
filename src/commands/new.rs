@@ -114,6 +114,14 @@ pub fn execute(
                         
                         let selected_value = option_values[selection];
                         vars.insert(name.to_string(), json!(selected_value));
+                        
+                        // Display help text if available
+                        if let Some(help) = template_config.get("help").and_then(|h| h.as_object()) {
+                            if let Some(help_text) = help.get(selected_value).and_then(|t| t.as_str()) {
+                                println!("ℹ️  {}", help_text);
+                            }
+                        }
+                        
                         println!("Using {} as the {}", selected_value, name);
                     }
                 }
@@ -282,45 +290,55 @@ pub fn execute(
         } else if framework_selected == "tauri" {
             println!("📦 Creating Tauri project with create-tauri-app");
             
-            // Create project directory
-            create_directory(app_path)?;
+            // Get the parent directory
+            let parent_dir = app_path.parent().unwrap_or(Path::new("."));
             
-            // Check if Node.js is installed
-            println!("🔍 Checking for Node.js...");
-            let node_check = Command::new("node")
-                .arg("--version")
-                .output();
-                
-            let node_installed = match node_check {
-                Ok(output) => output.status.success(),
-                Err(_) => false
+            // Make sure we're not creating the project in the current directory
+            // If app_path is just a filename without a directory, use the current directory
+            let working_dir = if parent_dir == Path::new("") {
+                Path::new(".")
+            } else {
+                parent_dir
             };
             
-            if !node_installed {
-                return Err(anyhow!("Node.js is required to create Tauri projects. Please install Node.js and try again."));
-            }
-            println!("✅ Node.js is installed");
+            // Create a temporary script to handle the create-tauri-app command
+            // This will allow us to run the command interactively while still using the project name
+            let script_content = format!(r#"#!/bin/sh
+cd "{}"
+npx create-tauri-app {}
+"#, working_dir.display(), name);
             
-            // Use npx to run create-tauri-app
-            println!("🔧 Creating Tauri project...");
-            let create_status = Command::new("npx")
-                .args(["create-tauri-app@latest", "--ci"])
-                .arg(".")
-                .current_dir(app_path)
+            let temp_dir = std::env::temp_dir();
+            let script_path = temp_dir.join("ferrisup_tauri_script.sh");
+            
+            // Write the script to a temporary file
+            fs::write(&script_path, script_content)?;
+            
+            // Make the script executable
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&script_path)?.permissions();
+                perms.set_mode(0o755);
+                fs::set_permissions(&script_path, perms)?;
+            }
+            
+            // Run the script
+            let create_status = Command::new(&script_path)
                 .status()?;
+                
+            // Clean up the temporary script
+            let _ = fs::remove_file(&script_path);
                 
             if !create_status.success() {
                 return Err(anyhow!("Failed to create Tauri project with create-tauri-app"));
             }
             
-            // Print success message with instructions
+            // Print success message
             println!("\n🎉 Project {} created successfully!", name);
-            println!("\nNext steps:");
-            println!("  cd {}", name);
-            println!("  npm install");
-            println!("  npm run tauri dev");
             
             return Ok(());
+            
         } else {
             // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
             template = framework_selected.to_string();
@@ -335,32 +353,35 @@ pub fn execute(
         // Template path is already fully qualified
         template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
     } else if template == "embedded" {
-        // For embedded template, prompt for microcontroller selection
         println!("📦 Creating embedded project for microcontrollers");
         
-        // Ask if user wants to use a framework
-        let use_framework = Select::new()
-            .with_prompt("Do you want to use an embedded framework?")
-            .items(&["No, use standard embedded template", "Yes, use Embassy framework"])
-            .default(0)
-            .interact()?;
-            
-        if use_framework == 1 {
+        // Check if the user selected Embassy framework from the options
+        let use_embassy = if let Some(vars) = &additional_vars {
+            if let Some(framework) = vars.get("framework").and_then(|f| f.as_str()) {
+                framework == "Yes, use Embassy framework"
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        if use_embassy {
             // User selected Embassy framework
             println!("📦 Creating Embassy project using cargo-embassy");
             
             // Check if cargo-embassy is installed
             println!("🔍 Checking for cargo-embassy...");
             let embassy_check = Command::new("cargo")
-                .args(["install", "--list"])
-                .output()?;
+                .args(["embassy", "--version"])
+                .output();
                 
-            let embassy_output = String::from_utf8_lossy(&embassy_check.stdout);
-            let is_embassy_installed = embassy_output.contains("cargo-embassy");
-                
-            if is_embassy_installed {
-                println!("✅ cargo-embassy is already installed");
-            } else {
+            let embassy_installed = match embassy_check {
+                Ok(output) => output.status.success(),
+                Err(_) => false
+            };
+            
+            if !embassy_installed {
                 println!("⚠️ cargo-embassy not found. Installing...");
                 let status = Command::new("cargo")
                     .args(["install", "cargo-embassy"])
@@ -373,9 +394,11 @@ pub fn execute(
                 } else {
                     println!("✅ cargo-embassy installed successfully");
                 }
+            } else {
+                println!("✅ cargo-embassy is already installed");
             }
             
-            // Get microcontroller target
+            // Get microcontroller chip for Embassy
             let mcu_targets = vec!["rp2040", "stm32f4", "nrf52840", "esp32c3"];
             let selection = Select::new()
                 .with_prompt("Select microcontroller chip")
@@ -433,19 +456,20 @@ pub fn execute(
             }
         } else {
             // Standard embedded template
-            // Get microcontroller target
-            let mcu_targets = vec!["rp2040", "stm32", "esp32", "arduino"];
-            let selection = Select::new()
-                .with_prompt("Select microcontroller target")
-                .items(&mcu_targets)
-                .default(0)
-                .interact()?;
-                
-            let mcu_target = mcu_targets[selection];
+            // Get microcontroller target from options
+            let mcu_target = if let Some(vars) = &additional_vars {
+                vars.get("mcu_target")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("rp2040")
+                    .to_string() // Clone the string to avoid borrowing issues
+            } else {
+                "rp2040".to_string()
+            };
+            
             println!("Using {} as the microcontroller target", mcu_target);
             
             // Create target-specific dependencies string
-            let mcu_target_deps = match mcu_target {
+            let mcu_target_deps = match mcu_target.as_str() {
                 "rp2040" => "rp2040-hal = \"0.9\"\nrp2040-boot2 = \"0.3\"\nusb-device = \"0.2\"\nusbd-serial = \"0.1\"",
                 "stm32" => "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }",
                 "esp32" => "esp32-hal = \"0.16\"\nesp-backtrace = \"0.9\"\nesp-println = \"0.6\"",
@@ -454,16 +478,26 @@ pub fn execute(
             };
             
             // Create variables for template substitution
-            additional_vars = Some(serde_json::json!({
-                "mcu_target": mcu_target,
-                "mcu_target_deps": mcu_target_deps
-            }));
+            let mut vars = serde_json::Map::new();
+            vars.insert("mcu_target".to_string(), json!(mcu_target));
+            vars.insert("mcu_target_deps".to_string(), json!(mcu_target_deps));
+            
+            // Merge with existing additional_vars if any
+            if let Some(ref existing_vars) = additional_vars {
+                if let Some(existing_obj) = existing_vars.as_object() {
+                    for (k, v) in existing_obj {
+                        if k != "mcu_target" && k != "mcu_target_deps" {
+                            vars.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+            }
             
             // Apply the template using the template manager
-            template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+            template_manager::apply_template(&template, app_path, &name, Some(serde_json::Value::Object(vars)))?;
             
             // Suggest installing the appropriate Rust target
-            let rust_target = match mcu_target {
+            let rust_target = match mcu_target.as_str() {
                 "rp2040" => "thumbv6m-none-eabi",
                 "stm32" => "thumbv7em-none-eabihf",
                 "esp32" => "xtensa-esp32-none-elf",
@@ -474,7 +508,7 @@ pub fn execute(
             println!("\nℹ️ You'll need to install the appropriate Rust target:");
             println!("  rustup target add {}", rust_target);
             
-            match mcu_target {
+            match mcu_target.as_str() {
                 "rp2040" => {
                     println!("  cargo install probe-run");
                     println!("  cargo run --target {}", rust_target);
@@ -585,6 +619,9 @@ pub fn execute(
         } else {
             println!("  cargo build");
         }
+    } else if template == "library" {
+        println!("  cargo test");
+        println!("  cargo doc --open");
     } else {
         println!("  cargo run");
     }

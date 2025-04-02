@@ -1,10 +1,16 @@
 use anyhow::Result;
 use std::fs;
 use std::fs::File;
-use std::path::{Path, PathBuf};
 use std::io::Write;
-use serde_json::{Value, json};
-use regex::Regex;
+use std::path::{Path, PathBuf};
+use serde_json::{Value, json, Map};
+use std::sync::{Arc, RwLock};
+use lazy_static::lazy_static;
+use handlebars::Handlebars;
+
+lazy_static! {
+    static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
+}
 
 pub fn get_template(name: &str) -> Result<String> {
     let templates = get_all_templates()?;
@@ -137,106 +143,119 @@ pub fn apply_template(
 ) -> Result<()> {
     let template_dir = get_template_dir(template_name)?;
     
-    // Read the template configuration
-    let template_config_path = template_dir.join("template.json");
-    let template_config_str = fs::read_to_string(template_config_path)?;
-    let template_config: Value = serde_json::from_str(&template_config_str)?;
+    // Create target directory if it doesn't exist
+    fs::create_dir_all(target_dir)?;
     
-    // Create a map of variables for template substitution
+    // Get template configuration
+    let template_config = get_template_config(template_name)?;
+    
+    // Prepare template variables
     let mut template_vars = json!({
         "project_name": project_name,
     });
     
-    // Add additional variables if provided
+    // Add user-provided variables
     if let Some(vars) = variables {
-        if let (Some(obj), Some(template_obj)) = (vars.as_object(), template_vars.as_object_mut()) {
-            for (key, value) in obj {
-                template_obj.insert(key.clone(), value.clone());
-            }
-        }
-    }
-    
-    // Check if this template redirects to another template
-    if let Some(redirect) = template_config.get("redirect") {
-        // Find the appropriate redirect based on variables
-        if let Some(obj) = template_vars.as_object() {
-            for (key, value) in obj {
-                if let Some(value_str) = value.as_str() {
-                    if let Some(redirect_template) = redirect.get(value_str).and_then(|r| r.as_str()) {
-                        println!("Redirecting to {} template", redirect_template);
-                        return apply_template(redirect_template, target_dir, project_name, Some(template_vars));
-                    }
+        if let Some(obj) = vars.as_object() {
+            if let Some(obj_mut) = template_vars.as_object_mut() {
+                for (_key, value) in obj {
+                    obj_mut.insert(_key.clone(), value.clone());
                 }
             }
         }
     }
     
-    // Create the target directory if it doesn't exist
-    fs::create_dir_all(target_dir)?;
+    // Update CURRENT_VARIABLES
+    *CURRENT_VARIABLES.write().unwrap() = template_vars.as_object().unwrap().clone();
     
-    // Process files
-    if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-        for file in files {
-            if let (Some(source), Some(target)) = (
-                file.get("source").and_then(|s| s.as_str()),
-                file.get("target").and_then(|t| t.as_str()),
-            ) {
-                let source_path = template_dir.join(source);
-                let target_path = target_dir.join(target);
-                
-                // Check if we need to apply a transformation for this file
-                let mut transformed_source_path = source_path.clone();
-                if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
-                    for transformation in transformations {
-                        if let (Some(pattern), Some(replacement)) = (
-                            transformation.get("pattern").and_then(|p| p.as_str()),
-                            transformation.get("replacement")
-                        ) {
-                            // If the source file matches the pattern
-                            if source == pattern {
-                                // Check for variable keys in the replacement object
-                                if let Some(obj) = template_vars.as_object() {
-                                    for (key, value) in obj {
-                                        if let Some(value_str) = value.as_str() {
-                                            // Check if this variable has a replacement defined
-                                            if let Some(var_replacement) = replacement.get(value_str).and_then(|r| r.as_str()) {
-                                                // Use the transformed source path
-                                                transformed_source_path = template_dir.join(var_replacement);
-                                                break;
-                                            }
-                                        }
-                                    }
+    // Check if this template redirects to another template
+    if let Some(redirect) = template_config.get("redirect") {
+        // Find the appropriate redirect based on variables
+        let redirect_template = if let Some(redirect_obj) = redirect.as_object() {
+            let mut selected_redirect = None;
+            
+            // First, check if we have a framework variable (server_framework, client_framework, cloud_provider)
+            // and use it to determine the redirect
+            if let Some(obj) = template_vars.as_object() {
+                // Look for framework variables first (most common case)
+                for framework_key in &["server_framework", "client_framework", "cloud_provider"] {
+                    if let Some(framework_value) = obj.get(*framework_key) {
+                        if let Some(framework_str) = framework_value.as_str() {
+                            if let Some(redirect_value) = redirect_obj.get(framework_str) {
+                                if let Some(redirect_str) = redirect_value.as_str() {
+                                    selected_redirect = Some(redirect_str);
+                                    break;
                                 }
                             }
                         }
                     }
                 }
-                
-                // Create parent directories if they don't exist
-                if let Some(parent) = target_path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                
-                // Read the source file
-                let mut content = fs::read_to_string(&transformed_source_path)
-                    .map_err(|e| anyhow::anyhow!("Failed to read source file {}: {}", transformed_source_path.display(), e))?;
-                
-                // Replace variables in the content
-                let processed_content = replace_variables(&content, &template_vars);
-                
-                // Apply transformations if available for content within files
-                let mut final_content = processed_content;
-                if let Some(transformations) = template_config.get("transformations").and_then(|t| t.as_array()) {
-                    final_content = apply_transformations(&final_content, transformations, &template_vars)?;
-                }
-                
-                // Write to the target file
-                let mut file = File::create(&target_path)
-                    .map_err(|e| anyhow::anyhow!("Failed to create target file {}: {}", target_path.display(), e))?;
-                
-                file.write_all(final_content.as_bytes())
-                    .map_err(|e| anyhow::anyhow!("Failed to write to target file {}: {}", target_path.display(), e))?;
             }
+            
+            // If we still don't have a redirect, try the direct key-value matching approach
+            if selected_redirect.is_none() {
+                for (key, value) in redirect_obj {
+                    if let Some(obj) = template_vars.as_object() {
+                        for (var_key, var_value) in obj {
+                            if var_key == key && var_value.as_str().is_some() && var_value.as_str() == value.as_str() {
+                                selected_redirect = Some(value.as_str().unwrap());
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if selected_redirect.is_some() {
+                        break;
+                    }
+                }
+            }
+            
+            // If no redirect was selected but we have a value in template_vars that matches a key in redirect_obj,
+            // use that key's value as the redirect
+            if selected_redirect.is_none() {
+                if let Some(obj) = template_vars.as_object() {
+                    for (var_key, var_value) in obj {
+                        if redirect_obj.contains_key(var_key) && var_value.as_str().is_some() {
+                            if let Some(redirect_value) = redirect_obj.get(var_value.as_str().unwrap()) {
+                                if redirect_value.as_str().is_some() {
+                                    selected_redirect = Some(redirect_value.as_str().unwrap());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Fall back to the first value in the redirect object if we still don't have a redirect
+            selected_redirect.unwrap_or_else(|| {
+                redirect_obj.values().next()
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| {
+                        eprintln!("Warning: Could not determine redirect template. Using original template.");
+                        template_name
+                    })
+            })
+        } else if redirect.as_str().is_some() {
+            redirect.as_str().unwrap()
+        } else {
+            eprintln!("Warning: Invalid redirect format. Using original template.");
+            template_name
+        };
+        
+        // Apply the redirected template
+        return apply_template(redirect_template, target_dir, project_name, Some(template_vars));
+    }
+    
+    // Process files
+    if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
+        let mut handlebars = Handlebars::new();
+        
+        // Configure Handlebars for better template processing
+        handlebars.set_strict_mode(false);
+        
+        for file_entry in files {
+            process_file(file_entry, &template_dir, target_dir, &template_vars, &mut handlebars)?;
         }
     }
     
@@ -254,29 +273,165 @@ pub fn apply_template(
     Ok(())
 }
 
+fn process_file(
+    file_entry: &Value,
+    template_dir: &Path,
+    target_dir: &Path,
+    template_vars: &Value,
+    handlebars: &mut Handlebars,
+) -> Result<()> {
+    if let (Some(source), Some(target)) = (
+        file_entry.get("source").and_then(|s| s.as_str()),
+        file_entry.get("target").and_then(|t| t.as_str()),
+    ) {
+        // Check if there's a condition and evaluate it
+        if let Some(condition) = file_entry.get("condition").and_then(|c| c.as_str()) {
+            // Parse and evaluate the condition
+            let vars = template_vars.as_object().unwrap();
+            
+            // Simple condition evaluation for now - just check equality
+            // Format: "variable_name == 'value'"
+            let parts: Vec<&str> = condition.split("==").collect();
+            if parts.len() == 2 {
+                let var_name = parts[0].trim();
+                let expected_value = parts[1].trim().trim_matches('\'').trim_matches('"');
+                
+                if let Some(var_value) = vars.get(var_name) {
+                    if let Some(value_str) = var_value.as_str() {
+                        if value_str != expected_value {
+                            // Condition not met, skip this file
+                            return Ok(());
+                        }
+                    }
+                } else {
+                    // Variable not found, skip this file
+                    return Ok(());
+                }
+            }
+        }
+        
+        let source_path = template_dir.join(source);
+        let target_path = target_dir.join(target);
+        
+        // Create parent directories if they don't exist
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        // Process the file based on its extension
+        if source.ends_with(".template") || source.ends_with(".rs") || source.ends_with(".md") || 
+           source.ends_with(".toml") || source.ends_with(".html") || source.ends_with(".css") || 
+           source.ends_with(".json") || target.ends_with("Cargo.toml") {
+            // Read the template content
+            let template_content = fs::read_to_string(&source_path)?;
+            
+            // Process conditional blocks manually before rendering with Handlebars
+            let processed_content = process_conditional_blocks(&template_content, template_vars)?;
+            
+            // Render the template with variables using Handlebars
+            let rendered = handlebars.render_template(&processed_content, template_vars)?;
+            
+            // Write the rendered content to the target file
+            let mut file = File::create(&target_path)?;
+            file.write_all(rendered.as_bytes())?;
+        } else {
+            // Just copy the file
+            fs::copy(&source_path, &target_path)?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Process conditional blocks in template content
+fn process_conditional_blocks(content: &str, variables: &Value) -> Result<String> {
+    let mut result = content.to_string();
+    
+    // Get the cloud provider from variables
+    let cloud_provider = if let Some(provider) = variables.get("cloud_provider").and_then(|p| p.as_str()) {
+        provider
+    } else {
+        return Ok(result);
+    };
+    
+    // Process {{#if (eq cloud_provider "aws")}} blocks
+    let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
+    
+    for provider in providers {
+        let start_tag = format!("{{{{#if (eq cloud_provider \"{}\")}}}}", provider);
+        let end_tag = "{{/if}}";
+        
+        // Find all blocks for this provider
+        let mut start_idx = 0;
+        while let Some(block_start) = result[start_idx..].find(&start_tag) {
+            let block_start = start_idx + block_start;
+            
+            // Find the matching end tag
+            if let Some(block_end) = result[block_start..].find(end_tag) {
+                let block_end = block_start + block_end + end_tag.len();
+                
+                // If this is the selected provider, keep the content but remove the tags
+                if provider == cloud_provider {
+                    let content_start = block_start + start_tag.len();
+                    let content_end = block_end - end_tag.len();
+                    
+                    // Create a new string with the content but without the tags
+                    let new_result = format!(
+                        "{}{}{}",
+                        &result[0..block_start],
+                        &result[content_start..content_end],
+                        &result[block_end..]
+                    );
+                    
+                    result = new_result;
+                    
+                    // Adjust the start index for the next search
+                    start_idx = block_start + (content_end - content_start);
+                } else {
+                    // This is not the selected provider, remove the entire block
+                    let new_result = format!(
+                        "{}{}",
+                        &result[0..block_start],
+                        &result[block_end..]
+                    );
+                    
+                    result = new_result;
+                    
+                    // Adjust the start index for the next search
+                    start_idx = block_start;
+                }
+            } else {
+                // No matching end tag found, move past this start tag
+                start_idx = block_start + start_tag.len();
+            }
+        }
+    }
+    
+    Ok(result)
+}
+
 /// Apply transformations to content based on the selected variable value
 fn apply_transformations(content: &str, transformations: &[Value], variables: &Value) -> Result<String> {
     let mut result = content.to_string();
     
     for transformation in transformations {
-        if let (Some(pattern), Some(replacement)) = (
-            transformation.get("pattern").and_then(|p| p.as_str()),
-            transformation.get("replacement")
-        ) {
-            // Check for variable keys in the replacement object
-            if let Some(obj) = variables.as_object() {
-                for (key, value) in obj {
-                    if let Some(value_str) = value.as_str() {
-                        // Check if this variable has a replacement defined
-                        if let Some(var_replacement) = replacement.get(value_str).and_then(|r| r.as_str()) {
-                            // Compile the regex pattern
-                            let regex = Regex::new(pattern)
-                                .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {}", e))?;
-                            
-                            // Apply the replacement
-                            result = regex.replace_all(&result, var_replacement).to_string();
+        if let Some(pattern) = transformation.get("pattern").and_then(|p| p.as_str()) {
+            if let Some(replacement_value) = transformation.get("replacement") {
+                // If replacement is an object, it may contain variable references
+                if let Some(replacement_obj) = replacement_value.as_object() {
+                    // Check for variable matches in the replacement object
+                    if let Some(vars) = variables.as_object() {
+                        for (var_key, var_value) in vars {
+                            if let Some(replacement) = replacement_obj.get(var_key) {
+                                if let Some(replacement_str) = replacement.as_str() {
+                                    result = result.replace(pattern, replacement_str);
+                                }
+                            }
                         }
                     }
+                } else if let Some(replacement_str) = replacement_value.as_str() {
+                    // Direct string replacement
+                    result = result.replace(pattern, replacement_str);
                 }
             }
         }
@@ -369,13 +524,15 @@ fn replace_variables(content: &str, variables: &Value) -> String {
 
 /// Process dependencies from template.json
 fn process_dependencies(dependencies: &Value, _target_dir: &Path, section: &str) -> Result<()> {
-    // For now, we'll just print a message about dependencies
-    // In a real implementation, you'd modify the Cargo.toml file
-    
     if let Some(deps) = dependencies.as_object() {
-        for (key, value) in deps {
-            if let Some(deps_array) = value.as_array() {
-                println!("📦 Adding {} for {}: {} items", section, key, deps_array.len());
+        for (_key, value) in deps {
+            if let Some(dep_name) = value.get("name").and_then(|n| n.as_str()) {
+                let mut version = "latest".to_string();
+                if let Some(ver) = value.get("version").and_then(|v| v.as_str()) {
+                    version = ver.to_string();
+                }
+                
+                println!("📦 Adding {} dependency: {} ({})", section, dep_name, version);
             }
         }
     }

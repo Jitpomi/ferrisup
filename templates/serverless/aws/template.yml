@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: '{{project_name}} - AWS Lambda function created with FerrisUp'
+
+Resources:
+  {{project_name}}Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 30
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: any
+
+Outputs:
+  {{project_name}}Function:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt {{project_name}}Function.Arn
+  {{project_name}}Api:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

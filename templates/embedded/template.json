@@ -26,6 +26,13 @@
   ],
   "options": [
     {
+      "name": "framework",
+      "description": "Do you want to use an embedded framework?",
+      "type": "select",
+      "options": ["No, use standard embedded template", "Yes, use Embassy framework"],
+      "default": "No, use standard embedded template"
+    },
+    {
       "name": "mcu_target",
       "description": "Microcontroller target",
       "type": "select",

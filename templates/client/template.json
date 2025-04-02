@@ -12,11 +12,16 @@
         {
           "value": "leptos",
           "label": "Leptos"
+        },
+        {
+          "value": "tauri",
+          "label": "Tauri (with Leptos)"
         }
       ]
     }
   ],
   "redirect": {
-    "leptos": "client/leptos"
+    "leptos": "client/leptos",
+    "tauri": "client/tauri"
   }
 }

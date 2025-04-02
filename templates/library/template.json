@@ -6,6 +6,10 @@
     {
       "source": "lib.rs",
       "target": "src/lib.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
     }
   ],
   "dependencies": {
