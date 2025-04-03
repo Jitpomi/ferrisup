@@ -1,6 +1,9 @@
 {
-  "name": "data-science/burn-net",
-  "description": "A Rust deep learning template using Burn for neural networks (similar to PyTorch in Python)",
+  "name": "burn-net",
+  "description": "A neural network example using the Burn framework for deep learning in Rust",
+  "author": "Ferrisup Team",
+  "version": "0.1.0",
+  "license": "MIT",
   "type": "binary",
   "files": [
     {
@@ -16,34 +19,31 @@
       "target": "src/dataset.rs"
     },
     {
-      "source": "src/train.rs",
-      "target": "src/train.rs"
+      "source": "README.md",
+      "target": "README.md"
     },
     {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
-    },
-    {
-      "source": "README.md",
-      "target": "README.md"
     }
   ],
   "dependencies": {
     "default": [
-      "burn = { version = \"0.16.0\", features = [\"train\", \"ndarray\", \"autodiff\", \"dataset\", \"vision\"] }",
-      "burn-tensor = { version = \"0.16.0\", features = [\"ndarray\"] }",
-      "burn-autodiff = \"0.16.0\"",
-      "burn-train = \"0.16.0\"",
-      "burn-dataset = \"0.16.0\"",
-      "burn-ndarray = \"0.16.0\"",
-      "ndarray = \"0.15\"",
       "anyhow = \"1.0\"",
       "clap = { version = \"4.5\", features = [\"derive\"] }",
+      "image = \"0.24\"",
+      "rand = \"0.8\"",
       "serde = { version = \"1.0\", features = [\"derive\"] }",
       "serde_json = \"1.0\"",
-      "rand = \"0.8\"",
-      "indicatif = \"0.17\"",
-      "image = \"0.24\""
+      "ndarray = \"0.15\"",
+      "burn = \"0.1.0\""
     ]
-  }
+  },
+  "next_steps": [
+    "🧠 Train the neural network: cd {{project_name}} && cargo run -- train",
+    "🔍 Test the model with new data: cargo run -- test",
+    "📊 Visualize model performance: cargo run -- visualize",
+    "💾 Save and load models: cargo run -- save && cargo run -- load",
+    "📚 See all available commands: cargo run -- help"
+  ]
 }

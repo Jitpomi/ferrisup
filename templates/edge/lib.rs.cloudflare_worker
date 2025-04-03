@@ -1,0 +1,51 @@
+use worker::*;
+
+#[event(fetch)]
+pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
+    console_log!("Handling request to: {}", req.url()?);
+
+    // Add CORS headers
+    let cors_headers = {
+        let mut headers = Headers::new();
+        headers.set("Access-Control-Allow-Origin", "*")?;
+        headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")?;
+        headers.set("Access-Control-Allow-Headers", "Content-Type")?;
+        headers
+    };
+
+    // Handle OPTIONS request for CORS preflight
+    if req.method() == Method::Options {
+        return Response::empty()
+            .map(|resp| resp.with_headers(cors_headers));
+    }
+
+    // Route the request
+    Router::new()
+        .get("/", |_, _| {
+            Response::ok("{{project_name}} API is running!")
+        })
+        .get("/api/hello/:name", |_, ctx| {
+            if let Some(name) = ctx.param("name") {
+                Response::ok(format!("Hello, {}!", name))
+            } else {
+                Response::ok("Hello, World!")
+            }
+        })
+        .post_async("/api/data", |mut req, _| async move {
+            // Parse JSON data from request
+            if let Ok(data) = req.json::<serde_json::Value>().await {
+                Response::ok(format!("Received data: {:?}", data))
+            } else {
+                Response::error("Invalid JSON data", 400)
+            }
+        })
+        .run(req, env)
+        .map(|resp| resp.with_headers(cors_headers))
+}
+
+#[macro_export]
+macro_rules! console_log {
+    ($($t:tt)*) => {
+        worker::console_log!($($t)*)
+    };
+}

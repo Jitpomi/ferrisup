@@ -344,25 +344,66 @@ npx create-tauri-app {}
             template = framework_selected.to_string();
         }
     } else if template == "data-science" {
-        // For data science templates, prompt for specific template
-        println!("\n📊 Select a Data Science template:");
+        // For data science templates, first prompt for the ML framework
+        println!("\n📊 Select a Data Science approach:");
         
-        let ds_templates = template_manager::list_data_science_templates()?;
+        let framework_options = vec![
+            "Data Analysis with Polars - For data processing and analysis (similar to pandas in Python)",
+            "Machine Learning with Linfa - Traditional ML algorithms (similar to scikit-learn in Python)",
+            "Deep Learning with Burn - Neural networks and deep learning (similar to PyTorch in Python)"
+        ];
         
-        // Create a vector of items for the select widget
-        let items: Vec<String> = ds_templates
-            .iter()
-            .map(|(name, desc)| format!("{} - {}", name.replace("data-science/", ""), desc))
-            .collect();
-        
-        // Use the select widget with the formatted items
-        let selection = Select::new()
-            .items(&items)
+        let framework_selection = Select::new()
+            .items(&framework_options)
             .default(0)
             .interact()?;
             
-        let (selected_template, _) = &ds_templates[selection];
-        template = selected_template.clone();
+        // Based on framework selection, show appropriate templates
+        match framework_selection {
+            0 => {
+                // Polars selected
+                template = "data-science/polars-cli".to_string();
+            },
+            1 => {
+                // Linfa selected
+                template = "data-science/linfa-lab".to_string();
+            },
+            2 => {
+                // Burn selected - show task categories
+                println!("\n🧠 Select a Deep Learning task:");
+                
+                let burn_task_options = vec![
+                    "Image Recognition - Identify handwritten numbers in images",
+                    "Custom Image Classifier - Train a model on your own photos",
+                    "Text Classifier - Categorize text into different groups",
+                    "Value Prediction - Forecast numerical values like prices",
+                    "CSV Analysis - Process and learn from spreadsheet data",
+                    "Advanced Training - Fine-tune the training process (for experts)",
+                    "Web App - Create an image recognition website"
+                ];
+                
+                let task_selection = Select::new()
+                    .items(&burn_task_options)
+                    .default(0)
+                    .interact()?;
+                    
+                // Map task selection to template
+                template = match task_selection {
+                    0 => "data-science/burn-image-recognition".to_string(),
+                    1 => "data-science/burn-custom-image".to_string(),
+                    2 => "data-science/burn-text-classifier".to_string(),
+                    3 => "data-science/burn-value-prediction".to_string(),
+                    4 => "data-science/burn-csv-dataset".to_string(),
+                    5 => "data-science/burn-custom-training".to_string(),
+                    6 => "data-science/burn-web-classifier".to_string(),
+                    _ => "data-science/burn-image-recognition".to_string(), // Default fallback
+                };
+            },
+            _ => {
+                // Fallback
+                template = "data-science/polars-cli".to_string();
+            }
+        }
         
         println!("🔍 Checking for wasm32-unknown-unknown target...");
         check_dependencies(&template)?;

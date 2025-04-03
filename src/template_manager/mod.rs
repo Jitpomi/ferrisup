@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::fs;
 use std::fs::File;
 use std::io::{self, Write, BufRead};
@@ -142,9 +142,26 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
 /// Get data science templates with descriptions
 pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
     Ok(vec![
-        ("data-science/polars-cli".to_string(), "Data analysis CLI using Polars (similar to pandas in Python)".to_string()),
-        ("data-science/burn-net".to_string(), "Deep learning with Burn (similar to PyTorch in Python)".to_string()),
-        ("data-science/linfa-lab".to_string(), "Machine learning with Linfa (similar to scikit-learn in Python)".to_string()),
+        // Data Analysis
+        ("data-science/polars-cli".to_string(), "Data Analysis: Process and analyze data with Polars (similar to pandas)".to_string()),
+        
+        // Machine Learning
+        ("data-science/linfa-lab".to_string(), "Machine Learning: Traditional ML algorithms with Linfa (similar to scikit-learn)".to_string()),
+        
+        // Deep Learning with Burn Framework - Image Processing
+        ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers in images".to_string()),
+        ("data-science/burn-custom-image".to_string(), "Burn - Custom Image Classifier: Train a model on your own photos".to_string()),
+        
+        // Deep Learning with Burn Framework - Text Processing
+        ("data-science/burn-text-classifier".to_string(), "Burn - Text Classifier: Categorize text into different groups".to_string()),
+        
+        // Deep Learning with Burn Framework - Numerical Data
+        ("data-science/burn-value-prediction".to_string(), "Burn - Value Prediction: Forecast numerical values like prices".to_string()),
+        ("data-science/burn-csv-dataset".to_string(), "Burn - CSV Analysis: Process and learn from spreadsheet data".to_string()),
+        
+        // Deep Learning with Burn Framework - Advanced & Web
+        ("data-science/burn-custom-training".to_string(), "Burn - Advanced: Fine-tune the training process (for experts)".to_string()),
+        ("data-science/burn-web-classifier".to_string(), "Burn - Web App: Create an image recognition website".to_string()),
     ])
 }
 
@@ -220,28 +237,6 @@ pub fn apply_template(
             additional_vars.insert("visualization".to_string(), json!(visualization.to_lowercase()));
             
             println!("\n✅ Polars DataFrame project configured successfully!");
-        } else if template_name == "data-science/burn-net" {
-            println!("\n{}", "Burn Neural Network Configuration:".bold());
-            
-            let model_type = prompt_with_options(
-                "What type of neural network model do you want to build?",
-                &["Feedforward (MLP)", "Convolutional (CNN)", "Recurrent (RNN/LSTM)", "Transformer", "Custom architecture"]
-            )?;
-            additional_vars.insert("model_type".to_string(), json!(model_type));
-            
-            let dataset = prompt_with_options(
-                "What dataset will you be working with?",
-                &["MNIST", "CIFAR-10", "Custom dataset", "Synthetic data", "Text corpus"]
-            )?;
-            additional_vars.insert("dataset".to_string(), json!(dataset));
-            
-            let hardware = prompt_with_options(
-                "Which hardware acceleration do you plan to use?",
-                &["CPU only", "CUDA (NVIDIA GPU)", "Metal (Apple GPU)", "WebGPU", "Multiple backends"]
-            )?;
-            additional_vars.insert("hardware".to_string(), json!(hardware));
-            
-            println!("\n✅ Burn neural network project configured successfully!");
         } else if template_name == "data-science/linfa-lab" {
             println!("\n{}", "Linfa Machine Learning Configuration:".bold());
             
@@ -264,6 +259,87 @@ pub fn apply_template(
             additional_vars.insert("dataset_size".to_string(), json!(dataset_size));
             
             println!("\n✅ Linfa machine learning project configured successfully!");
+        } else if template_name == "data-science/burn-image-recognition" || 
+                  template_name == "data-science/burn-value-prediction" || 
+                  template_name == "data-science/burn-text-classifier" || 
+                  template_name == "data-science/burn-custom-image" || 
+                  template_name == "data-science/burn-csv-dataset" || 
+                  template_name == "data-science/burn-custom-training" || 
+                  template_name == "data-science/burn-web-classifier" {
+            
+            // Map our template names to the corresponding Burn examples
+            let burn_example = match template_name {
+                "data-science/burn-image-recognition" => "mnist",
+                "data-science/burn-value-prediction" => "simple-regression",
+                "data-science/burn-text-classifier" => "text-classification",
+                "data-science/burn-custom-image" => "custom-image-dataset",
+                "data-science/burn-csv-dataset" => "custom-csv-dataset",
+                "data-science/burn-custom-training" => "custom-training-loop",
+                "data-science/burn-web-classifier" => "image-classification-web",
+                _ => "mnist", // Default fallback
+            };
+            
+            println!("\n{}", format!("Setting up {} project...", template_name.replace("data-science/burn-", "")).bold());
+            
+            // Use cargo-generate to fetch the example from the Burn repository
+            println!("Generating project from Burn example: {}", burn_example);
+            
+            // Use cargo-generate to create the project
+            let generate_result = std::process::Command::new("cargo")
+                .args([
+                    "generate",
+                    "--git", "https://github.com/tracel-ai/burn.git",
+                    "--name", project_name,
+                    "--path", &format!("examples/{}", burn_example)
+                ])
+                .current_dir(target_dir.parent().unwrap_or(Path::new(".")))
+                .status()?;
+                
+            if !generate_result.success() {
+                // If cargo-generate fails, try the direct clone and copy approach as a fallback
+                println!("Cargo-generate failed. Trying alternative approach...");
+                
+                // Create a temporary directory for the Burn repository
+                let burn_repo_dir = std::env::temp_dir().join("burn-repo");
+                if !burn_repo_dir.exists() {
+                    // Clone the Burn repository if it doesn't exist
+                    let clone_result = std::process::Command::new("git")
+                        .args([
+                            "clone",
+                            "--depth=1",
+                            "https://github.com/tracel-ai/burn.git",
+                            burn_repo_dir.to_str().unwrap()
+                        ])
+                        .status()?;
+                        
+                    if !clone_result.success() {
+                        return Err(anyhow!("Failed to clone the Burn repository"));
+                    }
+                }
+                
+                // Check if the example exists
+                let example_dir = burn_repo_dir.join("examples").join(burn_example);
+                if !example_dir.exists() {
+                    return Err(anyhow!("Burn example '{}' not found in the repository", burn_example));
+                }
+                
+                // Copy the example to the target directory
+                copy_dir_all(&example_dir, target_dir)?;
+                
+                // Update the project name in Cargo.toml
+                let cargo_toml_path = target_dir.join("Cargo.toml");
+                if cargo_toml_path.exists() {
+                    let cargo_toml_content = std::fs::read_to_string(&cargo_toml_path)?;
+                    let updated_content = cargo_toml_content.replace("name = \"example\"", &format!("name = \"{}\"", project_name));
+                    std::fs::write(&cargo_toml_path, updated_content)?;
+                }
+            }
+            
+            println!("\n✅ Project generated successfully from the Burn {} example!", burn_example);
+            println!("📝 Check the README.md file in your project directory for more information.");
+            
+            // Skip the regular template application since we used cargo-generate or direct copy
+            return Ok(());
         }
         
         // Add the additional variables to the template variables
@@ -417,6 +493,68 @@ pub fn apply_template(
                     println!("✅ {} is already installed", static_server);
                 }
             }
+        }
+        
+        // Check if cargo-generate is installed and up-to-date
+        println!("Checking for cargo-generate...");
+        
+        // First check if cargo-generate is installed
+        let cargo_generate_check = std::process::Command::new("cargo")
+            .args(["generate", "--version"])
+            .output();
+            
+        let needs_install = if let Ok(output) = cargo_generate_check {
+            if !output.status.success() {
+                // Not installed
+                true
+            } else {
+                // Installed, check version
+                let version_str = String::from_utf8_lossy(&output.stdout);
+                println!("Found cargo-generate: {}", version_str.trim());
+                
+                // Parse the version string to check if it's outdated
+                // Format is typically "cargo-generate 0.X.Y"
+                if let Some(version_part) = version_str.split_whitespace().nth(1) {
+                    // For simplicity, we'll consider anything below 0.10.0 as outdated
+                    // This can be adjusted as needed
+                    let is_outdated = version_part.starts_with("0.") && 
+                                     (version_part.starts_with("0.1.") || 
+                                      version_part.starts_with("0.2.") || 
+                                      version_part.starts_with("0.3.") || 
+                                      version_part.starts_with("0.4.") || 
+                                      version_part.starts_with("0.5.") || 
+                                      version_part.starts_with("0.6.") || 
+                                      version_part.starts_with("0.7.") || 
+                                      version_part.starts_with("0.8.") || 
+                                      version_part.starts_with("0.9."));
+                    
+                    if is_outdated {
+                        println!("Detected outdated cargo-generate version. Updating...");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    // Couldn't parse version, assume it needs updating
+                    true
+                }
+            }
+        } else {
+            // Command failed, assume not installed
+            true
+        };
+        
+        if needs_install {
+            println!("Installing/updating cargo-generate...");
+            let install_result = std::process::Command::new("cargo")
+                .args(["install", "cargo-generate", "--force"])
+                .status()?;
+                
+            if !install_result.success() {
+                return Err(anyhow!("Failed to install cargo-generate. Please install it manually with 'cargo install cargo-generate'"));
+            }
+            
+            println!("Successfully installed/updated cargo-generate.");
         }
     }
     
@@ -674,7 +812,7 @@ pub fn get_template_config(template_name: &str) -> Result<Value> {
     
     // Read the template configuration
     let template_config_path = template_dir.join("template.json");
-    let template_config_str = fs::read_to_string(template_config_path)?;
+    let template_config_str = fs::read_to_string(&template_config_path)?;
     let template_config: Value = serde_json::from_str(&template_config_str)?;
     
     Ok(template_config)
@@ -909,4 +1047,22 @@ fn to_pascal_case(s: &str) -> String {
     }
     
     result
+}
+
+/// Recursively copy a directory to a target directory
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_file() {
+            fs::copy(&path, dst.join(entry.file_name()))?;
+        } else if path.is_dir() {
+            copy_dir_all(&path, &dst.join(entry.file_name()))?;
+        }
+    }
+    
+    Ok(())
 }

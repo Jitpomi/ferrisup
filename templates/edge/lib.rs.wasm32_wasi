@@ -1,0 +1,91 @@
+use std::io::{self, Read, Write};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Request {
+    pub path: String,
+    pub method: String,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Response {
+    pub status: u16,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Option<String>,
+}
+
+pub fn handle_request(request: &Request) -> Response {
+    println!("Handling request to: {}", request.path);
+    
+    let mut headers = std::collections::HashMap::new();
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    
+    match (request.method.as_str(), request.path.as_str()) {
+        ("GET", "/") => {
+            let json_start = "{\"message\": \"";
+            let json_middle = " microservice is running!";
+            let json_end = "\"}";
+            
+            Response {
+                status: 200,
+                headers,
+                body: Some(json_start.to_string() + "{{project_name}}" + json_middle + json_end),
+            }
+        },
+        ("GET", path) if path.starts_with("/api/hello/") => {
+            let name = path.strip_prefix("/api/hello/").unwrap_or("World");
+            
+            let json_start = "{\"message\": \"Hello, ";
+            let json_end = "!\"}";
+            
+            Response {
+                status: 200,
+                headers,
+                body: Some(json_start.to_string() + name + json_end),
+            }
+        },
+        ("POST", "/api/data") => {
+            if let Some(body) = &request.body {
+                let json_start = "{\"received\": ";
+                let json_end = "}";
+                
+                Response {
+                    status: 200,
+                    headers,
+                    body: Some(json_start.to_string() + body + json_end),
+                }
+            } else {
+                Response {
+                    status: 400,
+                    headers,
+                    body: Some(String::from("{\"error\": \"Missing request body\"}")),
+                }
+            }
+        },
+        _ => Response {
+            status: 404,
+            headers,
+            body: Some(String::from("{\"error\": \"Not found\"}")),
+        },
+    }
+}
+
+// This is the main entry point for the WASI module
+#[no_mangle]
+pub fn _start() {
+    // Read the request from stdin
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).expect("Failed to read from stdin");
+    
+    // Parse the request
+    let request: Request = serde_json::from_str(&input).expect("Failed to parse request");
+    
+    // Handle the request
+    let response = handle_request(&request);
+    
+    // Send the response to stdout
+    let response_json = serde_json::to_string(&response).expect("Failed to serialize response");
+    io::stdout().write_all(response_json.as_bytes()).expect("Failed to write to stdout");
+}
