@@ -1,0 +1,54 @@
+{
+  "name": "burn-custom-image",
+  "description": "A deep learning template for training a model on your own images using the Burn framework",
+  "author": "Ferrisup Team",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "src/model.rs",
+      "target": "src/model.rs"
+    },
+    {
+      "source": "src/data.rs",
+      "target": "src/data.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "GETTING_STARTED.md",
+      "target": "GETTING_STARTED.md"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "anyhow = \"1.0\"",
+      "clap = { version = \"4.5\", features = [\"derive\"] }",
+      "burn = { version = \"0.10.0\", features = [\"train\", \"ndarray\", \"vision\"] }",
+      "ndarray = \"0.15\"",
+      "image = \"0.24\"",
+      "rand = \"0.8\"",
+      "plotters = \"0.3\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ]
+  },
+  "next_steps": [
+    "📸 Organize your images: cd {{project_name}} && mkdir -p data/train/{class1,class2}",
+    "🧠 Train on your custom dataset: cargo run -- train --data-dir data/train",
+    "🔍 Test your model: cargo run -- predict path/to/test/image.jpg",
+    "📊 Visualize model performance: cargo run -- visualize",
+    "📚 Read the getting started guide: cat GETTING_STARTED.md"
+  ]
+}

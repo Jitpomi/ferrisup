@@ -1,0 +1,54 @@
+{
+  "name": "burn-image-recognition",
+  "description": "A deep learning template for recognizing handwritten numbers in images using the Burn framework",
+  "author": "Ferrisup Team",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "src/model.rs",
+      "target": "src/model.rs"
+    },
+    {
+      "source": "src/data.rs",
+      "target": "src/data.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "GETTING_STARTED.md",
+      "target": "GETTING_STARTED.md"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "anyhow = \"1.0\"",
+      "clap = { version = \"4.5\", features = [\"derive\"] }",
+      "burn = { version = \"0.10.0\", features = [\"train\", \"ndarray\", \"vision\"] }",
+      "ndarray = \"0.15\"",
+      "image = \"0.24\"",
+      "rand = \"0.8\"",
+      "plotters = \"0.3\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ]
+  },
+  "next_steps": [
+    "📥 Download the MNIST dataset: cd {{project_name}} && cargo run -- download",
+    "🧠 Train the image recognition model: cargo run -- train",
+    "🔍 Test with sample images: cargo run -- test",
+    "🖼️ Try with your own images: cargo run -- predict path/to/your/image.png",
+    "📚 Read the getting started guide: cat GETTING_STARTED.md"
+  ]
+}

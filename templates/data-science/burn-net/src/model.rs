@@ -1,82 +1,136 @@
-use burn::module::Module;
-use burn::nn::{
-    conv::{Conv2d, Conv2dConfig},
-    pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
-    Linear, LinearConfig, ReLU,
+use crate::data::MnistBatch;
+use burn::{
+    nn::{BatchNorm, PaddingConfig2d, loss::CrossEntropyLossConfig},
+    prelude::*,
+    tensor::backend::AutodiffBackend,
+    train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
-use burn::tensor::{backend::Backend, Tensor};
 
-/// A simple CNN model for image classification
+/// A Convolutional Neural Network (CNN) for MNIST classification
+/// 
+/// This model uses a CNN architecture with:
+/// - Three convolutional blocks with batch normalization
+/// - Dropout for regularization
+/// - Two fully connected layers for classification
 #[derive(Module, Debug)]
-pub struct ConvNet<B: Backend> {
-    conv1: Conv2d<B>,
-    conv2: Conv2d<B>,
-    pool: AdaptiveAvgPool2d,
-    fc1: Linear<B>,
-    fc2: Linear<B>,
-    relu: ReLU,
+pub struct Model<B: Backend> {
+    conv1: ConvBlock<B>,
+    conv2: ConvBlock<B>,
+    conv3: ConvBlock<B>,
+    dropout: nn::Dropout,
+    fc1: nn::Linear<B>,
+    fc2: nn::Linear<B>,
+    activation: nn::Gelu,
 }
 
-impl<B: Backend> ConvNet<B> {
-    pub fn new(num_classes: usize) -> Self {
-        let conv1 = Conv2dConfig::new([1, 32], [3, 3])
-            .with_padding([1, 1])
-            .init();
-        let conv2 = Conv2dConfig::new([32, 64], [3, 3])
-            .with_padding([1, 1])
-            .init();
-        let pool = AdaptiveAvgPool2dConfig::new([1, 1]).init();
-        let fc1 = LinearConfig::new(64, 128).init();
-        let fc2 = LinearConfig::new(128, num_classes).init();
-        let relu = ReLU::new();
+impl<B: Backend> Default for Model<B> {
+    fn default() -> Self {
+        let device = B::Device::default();
+        Self::new(&device)
+    }
+}
+
+const NUM_CLASSES: usize = 10;
+
+impl<B: Backend> Model<B> {
+    pub fn new(device: &B::Device) -> Self {
+        let conv1 = ConvBlock::new([1, 8], [3, 3], device); // out: [Batch,8,26,26]
+        let conv2 = ConvBlock::new([8, 16], [3, 3], device); // out: [Batch,16,24x24]
+        let conv3 = ConvBlock::new([16, 24], [3, 3], device); // out: [Batch,24,22x22]
+        let hidden_size = 24 * 22 * 22;
+        let fc1 = nn::LinearConfig::new(hidden_size, 32)
+            .with_bias(false)
+            .init(device);
+        let fc2 = nn::LinearConfig::new(32, NUM_CLASSES)
+            .with_bias(false)
+            .init(device);
+
+        let dropout = nn::DropoutConfig::new(0.5).init();
 
         Self {
             conv1,
             conv2,
-            pool,
+            conv3,
+            dropout,
             fc1,
             fc2,
-            relu,
+            activation: nn::Gelu::new(),
         }
     }
 
-    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 2> {
-        let x = self.relu.forward(self.conv1.forward(x));
-        let x = self.relu.forward(self.conv2.forward(x));
-        let x = self.pool.forward(x);
-        let x = x.flatten(1);
-        let x = self.relu.forward(self.fc1.forward(x));
+    pub fn forward(&self, input: Tensor<B, 3>) -> Tensor<B, 2> {
+        let [batch_size, height, width] = input.dims();
+
+        let x = input.reshape([batch_size, 1, height, width]).detach();
+        let x = self.conv1.forward(x);
+        let x = self.conv2.forward(x);
+        let x = self.conv3.forward(x);
+
+        let [batch_size, channels, height, width] = x.dims();
+        let x = x.reshape([batch_size, channels * height * width]);
+
+        let x = self.dropout.forward(x);
+        let x = self.fc1.forward(x);
+        let x = self.activation.forward(x);
+
         self.fc2.forward(x)
     }
+
+    pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        let targets = item.targets;
+        let output = self.forward(item.images);
+        let loss = CrossEntropyLossConfig::new()
+            .init(&output.device())
+            .forward(output.clone(), targets.clone());
+
+        ClassificationOutput {
+            loss,
+            output,
+            targets,
+        }
+    }
 }
 
-/// A simple MLP model for tabular data
+/// A convolutional block with batch normalization and activation
 #[derive(Module, Debug)]
-pub struct MLP<B: Backend> {
-    fc1: Linear<B>,
-    fc2: Linear<B>,
-    fc3: Linear<B>,
-    relu: ReLU,
+pub struct ConvBlock<B: Backend> {
+    conv: nn::conv::Conv2d<B>,
+    norm: BatchNorm<B, 2>,
+    activation: nn::Gelu,
 }
 
-impl<B: Backend> MLP<B> {
-    pub fn new(input_size: usize, hidden_size: usize, num_classes: usize) -> Self {
-        let fc1 = LinearConfig::new(input_size, hidden_size).init();
-        let fc2 = LinearConfig::new(hidden_size, hidden_size).init();
-        let fc3 = LinearConfig::new(hidden_size, num_classes).init();
-        let relu = ReLU::new();
+impl<B: Backend> ConvBlock<B> {
+    pub fn new(channels: [usize; 2], kernel_size: [usize; 2], device: &B::Device) -> Self {
+        let conv = nn::conv::Conv2dConfig::new(channels, kernel_size)
+            .with_padding(PaddingConfig2d::Valid)
+            .init(device);
+        let norm = nn::BatchNormConfig::new(channels[1]).init(device);
 
         Self {
-            fc1,
-            fc2,
-            fc3,
-            relu,
+            conv,
+            norm,
+            activation: nn::Gelu::new(),
         }
     }
 
-    pub fn forward(&self, x: Tensor<B, 2>) -> Tensor<B, 2> {
-        let x = self.relu.forward(self.fc1.forward(x));
-        let x = self.relu.forward(self.fc2.forward(x));
-        self.fc3.forward(x)
+    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+        let x = self.conv.forward(input);
+        let x = self.norm.forward(x);
+
+        self.activation.forward(x)
+    }
+}
+
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
+        let item = self.forward_classification(item);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        self.forward_classification(item)
     }
 }

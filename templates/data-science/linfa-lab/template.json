@@ -57,5 +57,12 @@
       "rand_distr = \"0.4\"",
       "indicatif = \"0.17\""
     ]
-  }
+  },
+  "next_steps": [
+    "🧪 Try the example classification: cd {{project_name}} && cargo run -- classify",
+    "📊 Run clustering analysis: cargo run -- cluster",
+    "📉 Try dimensionality reduction: cargo run -- reduce",
+    "🔍 Load your own dataset: cargo run -- custom -f data/your_data.csv",
+    "📚 See all available commands: cargo run -- help"
+  ]
 }

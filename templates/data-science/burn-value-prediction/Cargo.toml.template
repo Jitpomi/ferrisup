@@ -1,0 +1,27 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2021"
+authors = ["{{authors}}"]
+description = "Value prediction using the Burn framework"
+
+[dependencies]
+# Core dependencies
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+csv = "1.2"
+anyhow = "1.0"
+
+# Burn framework - a Rust-native deep learning library
+burn = { version = "0.10.0", features = ["ndarray", "autodiff", "train"] }
+
+# Optional: GPU acceleration - uncomment if you have a compatible GPU
+{% if gpu_acceleration %}
+# WGPU backend for GPU acceleration
+burn-wgpu = { version = "0.10.0" }
+{% endif %}
+
+# Data processing
+ndarray = "0.15"
+rand = "0.8"
