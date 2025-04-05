@@ -51,9 +51,9 @@ pub fn load_winequality_features() -> Result<Array2<f64>> {
 }
 
 /// Load the Wine Quality dataset with targets
-pub fn load_winequality_with_targets() -> Result<(Array2<f64>, Array1<f64>)> {
+pub fn load_winequality_with_targets() -> Result<(Array2<f64>, Array1<usize>)> {
     let dataset = winequality();
-    Ok((dataset.records, dataset.targets))
+    Ok((dataset.records, dataset.targets.mapv(|x| x as usize)))
 }
 
 /// Load a CSV file as a regression dataset
@@ -117,7 +117,7 @@ pub fn load_csv_features<P: AsRef<Path>>(path: P) -> Result<Array2<f64>> {
 }
 
 /// Load a CSV file with targets
-pub fn load_csv_with_targets<P: AsRef<Path>>(path: P) -> Result<(Array2<f64>, Array1<f64>)> {
+pub fn load_csv_with_targets<P: AsRef<Path>>(path: P) -> Result<(Array2<f64>, Array1<usize>)> {
     let file = File::open(path)?;
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
@@ -131,7 +131,7 @@ pub fn load_csv_with_targets<P: AsRef<Path>>(path: P) -> Result<(Array2<f64>, Ar
     let n_cols = array.ncols();
     
     let features = array.slice(s![.., 0..n_cols-1]).to_owned();
-    let targets = array.column(n_cols - 1).to_owned();
+    let targets = array.column(n_cols - 1).mapv(|x| x as usize).to_owned();
     
     Ok((features, targets))
 }
