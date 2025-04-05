@@ -4,6 +4,7 @@ mod evaluation;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use linfa::dataset::Records;
 use std::path::PathBuf;
 
 /// A machine learning application using Linfa for classical ML algorithms
