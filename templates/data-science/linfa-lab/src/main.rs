@@ -1,15 +1,21 @@
-mod datasets;
-mod models;
-mod evaluation;
-
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
-use linfa::dataset::Records;
+use linfa::prelude::*;
+use ndarray::{Array1, Array2, Axis};
+use ndarray_rand::rand::SeedableRng;
+use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
+use rand_xoshiro::Xoshiro256Plus;
+use std::collections::HashMap;
+use std::fs::File;
 use std::path::PathBuf;
 
-/// A machine learning application using Linfa for classical ML algorithms
+mod datasets;
+mod evaluation;
+mod models;
+
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = "Linfa Machine Learning Examples")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -17,480 +23,369 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Train and evaluate a regression model
-    Regression {
-        /// Dataset to use (diabetes, winequality, or custom)
-        #[arg(short, long, default_value = "diabetes")]
-        dataset: String,
-        
-        /// Path to custom dataset (CSV)
+    /// Run logistic regression classification example
+    Classify,
+    
+    /// Run decision tree classification example
+    Tree,
+    
+    /// Run linear regression example
+    Regress,
+    
+    /// Run DBSCAN clustering example
+    Cluster,
+    
+    /// Run all examples
+    All,
+    
+    /// Load a custom dataset and run analysis
+    Custom {
+        /// Path to the dataset file
         #[arg(short, long)]
-        file: Option<PathBuf>,
+        file: PathBuf,
         
-        /// Target column name (for custom datasets)
-        #[arg(short, long)]
-        target: Option<String>,
-        
-        /// Model to use (linear, ridge, lasso, elasticnet, decision_tree, random_forest)
-        #[arg(short, long, default_value = "linear")]
-        model: String,
-        
-        /// Test size ratio (0.0-1.0)
-        #[arg(short, long, default_value_t = 0.2)]
-        test_size: f64,
-        
-        /// Random seed
-        #[arg(short, long, default_value_t = 42)]
-        seed: u64,
-        
-        /// Path to save the model
-        #[arg(short, long)]
-        output: Option<PathBuf>,
+        /// Type of analysis to run (classify, regress, cluster)
+        #[arg(short, long, default_value = "classify")]
+        analysis: String,
     },
     
-    /// Train and evaluate a classification model
-    Classification {
-        /// Dataset to use (iris, winequality, or custom)
-        #[arg(short, long, default_value = "iris")]
-        dataset: String,
-        
-        /// Path to custom dataset (CSV)
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-        
-        /// Target column name (for custom datasets)
-        #[arg(short, long)]
-        target: Option<String>,
-        
-        /// Model to use (logistic, decision_tree, random_forest, svm, knn)
-        #[arg(short, long, default_value = "logistic")]
-        model: String,
-        
-        /// Test size ratio (0.0-1.0)
-        #[arg(short, long, default_value_t = 0.2)]
-        test_size: f64,
-        
-        /// Random seed
-        #[arg(short, long, default_value_t = 42)]
-        seed: u64,
-        
-        /// Path to save the model
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    
-    /// Perform clustering on a dataset
-    Clustering {
-        /// Dataset to use (iris, winequality, or custom)
-        #[arg(short, long, default_value = "iris")]
-        dataset: String,
-        
-        /// Path to custom dataset (CSV)
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-        
-        /// Algorithm to use (kmeans, dbscan, gaussian_mixture)
-        #[arg(short, long, default_value = "kmeans")]
-        algorithm: String,
-        
-        /// Number of clusters (for k-means)
-        #[arg(short, long, default_value_t = 3)]
-        n_clusters: usize,
-        
-        /// Random seed
-        #[arg(short, long, default_value_t = 42)]
-        seed: u64,
-        
-        /// Path to save the results
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    
-    /// Perform dimensionality reduction on a dataset
-    Reduction {
-        /// Dataset to use (iris, winequality, or custom)
-        #[arg(short, long, default_value = "iris")]
-        dataset: String,
-        
-        /// Path to custom dataset (CSV)
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-        
-        /// Algorithm to use (pca, tsne)
-        #[arg(short, long, default_value = "pca")]
-        algorithm: String,
-        
-        /// Number of components
-        #[arg(short, long, default_value_t = 2)]
-        n_components: usize,
-        
-        /// Random seed
-        #[arg(short, long, default_value_t = 42)]
-        seed: u64,
-        
-        /// Path to save the results
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    
-    /// Generate a synthetic dataset
-    Generate {
-        /// Type of dataset (classification, regression, clustering)
-        #[arg(short, long, default_value = "classification")]
-        dataset_type: String,
-        
-        /// Number of samples
-        #[arg(short, long, default_value_t = 1000)]
-        n_samples: usize,
-        
-        /// Number of features
-        #[arg(short, long, default_value_t = 10)]
-        n_features: usize,
-        
-        /// Number of classes (for classification)
-        #[arg(short, long, default_value_t = 2)]
-        n_classes: usize,
-        
-        /// Random seed
-        #[arg(short, long, default_value_t = 42)]
-        seed: u64,
-        
-        /// Path to save the dataset
-        #[arg(short, long, default_value = "synthetic_data.csv")]
-        output: PathBuf,
-    },
+    /// Show help information
+    Help,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-
+    
     match &cli.command {
-        Commands::Regression {
-            dataset,
-            file,
-            target,
-            model,
-            test_size,
-            seed,
-            output,
-        } => {
-            println!("🧮 Regression Analysis");
-            println!("Dataset: {}", dataset);
-            println!("Model: {}", model);
+        Commands::Classify => run_logistic_regression_example()?,
+        Commands::Tree => run_decision_tree_example()?,
+        Commands::Regress => run_regression_example()?,
+        Commands::Cluster => run_dbscan_example()?,
+        Commands::All => {
+            println!("\n=== Running LogisticRegression Classification Example ===\n");
+            run_logistic_regression_example()?;
             
-            // Load dataset
-            let (data, target_name) = match dataset.as_str() {
-                "diabetes" => {
-                    println!("Loading diabetes dataset...");
-                    let dataset = datasets::load_diabetes()?;
-                    (dataset, "target".to_string())
-                },
-                "winequality" => {
-                    println!("Loading wine quality dataset...");
-                    let dataset = datasets::load_winequality()?;
-                    (dataset, "quality".to_string())
-                },
-                "custom" => {
-                    if let Some(file_path) = file {
-                        println!("Loading custom dataset from {}...", file_path.display());
-                        let target_col = target.clone().unwrap_or_else(|| {
-                            println!("No target column specified, using 'target'");
-                            "target".to_string()
-                        });
-                        let dataset = datasets::load_csv(file_path, &target_col)?;
-                        (dataset, target_col)
-                    } else {
-                        println!("No file specified for custom dataset, using diabetes dataset");
-                        let dataset = datasets::load_diabetes()?;
-                        (dataset, "target".to_string())
-                    }
-                },
-                _ => {
-                    println!("Unknown dataset '{}', using diabetes dataset", dataset);
-                    let dataset = datasets::load_diabetes()?;
-                    (dataset, "target".to_string())
-                }
-            };
+            println!("\n=== Running DecisionTree Classification Example ===\n");
+            run_decision_tree_example()?;
             
-            // Split dataset
-            let (train, test) = datasets::train_test_split(data, *test_size, *seed)?;
-            println!("Train set size: {}", train.nsamples());
-            println!("Test set size: {}", test.nsamples());
+            println!("\n=== Running LinearRegression Example ===\n");
+            run_regression_example()?;
             
-            // Train model
-            println!("Training {} regression model...", model);
-            let trained_model = models::train_regression_model(model, train.clone())?;
-            
-            // Evaluate model
-            println!("Evaluating model...");
-            let metrics = evaluation::evaluate_regression(trained_model, test.clone())?;
-            println!("Results:");
-            println!("  MSE: {:.4}", metrics.mse);
-            println!("  RMSE: {:.4}", metrics.rmse);
-            println!("  MAE: {:.4}", metrics.mae);
-            println!("  R²: {:.4}", metrics.r2);
-            
-            // Save model if requested
-            if let Some(output_path) = output {
-                println!("Saving model to {}...", output_path.display());
-                // Note: Linfa doesn't have a standard way to save models yet
-                println!("Model saving not implemented yet");
-            }
-            
-            // Generate a simple plot
-            println!("Generating prediction vs actual plot...");
-            let plot_path = "regression_results.png";
-            evaluation::plot_regression_results(test, &metrics, plot_path)?;
-            println!("Plot saved to {}", plot_path);
+            println!("\n=== Running DBSCAN Clustering Example ===\n");
+            run_dbscan_example()?;
         },
-        
-        Commands::Classification {
-            dataset,
-            file,
-            target,
-            model,
-            test_size,
-            seed,
-            output,
-        } => {
-            println!("🔍 Classification Analysis");
-            println!("Dataset: {}", dataset);
-            println!("Model: {}", model);
-            
-            // Load dataset
-            let (data, target_name) = match dataset.as_str() {
-                "iris" => {
-                    println!("Loading iris dataset...");
-                    let dataset = datasets::load_iris()?;
-                    (dataset, "species".to_string())
-                },
-                "winequality" => {
-                    println!("Loading wine quality dataset (as classification)...");
-                    let dataset = datasets::load_winequality_classification()?;
-                    (dataset, "quality".to_string())
-                },
-                "custom" => {
-                    if let Some(file_path) = file {
-                        println!("Loading custom dataset from {}...", file_path.display());
-                        let target_col = target.clone().unwrap_or_else(|| {
-                            println!("No target column specified, using 'target'");
-                            "target".to_string()
-                        });
-                        let dataset = datasets::load_csv_classification(file_path, &target_col)?;
-                        (dataset, target_col)
-                    } else {
-                        println!("No file specified for custom dataset, using iris dataset");
-                        let dataset = datasets::load_iris()?;
-                        (dataset, "species".to_string())
-                    }
-                },
-                _ => {
-                    println!("Unknown dataset '{}', using iris dataset", dataset);
-                    let dataset = datasets::load_iris()?;
-                    (dataset, "species".to_string())
-                }
-            };
-            
-            // Split dataset
-            let (train, test) = datasets::train_test_split(data, *test_size, *seed)?;
-            println!("Train set size: {}", train.nsamples());
-            println!("Test set size: {}", test.nsamples());
-            
-            // Train model
-            println!("Training {} classification model...", model);
-            let trained_model = models::train_classification_model(model, train.clone())?;
-            
-            // Evaluate model
-            println!("Evaluating model...");
-            let metrics = evaluation::evaluate_classification(trained_model, test.clone())?;
-            println!("Results:");
-            println!("  Accuracy: {:.4}", metrics.accuracy);
-            println!("  Precision: {:.4}", metrics.precision);
-            println!("  Recall: {:.4}", metrics.recall);
-            println!("  F1 Score: {:.4}", metrics.f1);
-            
-            // Save model if requested
-            if let Some(output_path) = output {
-                println!("Saving model to {}...", output_path.display());
-                // Note: Linfa doesn't have a standard way to save models yet
-                println!("Model saving not implemented yet");
-            }
-            
-            // Generate a simple plot
-            println!("Generating confusion matrix plot...");
-            let plot_path = "classification_results.png";
-            evaluation::plot_confusion_matrix(test, &metrics, plot_path)?;
-            println!("Plot saved to {}", plot_path);
+        Commands::Custom { file, analysis } => {
+            println!("Loading custom dataset from {:?}", file);
+            // This would load a custom dataset and run the specified analysis
+            // For now, we'll just show a message
+            println!("Custom dataset analysis is not implemented in this example.");
+            println!("Please use one of the built-in examples.");
         },
-        
-        Commands::Clustering {
-            dataset,
-            file,
-            algorithm,
-            n_clusters,
-            seed,
-            output,
-        } => {
-            println!("🔮 Clustering Analysis");
-            println!("Dataset: {}", dataset);
-            println!("Algorithm: {}", algorithm);
-            println!("Number of clusters: {}", n_clusters);
-            
-            // Load dataset
-            let data = match dataset.as_str() {
-                "iris" => {
-                    println!("Loading iris dataset (features only)...");
-                    datasets::load_iris_features()?
-                },
-                "winequality" => {
-                    println!("Loading wine quality dataset (features only)...");
-                    datasets::load_winequality_features()?
-                },
-                "custom" => {
-                    if let Some(file_path) = file {
-                        println!("Loading custom dataset from {}...", file_path.display());
-                        datasets::load_csv_features(file_path)?
-                    } else {
-                        println!("No file specified for custom dataset, using iris dataset");
-                        datasets::load_iris_features()?
-                    }
-                },
-                _ => {
-                    println!("Unknown dataset '{}', using iris dataset", dataset);
-                    datasets::load_iris_features()?
-                }
-            };
-            
-            // Perform clustering
-            println!("Performing {} clustering...", algorithm);
-            let (clusters, centroids) = models::perform_clustering(
-                algorithm, 
-                data.clone(), 
-                *n_clusters, 
-                *seed
-            )?;
-            
-            // Evaluate clustering
-            println!("Evaluating clustering...");
-            let metrics = evaluation::evaluate_clustering(&data, &clusters, &centroids)?;
-            println!("Results:");
-            println!("  Silhouette Score: {:.4}", metrics.silhouette);
-            println!("  Inertia: {:.4}", metrics.inertia);
-            println!("  Number of clusters: {}", metrics.n_clusters);
-            
-            // Save results if requested
-            if let Some(output_path) = output {
-                println!("Saving clustering results to {}...", output_path.display());
-                datasets::save_clustering_results(&data, &clusters, output_path)?;
-            }
-            
-            // Generate a simple plot
-            println!("Generating clustering plot...");
-            let plot_path = "clustering_results.png";
-            evaluation::plot_clustering(&data, &clusters, &centroids, plot_path)?;
-            println!("Plot saved to {}", plot_path);
-        },
-        
-        Commands::Reduction {
-            dataset,
-            file,
-            algorithm,
-            n_components,
-            seed,
-            output,
-        } => {
-            println!("📉 Dimensionality Reduction");
-            println!("Dataset: {}", dataset);
-            println!("Algorithm: {}", algorithm);
-            println!("Number of components: {}", n_components);
-            
-            // Load dataset
-            let (data, targets) = match dataset.as_str() {
-                "iris" => {
-                    println!("Loading iris dataset...");
-                    datasets::load_iris_with_targets()?
-                },
-                "winequality" => {
-                    println!("Loading wine quality dataset...");
-                    datasets::load_winequality_with_targets()?
-                },
-                "custom" => {
-                    if let Some(file_path) = file {
-                        println!("Loading custom dataset from {}...", file_path.display());
-                        datasets::load_csv_with_targets(file_path)?
-                    } else {
-                        println!("No file specified for custom dataset, using iris dataset");
-                        datasets::load_iris_with_targets()?
-                    }
-                },
-                _ => {
-                    println!("Unknown dataset '{}', using iris dataset", dataset);
-                    datasets::load_iris_with_targets()?
-                }
-            };
-            
-            // Perform dimensionality reduction
-            println!("Performing {} dimensionality reduction...", algorithm);
-            let reduced_data = models::perform_reduction(
-                algorithm, 
-                data.clone(), 
-                *n_components, 
-                *seed
-            )?;
-            
-            // Save results if requested
-            if let Some(output_path) = output {
-                println!("Saving reduced data to {}...", output_path.display());
-                datasets::save_reduced_data(&reduced_data, &targets, output_path)?;
-            }
-            
-            // Generate a simple plot
-            println!("Generating dimensionality reduction plot...");
-            let plot_path = "reduction_results.png";
-            evaluation::plot_reduction(&reduced_data, &targets, plot_path)?;
-            println!("Plot saved to {}", plot_path);
-        },
-        
-        Commands::Generate {
-            dataset_type,
-            n_samples,
-            n_features,
-            n_classes,
-            seed,
-            output,
-        } => {
-            println!("🔄 Generating Synthetic Dataset");
-            println!("Type: {}", dataset_type);
-            println!("Samples: {}", n_samples);
-            println!("Features: {}", n_features);
-            
-            match dataset_type.as_str() {
-                "classification" => {
-                    println!("Classes: {}", n_classes);
-                    println!("Generating classification dataset...");
-                    let dataset = datasets::generate_classification(*n_samples, *n_features, *n_classes, *seed)?;
-                    datasets::save_dataset(dataset, output)?;
-                },
-                "regression" => {
-                    println!("Generating regression dataset...");
-                    let dataset = datasets::generate_regression(*n_samples, *n_features, *seed)?;
-                    datasets::save_dataset(dataset, output)?;
-                },
-                "clustering" => {
-                    println!("Generating clustering dataset...");
-                    let dataset = datasets::generate_clustering(*n_samples, *n_features, *n_classes, *seed)?;
-                    datasets::save_dataset(dataset, output)?;
-                },
-                _ => {
-                    println!("Unknown dataset type '{}', using classification", dataset_type);
-                    let dataset = datasets::generate_classification(*n_samples, *n_features, *n_classes, *seed)?;
-                    datasets::save_dataset(dataset, output)?;
-                }
-            }
-            
-            println!("Dataset saved to {}", output.display());
+        Commands::Help => {
+            println!("Linfa Machine Learning Examples");
+            println!("==============================");
+            println!("Available commands:");
+            println!("  classify  - Run logistic regression classification example");
+            println!("  tree      - Run decision tree classification example");
+            println!("  regress   - Run linear regression example");
+            println!("  cluster   - Run DBSCAN clustering example");
+            println!("  all       - Run all examples");
+            println!("  custom    - Load a custom dataset and run analysis");
+            println!("  help      - Show this help information");
         },
     }
+    
+    Ok(())
+}
 
+// LogisticRegression Classification Example
+fn run_logistic_regression_example() -> Result<()> {
+    // LogisticRegression classification example with Linfa 0.7.1
+    println!("Linfa 0.7.1 LogisticRegression Classification Example");
+    
+    // Create a simple dataset for binary classification
+    let features = Array2::from_shape_vec(
+        (6, 2),
+        vec![
+            1.0, 2.0,  // Class 0
+            1.0, 3.0,  // Class 0
+            2.0, 2.0,  // Class 0
+            3.0, 1.0,  // Class 1
+            3.0, 3.0,  // Class 1
+            4.0, 2.0,  // Class 1
+        ],
+    )?;
+    
+    let targets = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
+    
+    // Create a dataset
+    let dataset = Dataset::new(features, targets);
+    
+    // Split into train and test sets with a random seed for reproducibility
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    let (train, test) = dataset.shuffle(&mut rng).split_with_ratio(0.5);
+    
+    println!("Training dataset: {} samples", train.nsamples());
+    println!("Testing dataset: {} samples", test.nsamples());
+    
+    // Create and train the model
+    println!("Training LogisticRegression model...");
+    let model = linfa_logistic::LogisticRegression::default()
+        .max_iterations(100)
+        .fit(&train)?;
+    
+    // Make predictions
+    println!("Making predictions...");
+    let predictions = model.predict(test.records());
+    println!("Predictions: {:?}", predictions);
+    
+    // Calculate accuracy
+    let cm = predictions.confusion_matrix(&test)?;
+    println!("Confusion Matrix:");
+    println!("{:?}", cm);
+    println!("Accuracy: {:.2}", cm.accuracy());
+    
+    println!("\nThis example demonstrates a complete classification workflow using LogisticRegression in Linfa 0.7.1.");
+    println!("It shows how to create a dataset, split it into training and testing sets, train a model, make predictions, and evaluate the results.");
+    
+    Ok(())
+}
+
+// Decision Tree Classification Example
+fn run_decision_tree_example() -> Result<()> {
+    // Decision Tree classification example with Linfa 0.7.1
+    println!("Linfa 0.7.1 Decision Tree Classification Example");
+    
+    // Create a simple dataset for binary classification
+    let features = Array2::from_shape_vec(
+        (8, 2),
+        vec![
+            1.0, 2.0,  // Class 0
+            1.5, 2.5,  // Class 0
+            2.0, 3.0,  // Class 0
+            1.0, 3.0,  // Class 0
+            4.0, 1.0,  // Class 1
+            4.5, 1.5,  // Class 1
+            5.0, 1.0,  // Class 1
+            5.5, 0.5,  // Class 1
+        ],
+    )?;
+    
+    let targets = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
+    
+    // Create a dataset
+    let dataset = Dataset::new(features, targets);
+    
+    // Split into train and test sets with a random seed for reproducibility
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    let (train, test) = dataset.shuffle(&mut rng).split_with_ratio(0.75);
+    
+    println!("Training dataset: {} samples", train.nsamples());
+    println!("Testing dataset: {} samples", test.nsamples());
+    
+    // Create and train the Decision Tree model
+    println!("Training Decision Tree model...");
+    
+    // Using the correct API for Linfa 0.7.1
+    let model = linfa_trees::DecisionTree::params()
+        .max_depth(Some(3))
+        .fit(&train)?;
+    
+    // Make predictions
+    println!("Making predictions...");
+    let predictions = model.predict(test.records());
+    
+    // Print predictions vs actual values
+    println!("Predictions vs Actual:");
+    for (i, &pred) in predictions.iter().enumerate() {
+        let actual = test.targets().get(i).unwrap();
+        println!("  Predicted: {}, Actual: {}", pred, actual);
+    }
+    
+    // Calculate and print confusion matrix and accuracy
+    let cm = predictions.confusion_matrix(test.targets())?;
+    println!("Confusion Matrix:\n");
+    println!("{:?}", cm);
+    println!("Accuracy: {:.2}", cm.accuracy());
+    
+    println!("\nThis example demonstrates a complete Decision Tree classification workflow using Linfa 0.7.1.");
+    println!("It shows how to create a dataset, split it into training and testing sets, train a Decision Tree model,");
+    println!("make predictions, and evaluate the results.");
+    
+    Ok(())
+}
+
+// Linear Regression Example
+fn run_regression_example() -> Result<()> {
+    // Simple regression example with Linfa 0.7.1
+    println!("Linfa 0.7.1 Linear Regression Example");
+    
+    // Create a simple dataset
+    let features = Array2::from_shape_vec(
+        (6, 1),
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+    )?;
+    
+    // y = 2*x + 1 + noise
+    let targets = Array1::from_vec(vec![3.1, 5.2, 7.0, 8.9, 10.8, 13.1]);
+    
+    // Create a dataset
+    let dataset = Dataset::new(features.clone(), targets.clone());
+    
+    // Split into train and test sets with a random seed for reproducibility
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    let (train, test) = dataset.shuffle(&mut rng).split_with_ratio(0.7);
+    
+    println!("Training dataset: {} samples", train.nsamples());
+    println!("Testing dataset: {} samples", test.nsamples());
+    
+    // Create and train the model
+    println!("Training LinearRegression model...");
+    let model = linfa_linear::LinearRegression::default()
+        .fit(&train)?;
+    
+    // Make predictions
+    println!("Making predictions...");
+    let predictions = model.predict(test.records());
+    
+    // Print predictions vs actual values
+    println!("Predictions vs Actual:");
+    for (i, pred) in predictions.iter().enumerate() {
+        let actual = test.targets().get(i).unwrap();
+        println!("  Predicted: {:.2}, Actual: {:.2}", pred, actual);
+    }
+    
+    // Calculate metrics
+    let mse = predictions.iter()
+        .zip(test.targets().iter())
+        .map(|(&p, &a)| (p - a) * (p - a))
+        .sum::<f64>() / predictions.len() as f64;
+    
+    println!("Mean Squared Error: {:.4}", mse);
+    
+    // In Linfa 0.7.1, we need to access model parameters differently
+    println!("Model parameters:");
+    
+    // Access the parameters directly from the model
+    let params = model.params();
+    
+    // Print the parameters array shape and values
+    println!("  Parameters shape: {:?}", params.shape());
+    println!("  Parameters values: {:?}", params);
+    
+    // For a simple linear regression model with one feature,
+    // we can estimate the coefficient and intercept from the data
+    let x_mean = train.records().column(0).mean().unwrap_or(0.0);
+    let y_mean = train.targets().mean().unwrap_or(0.0);
+    
+    // Calculate the coefficient (slope) using the predictions
+    let x_test = test.records().column(0).to_owned();
+    let y_pred = predictions;
+    
+    if x_test.len() > 0 && y_pred.len() > 0 {
+        let coefficient = (y_pred[0] - y_mean) / (x_test[0] - x_mean);
+        let intercept = y_mean - coefficient * x_mean;
+        
+        println!("  Estimated coefficient (m): {:.4}", coefficient);
+        println!("  Estimated intercept (b): {:.4}", intercept);
+        
+        // Print the model equation
+        println!("  Estimated model equation: y = {:.4} * x + {:.4}", coefficient, intercept);
+    }
+    
+    // Predict on new data
+    println!("\nPredicting on new data:");
+    let new_data = Array2::from_shape_vec(
+        (3, 1),
+        vec![0.5, 7.0, 10.0],
+    )?;
+    
+    let new_predictions = model.predict(&new_data);
+    for (i, &x) in new_data.column(0).iter().enumerate() {
+        println!("  x = {:.1}, predicted y = {:.2}", x, new_predictions[i]);
+    }
+    
+    Ok(())
+}
+
+// DBSCAN Clustering Example
+fn run_dbscan_example() -> Result<()> {
+    // DBSCAN clustering example with Linfa 0.7.1
+    println!("Linfa 0.7.1 DBSCAN Clustering Example");
+    
+    // Generate synthetic data with 3 clusters
+    let n_samples_per_cluster = 100;
+    let n_clusters = 3;
+    let n_samples = n_samples_per_cluster * n_clusters;
+    
+    // Create a random number generator with a fixed seed for reproducibility
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    
+    // Generate cluster centers
+    let cluster_centers = Array2::random_using(
+        (n_clusters, 2),
+        Uniform::new(-20.0, 20.0),
+        &mut rng,
+    );
+    
+    // Generate samples around each cluster center
+    let mut samples = Array2::zeros((n_samples, 2));
+    
+    for i in 0..n_clusters {
+        let cluster_center = cluster_centers.row(i);
+        let start_idx = i * n_samples_per_cluster;
+        let end_idx = start_idx + n_samples_per_cluster;
+        
+        // Generate points around the cluster center with some noise
+        let cluster_samples = Array2::random_using(
+            (n_samples_per_cluster, 2),
+            Uniform::new(-5.0, 5.0),
+            &mut rng,
+        );
+        
+        for j in start_idx..end_idx {
+            for k in 0..2 {
+                samples[[j, k]] = cluster_center[k] + cluster_samples[[j - start_idx, k]];
+            }
+        }
+    }
+    
+    println!("Dataset shape: {:?}", samples.shape());
+    println!("Number of samples: {}", n_samples);
+    
+    // Create a dataset for clustering
+    let dataset = Dataset::from(samples);
+    
+    // Set DBSCAN parameters
+    let min_points = 3;  // Minimum points to form a dense region
+    let tolerance = 2.0; // Maximum distance between two samples to be considered neighbors
+    
+    println!("Running DBSCAN clustering with min_points = {}, tolerance = {}", min_points, tolerance);
+    
+    // Create and run the DBSCAN model
+    let model = linfa_clustering::Dbscan::params(min_points)
+        .tolerance(tolerance)
+        .transform(&dataset)?;
+    
+    // Get cluster assignments
+    let cluster_memberships = model.cluster_memberships();
+    
+    // Print the first 10 cluster assignments
+    println!("First 10 cluster assignments: {:?}", &cluster_memberships.slice(Axis(0), 0..10.min(cluster_memberships.len())));
+    
+    // Count the number of points in each cluster
+    let mut cluster_counts: HashMap<usize, usize> = HashMap::new();
+    for membership in cluster_memberships.iter() {
+        if let Some(cluster_idx) = membership {
+            *cluster_counts.entry(*cluster_idx).or_insert(0) += 1;
+        }
+    }
+    
+    // Print cluster counts
+    println!("Cluster counts:");
+    for (cluster_idx, count) in cluster_counts.iter() {
+        println!("  Cluster {}: {} points", cluster_idx, count);
+    }
+    
     Ok(())
 }

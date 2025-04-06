@@ -366,7 +366,7 @@ npx create-tauri-app {}
             },
             1 => {
                 // Linfa selected
-                template = "data-science/linfa-lab".to_string();
+                template = "data-science/linfa-examples".to_string();
             },
             2 => {
                 // Burn selected - show task categories

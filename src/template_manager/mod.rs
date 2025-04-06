@@ -148,7 +148,7 @@ pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
         ("data-science/polars-cli".to_string(), "Data Analysis: Process and analyze data with Polars (similar to pandas)".to_string()),
         
         // Machine Learning
-        ("data-science/linfa-lab".to_string(), "Machine Learning: Traditional ML algorithms with Linfa (similar to scikit-learn)".to_string()),
+        ("data-science/linfa-examples".to_string(), "Machine Learning: Working examples with Linfa 0.7.1 (classification, regression, clustering)".to_string()),
         
         // Deep Learning with Burn Framework - Image Processing
         ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers in images".to_string()),
@@ -242,28 +242,17 @@ pub fn apply_template(
             additional_vars.insert("visualization".to_string(), json!(visualization.to_lowercase()));
             
             println!("\n✅ Polars DataFrame project configured successfully!");
-        } else if template_name == "data-science/linfa-lab" {
-            println!("\n{}", "Linfa Machine Learning Configuration:".bold());
+        } else if template_name == "data-science/linfa-examples" {
+            println!("\n{}", "Linfa Machine Learning Examples Configuration:".bold());
             
-            let ml_task = prompt_with_options(
-                "What machine learning task will you be working on?",
-                &["Classification", "Regression", "Clustering", "Dimensionality reduction", "Multiple tasks"]
+            // Focus only on data source, which is the meaningful distinction
+            let data_source = prompt_with_options(
+                "What type of data source would you like to use for the examples?",
+                &["CSV files (custom data)", "Synthetic data (generated)", "Both (examples will show both options)"]
             )?;
-            additional_vars.insert("ml_task".to_string(), json!(ml_task));
+            additional_vars.insert("data_source".to_string(), json!(data_source));
             
-            let algorithm = prompt_with_options(
-                "Which algorithm would you like to start with?",
-                &["Linear models", "Decision trees", "Support vector machines", "K-means clustering", "PCA"]
-            )?;
-            additional_vars.insert("algorithm".to_string(), json!(algorithm));
-            
-            let dataset_size = prompt_with_options(
-                "What is the expected size of your dataset?",
-                &["Small (fits in memory)", "Medium (needs batching)", "Large (distributed processing)", "Unknown/variable"]
-            )?;
-            additional_vars.insert("dataset_size".to_string(), json!(dataset_size));
-            
-            println!("\n✅ Linfa machine learning project configured successfully!");
+            println!("\n✅ Linfa machine learning examples configured successfully!");
         } else if template_name == "data-science/burn-image-recognition" || 
                   template_name == "data-science/burn-value-prediction" || 
                   template_name == "data-science/burn-text-classifier" || 

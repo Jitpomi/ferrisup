@@ -1,6 +1,6 @@
 {
   "name": "data-science/linfa-lab",
-  "description": "A Rust machine learning template using Linfa for classical ML algorithms (similar to scikit-learn in Python)",
+  "description": "A Rust machine learning template with working examples using Linfa 0.7.1 for classification, regression, and clustering",
   "type": "binary",
   "files": [
     {
@@ -26,43 +26,55 @@
     {
       "source": "README.md",
       "target": "README.md"
-    },
-    {
-      "source": "example_data.csv",
-      "target": "data/example_data.csv"
     }
   ],
   "dependencies": {
     "default": [
+      "anyhow = \"1.0\"",
+      "clap = { version = \"4.4\", features = [\"derive\"] }",
       "linfa = \"0.7.1\"",
-      "linfa-datasets = { version = \"0.7.1\", features = [\"iris\", \"diabetes\", \"winequality\"] }",
       "linfa-linear = \"0.7.1\"",
       "linfa-logistic = \"0.7.1\"",
       "linfa-trees = \"0.7.1\"",
       "linfa-clustering = \"0.7.1\"",
-      "linfa-reduction = \"0.7.1\"",
-      "linfa-svm = \"0.7.1\"",
-      "linfa-nn = \"0.7.1\"",
-      "linfa-preprocessing = \"0.7.1\"",
+      "linfa-datasets = { version = \"0.7.1\", features = [\"generate\"] }",
       "ndarray = { version = \"0.15\", features = [\"serde\"] }",
       "ndarray-rand = \"0.14\"",
       "ndarray-stats = \"0.5\"",
-      "ndarray-csv = \"0.5\"",
-      "csv = \"1.3\"",
-      "plotters = \"0.3\"",
-      "anyhow = \"1.0\"",
-      "clap = { version = \"4.5\", features = [\"derive\"] }",
-      "serde = { version = \"1.0\", features = [\"derive\"] }",
       "rand = \"0.8\"",
-      "rand_distr = \"0.4\"",
-      "indicatif = \"0.17\""
+      "rand_xoshiro = \"0.6.0\"",
+      "csv = \"1.3\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }"
     ]
+  },
+  "metadata": {
+    "category": "Machine Learning",
+    "level": "Intermediate",
+    "keywords": ["machine-learning", "classification", "regression", "clustering", "linfa"]
+  },
+  "prompts": {
+    "task": {
+      "question": "What machine learning task will you be working on?",
+      "options": ["Classification", "Regression", "Clustering"],
+      "default": "Classification"
+    },
+    "algorithm": {
+      "question": "Which algorithm would you like to start with?",
+      "options": ["Linear models", "Decision trees", "Clustering algorithms"],
+      "default": "Linear models"
+    },
+    "dataset_size": {
+      "question": "What is the expected size of your dataset?",
+      "options": ["Small (fits in memory)", "Medium (needs batching)", "Large (distributed processing)"],
+      "default": "Small (fits in memory)"
+    }
   },
   "next_steps": [
     "🧪 Try the example classification: cd {{project_name}} && cargo run -- classify",
+    "🌲 Run decision tree example: cargo run -- tree",
+    "📈 Run regression example: cargo run -- regress",
     "📊 Run clustering analysis: cargo run -- cluster",
-    "📉 Try dimensionality reduction: cargo run -- reduce",
-    "🔍 Load your own dataset: cargo run -- custom -f data/your_data.csv",
+    "🔍 Run all examples: cargo run -- all",
     "📚 See all available commands: cargo run -- help"
   ]
 }
