@@ -25,4 +25,5 @@ ndarray-stats = "0.5.1"
 # Image processing
 image = "0.24.7"
 rand = "0.8.5"
+rand_isaac = "0.3.0"  # For deterministic random number generation
 indicatif = "0.17.7"  # For progress bars

@@ -1,5 +1,5 @@
 {
-  "name": "burn-value-prediction",
+  "name": "burn-data-predictor",
   "description": "A deep learning template for predicting numerical values using the Burn framework",
   "author": "Ferrisup Team",
   "version": "0.1.0",
@@ -19,12 +19,16 @@
       "target": "src/data.rs"
     },
     {
+      "source": "src/config.rs",
+      "target": "src/config.rs"
+    },
+    {
       "source": "README.md",
       "target": "README.md"
     },
     {
-      "source": "GETTING_STARTED.md",
-      "target": "GETTING_STARTED.md"
+      "source": "CUSTOMIZATION.md",
+      "target": "CUSTOMIZATION.md"
     },
     {
       "source": "Cargo.toml.template",
@@ -45,10 +49,10 @@
     ]
   },
   "next_steps": [
-    "📊 Prepare your dataset: cd {{project_name}} && cargo run -- prepare-data",
-    "🧠 Train the regression model: cargo run -- train",
-    "🔍 Make predictions: cargo run -- predict",
-    "📈 Evaluate model performance: cargo run -- evaluate",
-    "📚 Read the getting started guide: cat GETTING_STARTED.md"
+    "📊 Train on the included housing dataset: cd {{project_name}} && cargo run -- train --housing",
+    "🧠 Evaluate the model: cargo run -- evaluate --housing",
+    "🔍 Predict a value: cargo run -- predict --features \"2000,3,2,15,8\"",
+    "📈 Predict values from a CSV: cargo run -- predict-csv --file your_data.csv",
+    "📚 Learn more: Read CUSTOMIZATION.md for detailed customization options"
   ]
 }
