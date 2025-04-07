@@ -225,7 +225,7 @@ pub fn apply_template(
             
             let data_source = prompt_with_options(
                 "What type of data will you be working with?",
-                &["CSV files", "Parquet files", "JSON data"]
+                &["CSV files", "JSON data"]
             )?;
             additional_vars.insert("data_source".to_string(), json!(data_source));
             
@@ -248,9 +248,18 @@ pub fn apply_template(
             // Focus only on data source, which is the meaningful distinction
             let data_source = prompt_with_options(
                 "What type of data source would you like to use for the examples?",
-                &["CSV files (custom data)", "Synthetic data (generated)", "Both (examples will show both options)"]
+                &["Synthetic data (generated)", "Custom data files", "Both (examples will show both options)"]
             )?;
             additional_vars.insert("data_source".to_string(), json!(data_source));
+            
+            // If user wants to use custom data files, ask for the format
+            if data_source == "Custom data files" || data_source == "Both (examples will show both options)" {
+                let data_format = prompt_with_options(
+                    "What data format would you like to use?",
+                    &["CSV files", "JSON files", "All formats (CSV, JSON)"]
+                )?;
+                additional_vars.insert("data_format".to_string(), json!(data_format));
+            }
             
             println!("\n✅ Linfa machine learning examples configured successfully!");
         } else if template_name == "data-science/burn-image-recognition" || 
@@ -1562,7 +1571,11 @@ fn check_wasm_target(burn_example: &str) -> Result<()> {
     if burn_example == "image-classification-web" {
         // Check if wasm32-unknown-unknown target is installed
         let output = Command::new("rustup")
-            .args(["target", "list", "--installed"])
+            .args([
+                "target",
+                "list",
+                "--installed"
+            ])
             .output()?;
         
         let output_str = String::from_utf8_lossy(&output.stdout);

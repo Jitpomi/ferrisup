@@ -150,6 +150,73 @@ To adapt these examples to real-world problems:
    let model: YourModelType = bincode::deserialize(&model_bytes)?;
    ```
 
+## Multi-Format Data Support
+
+This project supports loading and saving datasets in CSV, JSON, and Parquet formats.
+
+### Generating Sample Data
+
+You can generate synthetic data for testing in CSV, JSON, and Parquet formats:
+
+```bash
+# Generate classification data in all formats
+cargo run -- generate classification all
+
+# Generate regression data in CSV format only
+cargo run -- generate regression csv
+
+# Generate clustering data in JSON format only
+cargo run -- generate clustering json
+
+# Generate clustering data in Parquet format only
+cargo run -- generate clustering parquet
+```
+
+### Data Format Priority
+
+When running examples, the data is loaded in the following priority order:
+
+1. CSV files (e.g., `data/sample_classification.csv`)
+2. JSON files (e.g., `data/sample_classification.json`)
+3. Parquet files (e.g., `data/sample_classification.parquet`)
+4. If no data files are found, synthetic data is generated in memory
+
+To force the use of a specific format, make sure only that format's file exists in the data directory.
+
+## Data Format Specifications
+
+### CSV Format
+
+- Classification/Regression: `x,y,target` columns
+- Clustering: `x,y` columns
+
+### JSON Format
+
+- Classification/Regression:
+  ```json
+  {
+    "data": [
+      {"x": 1.0, "y": 2.0, "target": 0.0},
+      {"x": 3.0, "y": 4.0, "target": 1.0}
+    ]
+  }
+  ```
+
+- Clustering:
+  ```json
+  {
+    "data": [
+      {"x": 1.0, "y": 2.0},
+      {"x": 3.0, "y": 4.0}
+    ]
+  }
+  ```
+
+### Parquet Format
+
+- Classification/Regression: Contains columns `x`, `y`, and `target`
+- Clustering: Contains columns `x` and `y`
+
 ## Dependencies
 
 This project uses Linfa 0.7.1 and its various components:
