@@ -6,20 +6,26 @@ use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
 use std::fs::File;
 use std::path::Path;
-use csv;
+
+use crate::data_utils;
 
 pub fn run_regression_example() -> Result<()> {
     // Simple regression example with Linfa 0.7.1
     println!("Linfa 0.7.1 Linear Regression Example");
     
-    // Check if CSV file exists
+    // Check for data files in different formats
     let csv_path = Path::new("data/sample_regression.csv");
+    let json_path = Path::new("data/sample_regression.json");
+    
     let dataset = if csv_path.exists() {
         println!("Loading data from CSV file: {}", csv_path.display());
-        load_csv_dataset(csv_path)?
+        data_utils::load_csv_dataset(csv_path)?
+    } else if json_path.exists() {
+        println!("Loading data from JSON file: {}", json_path.display());
+        data_utils::load_json_dataset(json_path)?
     } else {
-        println!("CSV file not found, using synthetic data");
-        create_synthetic_dataset()?
+        println!("No data files found, using synthetic data");
+        data_utils::create_synthetic_regression_dataset()?
     };
     
     // Split into train and test sets with a random seed for reproducibility
@@ -58,20 +64,21 @@ pub fn run_regression_example() -> Result<()> {
     println!("  Parameters shape: {:?}", model.params().shape());
     println!("  Parameters values: {:?}", model.params());
     
-    // For a simple linear regression, extract the coefficient and intercept
+    // For simple linear regression, we can interpret the parameters
     if model.params().len() == 1 {
-        let coefficient = model.params().get(0).unwrap();
-        let intercept = model.intercept();
+        let m = model.params()[0]; // Coefficient (slope)
+        let b = model.intercept(); // Intercept
         
-        println!("  Estimated coefficient (m): {:.4}", coefficient);
-        println!("  Estimated intercept (b): {:.4}", intercept);
-        println!("  Estimated model equation: y = {:.4} * x + {:.4}", coefficient, intercept);
+        println!("  Estimated coefficient (m): {:.4}", m);
+        println!("  Estimated intercept (b): {:.4}", b);
+        println!("  Estimated model equation: y = {:.4} * x + {:.4}", m, b);
         
-        // Make predictions on new data points
+        // Make predictions on new data
         println!("\nPredicting on new data:");
-        let new_x = vec![0.5, 7.0, 10.0];
-        for &x in &new_x {
-            let y = coefficient * x + intercept;
+        let new_x_values = [0.5, 7.0, 10.0];
+        
+        for &x in &new_x_values {
+            let y = m * x + b;
             println!("  x = {:.1}, predicted y = {:.2}", x, y);
         }
     }
