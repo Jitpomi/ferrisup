@@ -1,0 +1,29 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2021"
+authors = ["{{authors}}"]
+description = "Image recognition using the Linfa framework"
+
+[dependencies]
+# Core dependencies
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+
+# Linfa - Rust machine learning framework
+linfa = "0.7.0"
+linfa-nn = "0.7.0"  # Neural network algorithms
+linfa-datasets = "0.7.0"  # Dataset handling
+
+# Data processing
+ndarray = "0.15.6"
+ndarray-rand = "0.14.0"
+ndarray-stats = "0.5.1"
+
+# Image processing
+image = "0.24.7"
+rand = "0.8.5"
+rand_isaac = "0.3.0"  # For deterministic random number generation
+indicatif = "0.17.7"  # For progress bars

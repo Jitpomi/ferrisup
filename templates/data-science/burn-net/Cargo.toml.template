@@ -3,20 +3,18 @@ name = "{{project_name}}"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
-description = "A deep learning application using Burn for neural networks"
+description = "A deep learning application using the Burn framework"
 
 [dependencies]
-burn = { version = "0.16.0", features = ["train", "ndarray", "autodiff", "dataset", "vision"] }
-burn-tensor = { version = "0.16.0", features = ["ndarray"] }
-burn-autodiff = "0.16.0"
-burn-train = "0.16.0"
-burn-dataset = "0.16.0"
-burn-ndarray = "0.16.0"
-ndarray = "0.15"
-anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-rand = "0.8"
-indicatif = "0.17"
-image = "0.24"
+# Core dependencies
+anyhow = "1.0.75"
+clap = { version = "4.4.6", features = ["derive"] }
+serde = { version = "1.0.189", features = ["derive"] }
+serde_json = "1.0.107"
+
+# Burn dependencies
+burn = { version = "0.10.0", features = ["ndarray", "autodiff", "train"] }
+
+# Optional: Uncomment for GPU support
+# burn-wgpu = { version = "0.10.0" }
+# burn-tch = { version = "0.10.0" }

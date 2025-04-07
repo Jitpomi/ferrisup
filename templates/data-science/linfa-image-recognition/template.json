@@ -1,0 +1,43 @@
+{
+  "name": "data-science/linfa-image-recognition",
+  "description": "A Rust image recognition template using Linfa for machine learning with handwritten digit recognition",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "src/data.rs",
+      "target": "src/data.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "linfa = \"0.7.0\"",
+      "linfa-nn = \"0.7.0\"",
+      "linfa-datasets = \"0.7.0\"",
+      "ndarray = { version = \"0.15.6\", features = [\"serde\"] }",
+      "ndarray-rand = \"0.14.0\"",
+      "ndarray-stats = \"0.5.1\"",
+      "image = \"0.24.7\"",
+      "rand = \"0.8.5\"",
+      "rand_isaac = \"0.3.0\"",
+      "indicatif = \"0.17.7\"",
+      "anyhow = \"1.0\"",
+      "clap = { version = \"4.4\", features = [\"derive\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ]
+  },
+  "next_steps": [
+    "🧪 Train a model: cd {{project_name}} && cargo run -- train",
+    "🔍 Evaluate model performance: cargo run -- evaluate -m model.json",
+    "🖼️ Predict with an image: cargo run -- predict -m model.json -i path/to/image.png",
+    "📚 See all available commands: cargo run -- help"
+  ]
+}

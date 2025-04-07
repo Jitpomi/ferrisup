@@ -1,0 +1,58 @@
+{
+  "name": "burn-image-classifier",
+  "description": "A deep learning template for classifying images into categories using the Burn framework",
+  "author": "Ferrisup Team",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "src/model.rs",
+      "target": "src/model.rs"
+    },
+    {
+      "source": "src/data.rs",
+      "target": "src/data.rs"
+    },
+    {
+      "source": "src/config.rs",
+      "target": "src/config.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "CUSTOMIZATION.md",
+      "target": "CUSTOMIZATION.md"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "anyhow = \"1.0\"",
+      "clap = { version = \"4.5\", features = [\"derive\"] }",
+      "burn = { version = \"0.16.0\", features = [\"train\", \"ndarray\", \"vision\"] }",
+      "ndarray = \"0.15\"",
+      "image = \"0.24\"",
+      "rand = \"0.8\"",
+      "indicatif = \"0.17\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ]
+  },
+  "next_steps": [
+    "📸 Train on the included sample dataset: cd {{project_name}} && cargo run -- train",
+    "🧠 Evaluate the model: cargo run -- evaluate",
+    "🔍 Classify a new image: cargo run -- predict --image path/to/your/image.jpg",
+    "📊 Customize the model: Edit src/config.rs to adjust parameters",
+    "📚 Learn more: Read CUSTOMIZATION.md for detailed customization options"
+  ]
+}

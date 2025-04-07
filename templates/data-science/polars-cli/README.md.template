@@ -1,0 +1,212 @@
+# {{project_name}}
+
+A data analysis CLI application using Polars (similar to pandas in Python)
+
+## Features
+
+- Fast data processing with Polars (Rust implementation similar to pandas)
+- Command-line interface for data analysis
+{{#if (eq data_source "CSV files")}}
+- Support for CSV files
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+- Support for Parquet files
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+- Support for JSON data
+{{/if}}
+- Statistical analysis capabilities
+{{#if (eq visualization "yes")}}
+- Data visualization with Plotters
+{{/if}}
+- Sample data generation
+
+## Installation
+
+```bash
+cargo build --release
+```
+
+The binary will be available at `target/release/{{project_name}}`.
+
+## Usage
+
+### Analyzing Data
+
+```bash
+# Basic usage
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json
+{{/if}}
+
+# Filtering data
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -c department -v Engineering
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -c department -v Engineering
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -c department -v Engineering
+{{/if}}
+
+# Grouping and aggregation
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -g department -a salary -u mean
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -g department -a salary -u mean
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
+{{/if}}
+
+# Statistical analysis
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -s
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -s
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -s
+{{/if}}
+```
+
+### Generating Sample Data
+
+```bash
+# Generate 100 rows of sample data
+{{#if (eq data_source "CSV files")}}
+cargo run -- generate -r 100 -o data/my_data.csv
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- generate -r 100 -o data/my_data.parquet
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- generate -r 100 -o data/my_data.json
+{{/if}}
+```
+
+## Command-Line Arguments
+
+### Analyze Command
+
+- `-f, --file <FILE>`: Path to the data file
+- `-t, --format <FORMAT>`: File format (csv, json, parquet) [default: {{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}]
+- `-c, --filter-column <FILTER_COLUMN>`: Optional column to filter on
+- `-v, --filter-value <FILTER_VALUE>`: Optional value to filter for
+- `-g, --group-by <GROUP_BY>`: Optional column to group by
+- `-a, --aggregate <AGGREGATE>`: Optional column to aggregate
+- `-u, --agg-func <AGG_FUNC>`: Aggregation function (sum, mean, min, max, count) [default: count]
+- `-s, --stats`: Perform statistical analysis
+- `--confidence <CONFIDENCE>`: Confidence level for statistical tests (0.90, 0.95, 0.99) [default: 0.95]
+{{#if (eq data_source "JSON data")}}
+- `--json-format <JSON_FORMAT>`: JSON format (records, lines) [default: records]
+{{/if}}
+
+### Generate Command
+
+- `-r, --rows <ROWS>`: Number of rows to generate [default: 100]
+- `-o, --output <o>`: Output file path
+- `-t, --format <FORMAT>`: Output format (csv, json, parquet) [default: {{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}]
+
+## Examples
+
+### Basic Analysis
+
+```bash
+{{#if (eq data_source "CSV files")}}
+# Analyze the example CSV file
+cargo run -- analyze -f data/example_data.csv
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+# Analyze the example Parquet file
+cargo run -- analyze -f data/example_data.parquet
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+# Analyze the example JSON file
+cargo run -- analyze -f data/example_data.json
+{{/if}}
+```
+
+### Filtering and Grouping
+
+```bash
+# Filter data where department is "Engineering"
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -c department -v Engineering
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -c department -v Engineering
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -c department -v Engineering
+{{/if}}
+
+# Group by department and calculate mean salary
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -g department -a salary -u mean
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -g department -a salary -u mean
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
+{{/if}}
+```
+
+### Statistical Analysis
+
+```bash
+# Perform statistical analysis with 95% confidence level
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -s
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -s
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -s
+{{/if}}
+
+# Perform statistical analysis with 99% confidence level
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -s --confidence 0.99
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -s --confidence 0.99
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -s --confidence 0.99
+{{/if}}
+```
+
+{{#if (eq visualization "yes")}}
+### Data Visualization
+
+The application automatically generates histograms for numeric columns when using the `-s` flag for statistical analysis. The histograms are saved as PNG files in the same directory as the input file.
+
+```bash
+# Generate histograms for all numeric columns
+{{#if (eq data_source "CSV files")}}
+cargo run -- analyze -f data/example_data.csv -s
+{{/if}}
+{{#if (eq data_source "Parquet files")}}
+cargo run -- analyze -f data/example_data.parquet -s
+{{/if}}
+{{#if (eq data_source "JSON data")}}
+cargo run -- analyze -f data/example_data.json -s
+{{/if}}
+```
+{{/if}}
+
+## License
+
+MIT

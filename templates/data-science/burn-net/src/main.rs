@@ -1,17 +1,25 @@
+mod data;
 mod model;
-mod dataset;
-mod train;
 
-use anyhow::Result;
+use burn::{
+    config::Config,
+    data::{dataloader::DataLoaderBuilder, dataset::vision::MnistDataset},
+    module::Module,
+    optim::AdamConfig,
+    prelude::*,
+    record::{CompactRecorder, Recorder, NoStdTrainingRecorder},
+    tensor::backend::AutodiffBackend,
+    train::{
+        metric::{AccuracyMetric, LossMetric},
+        LearnerBuilder,
+    },
+};
 use clap::{Parser, Subcommand};
+use data::{MnistBatch, MnistBatcher};
+use model::Model;
 use std::path::PathBuf;
-use burn::tensor::backend::Backend;
-use burn_ndarray::NdArray;
 
-// Define the backend type
-type MyBackend = NdArray<f32>;
-
-/// A deep learning application using Burn for neural networks
+/// A deep learning application using the Burn framework
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -23,25 +31,17 @@ struct Cli {
 enum Commands {
     /// Train a neural network model
     Train {
-        /// Number of epochs
+        /// Number of epochs for training
         #[arg(short, long, default_value_t = 10)]
         epochs: usize,
         
-        /// Batch size
-        #[arg(short, long, default_value_t = 32)]
-        batch_size: usize,
-        
-        /// Learning rate
-        #[arg(short, long, default_value_t = 0.001)]
-        learning_rate: f64,
-        
         /// Path to save the model
-        #[arg(short, long, default_value = "model.burn")]
+        #[arg(short, long, default_value = "model.json")]
         output: PathBuf,
         
-        /// Use MNIST dataset
-        #[arg(short, long, default_value_t = true)]
-        mnist: bool,
+        /// Batch size for training
+        #[arg(short, long, default_value_t = 32)]
+        batch_size: usize,
     },
     
     /// Evaluate a trained model
@@ -49,79 +49,139 @@ enum Commands {
         /// Path to the model file
         #[arg(short, long)]
         model: PathBuf,
-        
-        /// Path to the test image (if not specified, uses MNIST test set)
-        #[arg(short, long)]
-        image: Option<PathBuf>,
-    },
-    
-    /// Make a prediction with a trained model
-    Predict {
-        /// Path to the model file
-        #[arg(short, long)]
-        model: PathBuf,
-        
-        /// Path to the image to predict
-        #[arg(short, long)]
-        image: PathBuf,
     },
 }
 
-fn main() -> Result<()> {
+#[derive(Config)]
+struct TrainingConfig {
+    #[config(default = 10)]
+    pub num_epochs: usize,
+
+    #[config(default = 32)]
+    pub batch_size: usize,
+
+    #[config(default = 4)]
+    pub num_workers: usize,
+
+    #[config(default = 3e-4)]
+    pub learning_rate: f64,
+}
+
+fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Train {
-            epochs,
-            batch_size,
-            learning_rate,
-            output,
-            mnist,
-        } => {
-            println!("🧠 Training neural network model");
-            println!("Epochs: {}", epochs);
-            println!("Batch size: {}", batch_size);
-            println!("Learning rate: {}", learning_rate);
+        Commands::Train { epochs, output, batch_size } => {
+            println!("Training a neural network model for {} epochs", epochs);
             
-            if *mnist {
-                println!("Dataset: MNIST");
-                train::train_mnist::<MyBackend>(
-                    *epochs,
-                    *batch_size,
-                    *learning_rate as f32,
-                    output,
-                )?;
-            } else {
-                println!("Custom dataset not implemented yet. Using MNIST instead.");
-                train::train_mnist::<MyBackend>(
-                    *epochs,
-                    *batch_size,
-                    *learning_rate as f32,
-                    output,
-                )?;
-            }
+            // Create a type alias for the backend
+            type Backend = burn::backend::ndarray::NdArray<f32>;
+            
+            // Initialize the device
+            let device = Default::default();
+            
+            // Create the training config
+            let config = TrainingConfig {
+                num_epochs: *epochs,
+                batch_size: *batch_size,
+                ..Default::default()
+            };
+            
+            // Create the model
+            let model = Model::<Backend>::new(&device);
+            
+            // Create the optimizer
+            let optimizer = AdamConfig::new().with_learning_rate(config.learning_rate).init();
+            
+            // Create the dataloaders
+            let batcher_train = MnistBatcher::<Backend>::new(device.clone());
+            let batcher_valid = MnistBatcher::<Backend>::new(device.clone());
+            
+            // Load the MNIST dataset
+            let dataset_train = MnistDataset::train();
+            let dataset_valid = MnistDataset::test();
+            
+            // Create the dataloaders
+            let dataloader_train = DataLoaderBuilder::new(batcher_train)
+                .batch_size(config.batch_size)
+                .shuffle(true)
+                .num_workers(config.num_workers)
+                .build(dataset_train);
+            
+            let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
+                .batch_size(config.batch_size)
+                .shuffle(false)
+                .num_workers(config.num_workers)
+                .build(dataset_valid);
+            
+            // Create the learner
+            let mut learner = LearnerBuilder::new(output.to_str().unwrap())
+                .metric_train(AccuracyMetric::new())
+                .metric_valid(AccuracyMetric::new())
+                .metric_train(LossMetric::new())
+                .metric_valid(LossMetric::new())
+                .with_epochs(config.num_epochs)
+                .build(model, optimizer);
+            
+            // Train the model
+            println!("Starting training...");
+            let model_trained = learner.fit(dataloader_train, dataloader_valid);
+            
+            // Save the model
+            println!("Saving model to {:?}", output);
+            let recorder = NoStdTrainingRecorder::new();
+            recorder.record(model_trained).save(output.to_str().unwrap()).expect("Failed to save model");
+            
+            println!("✅ Training completed successfully!");
         },
-        
-        Commands::Evaluate { model, image } => {
-            println!("📊 Evaluating model: {}", model.display());
+        Commands::Evaluate { model } => {
+            println!("Evaluating model from {:?}", model);
             
-            if let Some(img_path) = image {
-                println!("Evaluating on single image: {}", img_path.display());
-                train::evaluate_single::<MyBackend>(model, img_path)?;
-            } else {
-                println!("Evaluating on MNIST test set");
-                train::evaluate_mnist::<MyBackend>(model)?;
+            // Create a type alias for the backend
+            type Backend = burn::backend::ndarray::NdArray<f32>;
+            
+            // Initialize the device
+            let device = Default::default();
+            
+            // Load the model
+            let recorder = NoStdTrainingRecorder::new();
+            let model: Model<Backend> = recorder.load(model.to_str().unwrap()).expect("Failed to load model");
+            
+            // Create the batcher
+            let batcher = MnistBatcher::<Backend>::new(device.clone());
+            
+            // Load the MNIST dataset
+            let dataset = MnistDataset::test();
+            
+            // Create the dataloader
+            let dataloader = DataLoaderBuilder::new(batcher)
+                .batch_size(32)
+                .shuffle(false)
+                .num_workers(4)
+                .build(dataset);
+            
+            // Evaluate the model
+            let mut total = 0;
+            let mut correct = 0;
+            
+            for batch in dataloader {
+                let output = model.forward(batch.images);
+                let predictions = output.argmax(1);
+                let targets = batch.targets;
+                
+                for i in 0..predictions.dims()[0] {
+                    let pred = predictions.get(i).into_scalar() as usize;
+                    let target = targets.get(i).into_scalar() as usize;
+                    
+                    if pred == target {
+                        correct += 1;
+                    }
+                    total += 1;
+                }
             }
-        },
-        
-        Commands::Predict { model, image } => {
-            println!("🔮 Making prediction with model: {}", model.display());
-            println!("Image: {}", image.display());
             
-            let prediction = train::predict::<MyBackend>(model, image)?;
-            println!("Prediction: {}", prediction);
+            let accuracy = (correct as f32) / (total as f32) * 100.0;
+            println!("Test accuracy: {:.2}%", accuracy);
         },
     }
-
-    Ok(())
 }

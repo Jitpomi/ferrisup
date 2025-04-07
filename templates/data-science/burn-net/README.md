@@ -1,89 +1,64 @@
-# Burn-Net - Deep Learning in Rust
+# Burn Neural Network Example
 
-This project provides a foundation for deep learning in Rust using [Burn](https://github.com/burn-rs/burn), a deep learning framework written in pure Rust (similar to PyTorch in Python).
+This is a machine learning example using the [Burn](https://github.com/tracel-ai/burn) framework for Rust. Burn is a deep learning framework written in pure Rust that supports automatic differentiation, GPU acceleration, and various neural network architectures.
 
 ## Features
 
-- Define neural network models with Burn
-- Train models on CPU or GPU
-- Load and save model weights
-- Work with the MNIST dataset
-- Make predictions on new images
+- Train a convolutional neural network (CNN) on the MNIST dataset
+- Evaluate the model on test data
+- Save and load trained models
+- Based on the official Burn examples
 
-## Getting Started
+## Usage
 
 ### Training a Model
 
-```bash
-# Train a model on MNIST for 10 epochs
-cargo run -- train -e 10 -b 32 -l 0.001 -o model.burn
+To train a model, use the `train` command:
 
-# Train with custom parameters
-cargo run -- train --epochs 20 --batch-size 64 --learning-rate 0.0005 --output my_model.burn
+```bash
+cargo run -- train --epochs 10 --output model.json --batch-size 32
 ```
+
+Options:
+- `--epochs`: Number of training epochs (default: 10)
+- `--output`: Path to save the trained model (default: model.json)
+- `--batch-size`: Batch size for training (default: 32)
 
 ### Evaluating a Model
 
-```bash
-# Evaluate on MNIST test set
-cargo run -- evaluate -m model.burn
-
-# Evaluate on a single image
-cargo run -- evaluate -m model.burn -i path/to/image.png
-```
-
-### Making Predictions
+To evaluate a trained model on the MNIST test dataset:
 
 ```bash
-# Predict the digit in an image
-cargo run -- predict -m model.burn -i path/to/digit.png
+cargo run -- evaluate --model model.json
 ```
+
+Options:
+- `--model`: Path to the trained model file
 
 ## Model Architecture
 
-The default model is a Convolutional Neural Network (CNN) with:
+This example implements a CNN with the following architecture:
 
-- 2 convolutional layers
-- Adaptive average pooling
-- 2 fully connected layers
-- ReLU activations
+1. Three convolutional blocks, each containing:
+   - 2D Convolution layer
+   - Batch normalization
+   - GELU activation
 
-You can modify the architecture in `src/model.rs` to suit your needs.
+2. A fully connected network with:
+   - Dropout for regularization
+   - Two linear layers
+   - GELU activation
 
-## Extending
+## GPU Acceleration
 
-This template provides a foundation for deep learning in Rust. To extend it:
+By default, this example uses the CPU backend. To enable GPU acceleration, uncomment the GPU-related dependencies in `Cargo.toml` and modify the backend type in `main.rs`.
 
-1. **Add new models**: Define new neural network architectures in `src/model.rs`
-2. **Work with different datasets**: Implement dataset loaders in `src/dataset.rs`
-3. **Experiment with training**: Modify the training loop in `src/train.rs`
-4. **Add GPU support**: Change the backend to use CUDA or Metal
+## Learn More
 
-## GPU Support
+To learn more about the Burn framework:
 
-To enable GPU support, modify the backend type in `src/main.rs`:
+- [Burn GitHub Repository](https://github.com/tracel-ai/burn)
+- [Burn Documentation](https://burn.dev/)
+- [The Burn Book](https://burn.dev/burn-book/)
 
-```rust
-// For CUDA
-type MyBackend = burn_cuda::Cuda<f32>;
-
-// For Metal (macOS)
-type MyBackend = burn_metal::Metal<f32>;
-```
-
-And update your Cargo.toml to include the appropriate backend:
-
-```toml
-[dependencies]
-# For CUDA
-burn-cuda = "0.12.1"
-
-# For Metal
-burn-metal = "0.12.1"
-```
-
-## Resources
-
-- [Burn Documentation](https://burn-rs.github.io/book/)
-- [Burn Examples](https://github.com/burn-rs/burn/tree/main/examples)
-- [Rust Deep Learning](https://github.com/LaurentMazare/tch-rs)
+This template is based on the official Burn examples and follows best practices for machine learning in Rust.

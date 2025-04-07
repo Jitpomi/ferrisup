@@ -2,9 +2,13 @@
   "name": "polars-cli",
   "description": "Data analysis CLI using Polars (similar to pandas in Python)",
   "type": "binary",
+  "hooks": {
+    "pre_gen": "hooks/pre_gen_hook.sh",
+    "post_gen": "hooks/post_gen_hook.sh"
+  },
   "files": [
     {
-      "source": "src/main.rs",
+      "source": "src/main.rs.template",
       "target": "src/main.rs"
     },
     {
@@ -12,12 +16,38 @@
       "target": "Cargo.toml"
     },
     {
-      "source": "README.md",
+      "source": "README.md.template",
       "target": "README.md"
     },
     {
-      "source": "example_data.csv",
-      "target": "data/example_data.csv"
+      "source": "data/example_data_csv.csv",
+      "target": "data/example_data.csv",
+      "condition": "data_source == \"CSV files\""
+    },
+    {
+      "source": "data/example_data_json.json",
+      "target": "data/example_data.json",
+      "condition": "data_source == \"JSON data\""
+    },
+    {
+      "source": "data/example_data_parquet.parquet",
+      "target": "data/example_data.parquet",
+      "condition": "data_source == \"Parquet files\""
+    },
+    {
+      "source": "next_steps_csv.json",
+      "target": ".ferrisup_next_steps.json",
+      "condition": "data_source == \"CSV files\""
+    },
+    {
+      "source": "next_steps_json.json",
+      "target": ".ferrisup_next_steps.json",
+      "condition": "data_source == \"JSON data\""
+    },
+    {
+      "source": "next_steps_parquet.json",
+      "target": ".ferrisup_next_steps.json",
+      "condition": "data_source == \"Parquet files\""
     }
   ],
   "prompts": [
@@ -52,5 +82,18 @@
       ],
       "default": "yes"
     }
+  ],
+
+
+  
+  "variables": {
+    "data_format": "{{#if (eq data_source \"CSV files\")}}csv{{else}}{{#if (eq data_source \"JSON data\")}}json{{else}}parquet{{/if}}{{/if}}"
+  },
+  "next_steps": [
+    "📊 Try the example analysis: cd {{project_name}} && cargo run -- analyze -f data/example_data.csv",
+    "📈 Run statistical analysis: cargo run -- analyze -f data/example_data.csv -s",
+    "🔍 Group data by department: cargo run -- analyze -f data/example_data.csv -g department -a salary -u mean",
+    "🧮 Generate sample data: cargo run -- generate -r 100 -o data/my_data.csv",
+    "📚 See all available commands: cargo run -- help"
   ]
 }

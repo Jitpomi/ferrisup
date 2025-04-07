@@ -1,9 +1,12 @@
 use anyhow::Result;
-use linfa::metrics::{ConfusionMatrix, PredictionError};
+use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::Predict;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1};
 use plotters::prelude::*;
-use std::path::Path;
+use std::fmt::Write as FmtWrite;
+use std::fs::File;
+use std::io::Write as IoWrite;
+use std::path::PathBuf;
 
 /// Regression metrics
 pub struct RegressionMetrics {
@@ -14,12 +17,12 @@ pub struct RegressionMetrics {
 }
 
 /// Classification metrics
+#[derive(Debug, Clone)]
 pub struct ClassificationMetrics {
     pub accuracy: f64,
-    pub precision: f64,
-    pub recall: f64,
-    pub f1: f64,
-    pub confusion_matrix: ConfusionMatrix<usize>,
+    pub precision_weighted: f64,
+    pub recall_weighted: f64,
+    pub f1_weighted: f64,
 }
 
 /// Clustering metrics
@@ -30,105 +33,412 @@ pub struct ClusteringMetrics {
 }
 
 /// Evaluate a regression model
-pub fn evaluate_regression<'a, P>(
-    model: P,
-    test_dataset: linfa::Dataset<f64, f64>,
-) -> Result<RegressionMetrics>
-where
-    P: Predict<Array1<f64>, Output = Array1<f64>> + 'a,
-{
-    let predictions = model.predict(&test_dataset.records);
-    let targets = &test_dataset.targets;
+pub fn evaluate_regression(
+    model: &Box<dyn Predict<Array2<f64>, Array1<f64>>>,
+    test_features: &ArrayView2<'_, f64>,
+    test_targets: &ArrayView1<'_, f64>,
+) -> Result<RegressionMetrics> {
+    // Make predictions
+    let predictions = model.predict(test_features.to_owned());
     
     // Calculate metrics
-    let n_samples = targets.len() as f64;
+    let n = test_targets.len() as f64;
     
-    // Mean Squared Error
-    let mse = predictions
-        .iter()
-        .zip(targets.iter())
-        .map(|(pred, actual)| (pred - actual).powi(2))
-        .sum::<f64>() / n_samples;
+    // Calculate mean of actual values
+    let mean_actual = test_targets.mean().unwrap();
     
-    // Root Mean Squared Error
+    // Calculate R²
+    let ss_total = test_targets.iter()
+        .map(|&y| (y - mean_actual).powi(2))
+        .sum::<f64>();
+    
+    let ss_residual = test_targets.iter()
+        .zip(predictions.iter())
+        .map(|(&y_true, &y_pred)| (y_true - y_pred).powi(2))
+        .sum::<f64>();
+    
+    let r2 = 1.0 - (ss_residual / ss_total);
+    
+    // Calculate MAE
+    let mae = test_targets.iter()
+        .zip(predictions.iter())
+        .map(|(&y_true, &y_pred)| (y_true - y_pred).abs())
+        .sum::<f64>() / n;
+    
+    // Calculate MSE
+    let mse = test_targets.iter()
+        .zip(predictions.iter())
+        .map(|(&y_true, &y_pred)| (y_true - y_pred).powi(2))
+        .sum::<f64>() / n;
+    
+    // Calculate RMSE
     let rmse = mse.sqrt();
     
-    // Mean Absolute Error
-    let mae = predictions
-        .iter()
-        .zip(targets.iter())
-        .map(|(pred, actual)| (pred - actual).abs())
-        .sum::<f64>() / n_samples;
-    
-    // R-squared
-    let mean_target = targets.mean().unwrap();
-    let total_sum_squares = targets
-        .iter()
-        .map(|&actual| (actual - mean_target).powi(2))
-        .sum::<f64>();
-    let residual_sum_squares = predictions
-        .iter()
-        .zip(targets.iter())
-        .map(|(pred, actual)| (pred - actual).powi(2))
-        .sum::<f64>();
-    let r2 = 1.0 - (residual_sum_squares / total_sum_squares);
-    
-    Ok(RegressionMetrics {
-        mse,
-        rmse,
-        mae,
-        r2,
-    })
+    Ok(RegressionMetrics { r2, mae, mse, rmse })
 }
 
 /// Evaluate a classification model
-pub fn evaluate_classification<'a, P>(
-    model: P,
-    test_dataset: linfa::Dataset<f64, usize>,
-) -> Result<ClassificationMetrics>
+pub fn evaluate_classification<S>(
+    targets: ArrayView1<'_, usize>,
+    predictions: &ArrayBase<S, Ix1>,
+    _test_features: ArrayView2<'_, f64>,
+) -> Result<ClassificationMetrics> 
 where
-    P: Predict<Array1<usize>, Output = Array1<usize>> + 'a,
+    S: Data<Elem = usize>,
 {
-    let predictions = model.predict(&test_dataset.records);
-    let targets = &test_dataset.targets;
-    
-    // Calculate confusion matrix
-    let cm = ConfusionMatrix::new(&predictions, targets)?;
+    // Create confusion matrix
+    let cm = ConfusionMatrix::new(targets, predictions.view())?;
     
     // Calculate metrics
     let accuracy = cm.accuracy();
+    let precision_weighted = cm.precision_macro()?;
+    let recall_weighted = cm.recall_macro()?;
+    let f1_weighted = cm.f1_macro()?;
     
-    // Calculate precision, recall, and F1 for each class and average
-    let mut total_precision = 0.0;
-    let mut total_recall = 0.0;
-    let mut total_f1 = 0.0;
-    let n_classes = cm.classes().len();
+    Ok(ClassificationMetrics {
+        accuracy,
+        precision_weighted,
+        recall_weighted,
+        f1_weighted,
+    })
+}
+
+/// Plot a confusion matrix
+pub fn plot_confusion_matrix<'a, S>(
+    targets: ArrayView1<'_, usize>,
+    predictions: &ArrayBase<S, Ix1>,
+    output_path: &str,
+) -> Result<()> 
+where
+    S: Data<Elem = usize>,
+{
+    // Create confusion matrix
+    let cm = ConfusionMatrix::new(targets, predictions.view())?;
     
-    for class in cm.classes() {
-        let precision = cm.precision_for_class(*class);
-        let recall = cm.recall_for_class(*class);
+    // Get the number of classes
+    let n_classes = cm.classes();
+    
+    // Create a markdown file with the confusion matrix
+    let mut output = File::create(output_path)?;
+    
+    // Add header
+    output.write_fmt(format_args!("# Classification Report\n\n"))?;
+    
+    // Add confusion matrix
+    output.write_fmt(format_args!("## Confusion Matrix\n\n"))?;
+    output.write_fmt(format_args!("|   | "))?;
+    
+    // Add column headers (predicted classes)
+    for i in 0..n_classes {
+        output.write_fmt(format_args!("Pred {} | ", i))?;
+    }
+    output.write_fmt(format_args!("\n"))?;
+    
+    // Add separator
+    output.write_fmt(format_args!("|---| "))?;
+    for _ in 0..n_classes {
+        output.write_fmt(format_args!("--------| "))?;
+    }
+    output.write_fmt(format_args!("\n"))?;
+    
+    // Add rows
+    for i in 0..n_classes {
+        output.write_fmt(format_args!("| True {} | ", i))?;
+        
+        for j in 0..n_classes {
+            let count = cm.get(i, j);
+            output.write_fmt(format_args!("{} | ", count))?;
+        }
+        output.write_fmt(format_args!("\n"))?;
+    }
+    
+    // Add per-class metrics
+    output.write_fmt(format_args!("\n## Per-Class Metrics\n"))?;
+    output.write_fmt(format_args!("| Class | Precision | Recall | F1 Score | Support |\n"))?;
+    output.write_fmt(format_args!("|-------|-----------|--------|----------|---------|\n"))?;
+    
+    for i in 0..n_classes {
+        // In Linfa 0.7.1, we need to use the precision/recall methods without the _for_class suffix
+        let precision = cm.precision(i).unwrap_or(0.0);
+        let recall = cm.recall(i).unwrap_or(0.0);
         let f1 = if precision + recall > 0.0 {
             2.0 * precision * recall / (precision + recall)
         } else {
             0.0
         };
         
-        total_precision += precision;
-        total_recall += recall;
-        total_f1 += f1;
+        // Calculate support (number of actual samples in this class)
+        let mut support = 0;
+        for j in 0..n_classes {
+            // The confusion matrix is [actual, predicted]
+            support += cm.get(i, j);
+        }
+        
+        output.write_fmt(format_args!("| {} | {:.4} | {:.4} | {:.4} | {} |\n", 
+                                     i, precision, recall, f1, support))?;
     }
     
-    let precision = total_precision / n_classes as f64;
-    let recall = total_recall / n_classes as f64;
-    let f1 = total_f1 / n_classes as f64;
+    // Add overall metrics
+    output.write_fmt(format_args!("\n## Overall Metrics\n"))?;
+    output.write_fmt(format_args!("- Accuracy: {:.4}\n", cm.accuracy()))?;
+    output.write_fmt(format_args!("- Precision (weighted): {:.4}\n", cm.precision_macro()?))?;
+    output.write_fmt(format_args!("- Recall (weighted): {:.4}\n", cm.recall_macro()?))?;
+    output.write_fmt(format_args!("- F1 Score (weighted): {:.4}\n", cm.f1_macro()?))?;
     
-    Ok(ClassificationMetrics {
-        accuracy,
-        precision,
-        recall,
-        f1,
-        confusion_matrix: cm,
-    })
+    Ok(())
+}
+
+/// Plot regression results
+pub fn plot_regression_results(
+    _test_features: &ArrayView2<'_, f64>,
+    test_targets: &ArrayView1<'_, f64>,
+    predictions: &Array1<f64>,
+    metrics: &RegressionMetrics,
+    output_path: &PathBuf,
+) -> Result<()> {
+    // For now, we'll just create a simple text file with the results
+    let mut file = File::create(output_path)?;
+    
+    writeln!(file, "# Regression Results")?;
+    writeln!(file, "")?;
+    writeln!(file, "## Metrics")?;
+    writeln!(file, "")?;
+    writeln!(file, "| Metric | Value |")?;
+    writeln!(file, "|--------|-------|")?;
+    writeln!(file, "| R² Score | {:.4} |", metrics.r2)?;
+    writeln!(file, "| Mean Absolute Error | {:.4} |", metrics.mae)?;
+    writeln!(file, "| Mean Squared Error | {:.4} |", metrics.mse)?;
+    writeln!(file, "| Root Mean Squared Error | {:.4} |", metrics.rmse)?;
+    
+    // Add a table of actual vs predicted values (first 10 samples)
+    writeln!(file, "")?;
+    writeln!(file, "## Sample Predictions (First 10)")?;
+    writeln!(file, "")?;
+    writeln!(file, "| Sample | Actual | Predicted | Error |")?;
+    writeln!(file, "|--------|--------|-----------|-------|")?;
+    
+    let n_samples = test_targets.len().min(10);
+    for i in 0..n_samples {
+        let actual = test_targets[i];
+        let predicted = predictions[i];
+        let error = actual - predicted;
+        writeln!(file, "| {} | {:.4} | {:.4} | {:.4} |", i + 1, actual, predicted, error)?;
+    }
+    
+    // Add error distribution information
+    writeln!(file, "")?;
+    writeln!(file, "## Error Distribution")?;
+    writeln!(file, "")?;
+    
+    let errors: Vec<f64> = test_targets.iter()
+        .zip(predictions.iter())
+        .map(|(&y_true, &y_pred)| y_true - y_pred)
+        .collect();
+    
+    let min_error = errors.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+    let max_error = errors.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let mean_error = errors.iter().sum::<f64>() / errors.len() as f64;
+    
+    writeln!(file, "| Statistic | Value |")?;
+    writeln!(file, "|-----------|-------|")?;
+    writeln!(file, "| Min Error | {:.4} |", min_error)?;
+    writeln!(file, "| Max Error | {:.4} |", max_error)?;
+    writeln!(file, "| Mean Error | {:.4} |", mean_error)?;
+    
+    Ok(())
+}
+
+/// Plot clustering results
+pub fn plot_clustering(
+    data: &Array2<f64>,
+    clusters: &Array1<usize>,
+    centroids: &Array2<f64>,
+    output_path: &str,
+) -> Result<()> {
+    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+    
+    // Use the first two dimensions for plotting
+    let x_dim = 0;
+    let y_dim = if data.ncols() > 1 { 1 } else { 0 };
+    
+    let x_min = data.column(x_dim).fold(f64::INFINITY, |a, &b| a.min(b));
+    let x_max = data.column(x_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let y_min = data.column(y_dim).fold(f64::INFINITY, |a, &b| a.min(b));
+    let y_max = data.column(y_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    
+    let x_range = x_min..x_max;
+    let y_range = y_min..y_max;
+    
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            format!("Clustering Results ({} clusters)", centroids.nrows()),
+            ("sans-serif", 20).into_font(),
+        )
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(x_range, y_range)?;
+    
+    chart.configure_mesh().draw()?;
+    
+    // Create a custom color palette
+    let colors = [
+        &RGBColor(200, 100, 100),
+        &RGBColor(100, 200, 100),
+        &RGBColor(100, 100, 200),
+        &RGBColor(200, 200, 100),
+        &RGBColor(100, 200, 200),
+        &RGBColor(200, 100, 200),
+        &RGBColor(150, 100, 100),
+        &RGBColor(100, 150, 100),
+        &RGBColor(100, 100, 150),
+        &RGBColor(150, 150, 100),
+        &RGBColor(100, 150, 150),
+        &RGBColor(150, 100, 150),
+    ];
+    
+    // Draw data points
+    for cluster_id in 0..centroids.nrows() {
+        let color = colors[cluster_id % colors.len()];
+        
+        chart.draw_series(
+            data.rows()
+                .into_iter()
+                .zip(clusters.iter())
+                .filter(|(_, &c)| c == cluster_id)
+                .map(|(row, _)| {
+                    Circle::new(
+                        (row[x_dim], row[y_dim]),
+                        3,
+                        color.filled(),
+                    )
+                }),
+        )?;
+    }
+    
+    // Draw noise points (for DBSCAN)
+    chart.draw_series(
+        data.rows()
+            .into_iter()
+            .zip(clusters.iter())
+            .filter(|(_, &c)| c == usize::MAX)
+            .map(|(row, _)| {
+                Circle::new(
+                    (row[x_dim], row[y_dim]),
+                    3,
+                    BLACK.mix(0.3).filled(),
+                )
+            }),
+    )?;
+    
+    // Draw centroids
+    chart.draw_series(
+        centroids.rows()
+            .into_iter()
+            .enumerate()
+            .map(|(i, row)| {
+                let color = colors[i % colors.len()];
+                Cross::new(
+                    (row[x_dim], row[y_dim]),
+                    6,
+                    color.filled(),
+                )
+            }),
+    )?;
+    
+    root.present()?;
+    
+    Ok(())
+}
+
+/// Plot dimensionality reduction results
+pub fn plot_reduction<T: std::fmt::Display>(
+    data: &Array2<f64>,
+    targets: &Array1<T>,
+    output_path: &str,
+) -> Result<()> {
+    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+    
+    // Use the first two dimensions for plotting
+    let x_dim = 0;
+    let y_dim = if data.ncols() > 1 { 1 } else { 0 };
+    
+    let x_min = data.column(x_dim).fold(f64::INFINITY, |a, &b| a.min(b));
+    let x_max = data.column(x_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let y_min = data.column(y_dim).fold(f64::INFINITY, |a, &b| a.min(b));
+    let y_max = data.column(y_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    
+    let x_range = x_min..x_max;
+    let y_range = y_min..y_max;
+    
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Dimensionality Reduction Results",
+            ("sans-serif", 20).into_font(),
+        )
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(x_range, y_range)?;
+    
+    chart.configure_mesh().draw()?;
+    
+    // Get unique targets
+    let mut unique_targets = Vec::new();
+    for target in targets.iter() {
+        let target_str = format!("{}", target);
+        if !unique_targets.contains(&target_str) {
+            unique_targets.push(target_str);
+        }
+    }
+    
+    // Create a custom color palette
+    let colors = [
+        &RGBColor(200, 100, 100),
+        &RGBColor(100, 200, 100),
+        &RGBColor(100, 100, 200),
+        &RGBColor(200, 200, 100),
+        &RGBColor(100, 200, 200),
+        &RGBColor(200, 100, 200),
+        &RGBColor(150, 100, 100),
+        &RGBColor(100, 150, 100),
+        &RGBColor(100, 100, 150),
+        &RGBColor(150, 150, 100),
+        &RGBColor(100, 150, 150),
+        &RGBColor(150, 100, 150),
+    ];
+    
+    // Draw data points
+    for (i, target_str) in unique_targets.iter().enumerate() {
+        let color = colors[i % colors.len()];
+        
+        chart.draw_series(
+            data.rows()
+                .into_iter()
+                .zip(targets.iter())
+                .filter(|(_, target)| format!("{}", target) == *target_str)
+                .map(|(row, _)| {
+                    Circle::new(
+                        (row[x_dim], row[y_dim]),
+                        3,
+                        color.filled(),
+                    )
+                }),
+        )?
+        .label(target_str)
+        .legend(move |(x, y)| Circle::new((x, y), 3, color.filled()));
+    }
+    
+    chart.configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+    
+    root.present()?;
+    
+    Ok(())
 }
 
 /// Evaluate clustering results
@@ -234,320 +544,10 @@ pub fn evaluate_clustering(
     })
 }
 
-/// Plot regression results
-pub fn plot_regression_results(
-    test_dataset: linfa::Dataset<f64, f64>,
-    metrics: &RegressionMetrics,
-    output_path: &str,
-) -> Result<()> {
-    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    let predictions = test_dataset.records.column(0).to_owned();
-    let targets = &test_dataset.targets;
-    
-    let min_val = predictions
-        .iter()
-        .chain(targets.iter())
-        .fold(f64::INFINITY, |a, &b| a.min(b));
-    let max_val = predictions
-        .iter()
-        .chain(targets.iter())
-        .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            format!(
-                "Regression Results (R² = {:.4}, RMSE = {:.4})",
-                metrics.r2, metrics.rmse
-            ),
-            ("sans-serif", 20).into_font(),
-        )
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(
-            min_val..max_val,
-            min_val..max_val,
-        )?;
-    
-    chart.configure_mesh().draw()?;
-    
-    // Draw the perfect prediction line
-    chart.draw_series(LineSeries::new(
-        vec![(min_val, min_val), (max_val, max_val)],
-        &BLACK.mix(0.5),
-    ))?;
-    
-    // Draw the predictions
-    chart.draw_series(
-        predictions
-            .iter()
-            .zip(targets.iter())
-            .map(|(&pred, &actual)| Circle::new((pred, actual), 3, &BLUE.mix(0.5))),
-    )?;
-    
-    chart.configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
-        .draw()?;
-    
-    root.present()?;
-    
-    Ok(())
-}
+struct DummyClassifier {}
 
-/// Plot confusion matrix
-pub fn plot_confusion_matrix(
-    test_dataset: linfa::Dataset<f64, usize>,
-    metrics: &ClassificationMetrics,
-    output_path: &str,
-) -> Result<()> {
-    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    let cm = &metrics.confusion_matrix;
-    let classes = cm.classes();
-    let n_classes = classes.len();
-    
-    let max_count = cm.counts()
-        .iter()
-        .flatten()
-        .fold(0, |a, &b| a.max(b));
-    
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            format!(
-                "Confusion Matrix (Accuracy = {:.2}%)",
-                metrics.accuracy * 100.0
-            ),
-            ("sans-serif", 20).into_font(),
-        )
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(
-            0..n_classes,
-            0..n_classes,
-        )?;
-    
-    chart.configure_mesh()
-        .disable_mesh()
-        .x_labels(n_classes)
-        .y_labels(n_classes)
-        .x_label_formatter(&|v| format!("{}", classes[*v]))
-        .y_label_formatter(&|v| format!("{}", classes[*v]))
-        .x_desc("Predicted")
-        .y_desc("Actual")
-        .draw()?;
-    
-    let cm_counts = cm.counts();
-    
-    // Draw the confusion matrix cells
-    for i in 0..n_classes {
-        for j in 0..n_classes {
-            let count = cm_counts[i][j];
-            let color = if i == j {
-                RGBColor(100, 200, 100)
-            } else {
-                RGBColor(200, 100, 100)
-            };
-            
-            let opacity = count as f64 / max_count as f64;
-            
-            chart.draw_series(std::iter::once(
-                Rectangle::new(
-                    [(j, i), (j + 1, i + 1)],
-                    color.mix(opacity).filled(),
-                )
-            ))?;
-            
-            chart.draw_series(std::iter::once(
-                Text::new(
-                    format!("{}", count),
-                    (j + 0.5, i + 0.5),
-                    ("sans-serif", 15).into_font(),
-                )
-            ))?;
-        }
+impl Predict<Array2<f64>, Array1<usize>> for DummyClassifier {
+    fn predict(&self, features: Array2<f64>) -> Array1<usize> {
+        Array1::zeros(features.nrows())
     }
-    
-    root.present()?;
-    
-    Ok(())
-}
-
-/// Plot clustering results
-pub fn plot_clustering(
-    data: &Array2<f64>,
-    clusters: &Array1<usize>,
-    centroids: &Array2<f64>,
-    output_path: &str,
-) -> Result<()> {
-    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    // Use the first two dimensions for plotting
-    let x_dim = 0;
-    let y_dim = if data.ncols() > 1 { 1 } else { 0 };
-    
-    let x_min = data.column(x_dim).fold(f64::INFINITY, |a, &b| a.min(b));
-    let x_max = data.column(x_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let y_min = data.column(y_dim).fold(f64::INFINITY, |a, &b| a.min(b));
-    let y_max = data.column(y_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    
-    let x_range = x_min..x_max;
-    let y_range = y_min..y_max;
-    
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            format!("Clustering Results ({} clusters)", centroids.nrows()),
-            ("sans-serif", 20).into_font(),
-        )
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(x_range, y_range)?;
-    
-    chart.configure_mesh().draw()?;
-    
-    // Define colors for different clusters
-    let colors = [
-        &RED, &GREEN, &BLUE, &CYAN, &MAGENTA, &YELLOW,
-        &RED.mix(0.5), &GREEN.mix(0.5), &BLUE.mix(0.5),
-        &CYAN.mix(0.5), &MAGENTA.mix(0.5), &YELLOW.mix(0.5),
-    ];
-    
-    // Draw data points
-    for cluster_id in 0..centroids.nrows() {
-        let color = colors[cluster_id % colors.len()];
-        
-        chart.draw_series(
-            data.rows()
-                .into_iter()
-                .zip(clusters.iter())
-                .filter(|(_, &c)| c == cluster_id)
-                .map(|(row, _)| {
-                    Circle::new(
-                        (row[x_dim], row[y_dim]),
-                        3,
-                        color.filled(),
-                    )
-                }),
-        )?;
-    }
-    
-    // Draw noise points (for DBSCAN)
-    chart.draw_series(
-        data.rows()
-            .into_iter()
-            .zip(clusters.iter())
-            .filter(|(_, &c)| c == usize::MAX)
-            .map(|(row, _)| {
-                Circle::new(
-                    (row[x_dim], row[y_dim]),
-                    3,
-                    BLACK.mix(0.3).filled(),
-                )
-            }),
-    )?;
-    
-    // Draw centroids
-    chart.draw_series(
-        centroids.rows()
-            .into_iter()
-            .enumerate()
-            .map(|(i, row)| {
-                let color = colors[i % colors.len()];
-                Cross::new(
-                    (row[x_dim], row[y_dim]),
-                    6,
-                    color.filled(),
-                )
-            }),
-    )?;
-    
-    root.present()?;
-    
-    Ok(())
-}
-
-/// Plot dimensionality reduction results
-pub fn plot_reduction<T: std::fmt::Display>(
-    data: &Array2<f64>,
-    targets: &Array1<T>,
-    output_path: &str,
-) -> Result<()> {
-    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    // Use the first two dimensions for plotting
-    let x_dim = 0;
-    let y_dim = if data.ncols() > 1 { 1 } else { 0 };
-    
-    let x_min = data.column(x_dim).fold(f64::INFINITY, |a, &b| a.min(b));
-    let x_max = data.column(x_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let y_min = data.column(y_dim).fold(f64::INFINITY, |a, &b| a.min(b));
-    let y_max = data.column(y_dim).fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    
-    let x_range = x_min..x_max;
-    let y_range = y_min..y_max;
-    
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            "Dimensionality Reduction Results",
-            ("sans-serif", 20).into_font(),
-        )
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(x_range, y_range)?;
-    
-    chart.configure_mesh().draw()?;
-    
-    // Get unique targets
-    let mut unique_targets = Vec::new();
-    for target in targets.iter() {
-        let target_str = format!("{}", target);
-        if !unique_targets.contains(&target_str) {
-            unique_targets.push(target_str);
-        }
-    }
-    
-    // Define colors for different targets
-    let colors = [
-        &RED, &GREEN, &BLUE, &CYAN, &MAGENTA, &YELLOW,
-        &RED.mix(0.5), &GREEN.mix(0.5), &BLUE.mix(0.5),
-        &CYAN.mix(0.5), &MAGENTA.mix(0.5), &YELLOW.mix(0.5),
-    ];
-    
-    // Draw data points
-    for (i, target_str) in unique_targets.iter().enumerate() {
-        let color = colors[i % colors.len()];
-        
-        chart.draw_series(
-            data.rows()
-                .into_iter()
-                .zip(targets.iter())
-                .filter(|(_, target)| format!("{}", target) == *target_str)
-                .map(|(row, _)| {
-                    Circle::new(
-                        (row[x_dim], row[y_dim]),
-                        3,
-                        color.filled(),
-                    )
-                }),
-        )?
-        .label(target_str)
-        .legend(move |(x, y)| Circle::new((x, y), 3, color.filled()));
-    }
-    
-    chart.configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
-        .draw()?;
-    
-    root.present()?;
-    
-    Ok(())
 }
