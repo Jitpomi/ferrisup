@@ -350,7 +350,7 @@ npx create-tauri-app {}
         let framework_options = vec![
             "Data Analysis with Polars - For data processing and analysis (similar to pandas in Python)",
             "Machine Learning with Linfa - Traditional ML algorithms (similar to scikit-learn in Python)",
-            "Deep Learning with Burn - Neural networks and deep learning (similar to PyTorch in Python)"
+            "Deep Learning with Burn - Neural networks and deep learning by category (similar to PyTorch in Python)"
         ];
         
         let framework_selection = Select::new()
@@ -370,33 +370,88 @@ npx create-tauri-app {}
             },
             2 => {
                 // Burn selected - show task categories
-                println!("\n🧠 Select a Deep Learning task:");
+                println!("\n🧠 Select a Deep Learning task category (e.g., Image Processing, Text Processing, Numerical Data):");
                 
-                let burn_task_options = vec![
-                    "Image Recognition - Identify handwritten numbers in images",
-                    "Custom Image Classifier - Train a model on your own photos",
-                    "Text Classifier - Categorize text into different groups",
-                    "Value Prediction - Forecast numerical values like prices",
-                    "CSV Analysis - Process and learn from spreadsheet data",
-                    "Advanced Training - Fine-tune the training process (for experts)",
-                    "Web App - Create an image recognition website"
+                let burn_categories = vec![
+                    "Image Processing - Computer vision and image classification tasks",
+                    "Text Processing - Natural language processing and text analysis",
+                    "Numerical Data - Value prediction and regression analysis",
+                    "Advanced & Experimental - Neural network architecture experimentation"
                 ];
                 
-                let task_selection = Select::new()
-                    .items(&burn_task_options)
+                let category_selection = Select::new()
+                    .items(&burn_categories)
                     .default(0)
                     .interact()?;
-                    
-                // Map task selection to template
-                template = match task_selection {
-                    0 => "data-science/burn-image-recognition".to_string(),
-                    1 => "data-science/burn-custom-image".to_string(),
-                    2 => "data-science/burn-text-classifier".to_string(),
-                    3 => "data-science/burn-value-prediction".to_string(),
-                    4 => "data-science/burn-csv-dataset".to_string(),
-                    5 => "data-science/burn-custom-training".to_string(),
-                    6 => "data-science/burn-web-classifier".to_string(),
-                    _ => "data-science/burn-image-recognition".to_string(), // Default fallback
+                
+                // Define the tasks and their corresponding template paths for each category
+                let (category_prompt, tasks, template_paths) = match category_selection {
+                    0 => (
+                        "\n🖼️ Select an Image Processing task:",
+                        vec![
+                            "Image Recognition - Identify handwritten numbers with MNIST dataset",
+                            "Custom Image Classifier - Train a model on your own image dataset",
+                            "Image Classifier - Customizable CNN for multi-class image classification"
+                        ],
+                        vec![
+                            "data-science/burn-image-recognition",
+                            "data-science/burn-custom-image",
+                            "data-science/burn-image-classifier"
+                        ]
+                    ),
+                    1 => (
+                        "\n📝 Select a Text Processing task:",
+                        vec![
+                            "Text Classifier - Categorize text into predefined classes",
+                            "Text Analyzer - Analyze text sentiment with customizable LSTM model"
+                        ],
+                        vec![
+                            "data-science/burn-text-classifier",
+                            "data-science/burn-text-analyzer"
+                        ]
+                    ),
+                    2 => (
+                        "\n📊 Select a Numerical Data task:",
+                        vec![
+                            "Value Prediction - Forecast numerical values with regression models",
+                            "Data Predictor - Advanced regression with customizable architecture"
+                        ],
+                        vec![
+                            "data-science/burn-value-prediction",
+                            "data-science/burn-data-predictor"
+                        ]
+                    ),
+                    3 => (
+                        "\n⚙️ Select an Advanced or Experimental task:",
+                        vec![
+                            "Neural Network Playground - Experiment with custom network architectures"
+                        ],
+                        vec![
+                            "data-science/burn-net"
+                        ]
+                    ),
+                    _ => (
+                        "\n🖼️ Select an Image Processing task:",
+                        vec!["Image Recognition - Identify handwritten numbers with MNIST dataset"],
+                        vec!["data-science/burn-image-recognition"]
+                    ),
+                };
+                
+                // Display the category-specific prompt
+                println!("{}", category_prompt);
+                
+                // Show task selection and get user choice
+                let task_selection = Select::new()
+                    .items(&tasks)
+                    .default(0)
+                    .interact()?;
+                
+                // Set the template path based on the task selection
+                template = if task_selection < template_paths.len() {
+                    template_paths[task_selection].to_string()
+                } else {
+                    // Fallback to the first template if selection is out of bounds
+                    template_paths[0].to_string()
                 };
             },
             _ => {

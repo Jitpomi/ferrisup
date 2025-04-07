@@ -14,12 +14,12 @@ csv = "1.2"
 anyhow = "1.0"
 
 # Burn framework - a Rust-native deep learning library
-burn = { version = "0.10.0", features = ["ndarray", "autodiff", "train"] }
+burn = { version = "0.16.0", features = ["ndarray", "autodiff", "train"] }
 
 # Optional: GPU acceleration - uncomment if you have a compatible GPU
 {% if gpu_acceleration %}
 # WGPU backend for GPU acceleration
-burn-wgpu = { version = "0.10.0" }
+burn-wgpu = { version = "0.16.0" }
 {% endif %}
 
 # Data processing

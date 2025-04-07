@@ -151,22 +151,20 @@ pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
         ("data-science/linfa-examples".to_string(), "Machine Learning: Working examples with Linfa 0.7.1 (classification, regression, clustering)".to_string()),
         
         // Deep Learning with Burn Framework - Image Processing
-        ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers in images".to_string()),
-        ("data-science/burn-custom-image".to_string(), "Burn - Custom Image Classifier: Train a model on your own photos".to_string()),
-        ("data-science/burn-image-classifier".to_string(), "Burn - Image Classifier: Highly tweakable CNN for classifying images".to_string()),
+        ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers with MNIST dataset".to_string()),
+        ("data-science/burn-custom-image".to_string(), "Burn - Custom Image Classifier: Train a model on your own image dataset".to_string()),
+        ("data-science/burn-image-classifier".to_string(), "Burn - Image Classifier: Customizable CNN for multi-class image classification".to_string()),
         
         // Deep Learning with Burn Framework - Text Processing
-        ("data-science/burn-text-classifier".to_string(), "Burn - Text Classifier: Categorize text into different groups".to_string()),
-        ("data-science/burn-text-analyzer".to_string(), "Burn - Text Analyzer: Analyze sentiment in text with customizable LSTM".to_string()),
+        ("data-science/burn-text-classifier".to_string(), "Burn - Text Classifier: Categorize text into predefined classes".to_string()),
+        ("data-science/burn-text-analyzer".to_string(), "Burn - Text Analyzer: Analyze text sentiment with customizable LSTM model".to_string()),
         
         // Deep Learning with Burn Framework - Numerical Data
-        ("data-science/burn-value-prediction".to_string(), "Burn - Value Prediction: Forecast numerical values like prices".to_string()),
-        ("data-science/burn-csv-dataset".to_string(), "Burn - CSV Analysis: Process and learn from spreadsheet data".to_string()),
-        ("data-science/burn-data-predictor".to_string(), "Burn - Data Predictor: Highly tweakable regression for numerical prediction".to_string()),
+        ("data-science/burn-value-prediction".to_string(), "Burn - Value Prediction: Forecast numerical values with regression models".to_string()),
+        ("data-science/burn-data-predictor".to_string(), "Burn - Data Predictor: Advanced regression with customizable architecture".to_string()),
         
-        // Deep Learning with Burn Framework - Advanced & Web
-        ("data-science/burn-custom-training".to_string(), "Burn - Advanced: Fine-tune the training process (for experts)".to_string()),
-        ("data-science/burn-web-classifier".to_string(), "Burn - Web App: Create an image recognition website".to_string()),
+        // Deep Learning with Burn Framework - Advanced & Experimental
+        ("data-science/burn-net".to_string(), "Burn - Neural Network Playground: Experiment with custom network architectures".to_string()),
     ])
 }
 
@@ -266,12 +264,8 @@ pub fn apply_template(
                   template_name == "data-science/burn-value-prediction" || 
                   template_name == "data-science/burn-text-classifier" || 
                   template_name == "data-science/burn-custom-image" || 
-                  template_name == "data-science/burn-csv-dataset" || 
-                  template_name == "data-science/burn-custom-training" || 
-                  template_name == "data-science/burn-web-classifier" ||
-                  template_name == "data-science/burn-image-classifier" ||
-                  template_name == "data-science/burn-text-analyzer" ||
-                  template_name == "data-science/burn-data-predictor" {
+                  template_name == "data-science/burn-data-predictor" ||
+                  template_name == "data-science/burn-net" {
             
             // Map our template names to the corresponding Burn examples
             let burn_example = match template_name {
@@ -279,12 +273,8 @@ pub fn apply_template(
                 "data-science/burn-value-prediction" => "simple-regression",
                 "data-science/burn-text-classifier" => "text-classification",
                 "data-science/burn-custom-image" => "custom-image-dataset",
-                "data-science/burn-csv-dataset" => "custom-csv-dataset",
-                "data-science/burn-custom-training" => "custom-training-loop",
-                "data-science/burn-web-classifier" => "image-classification-web",
-                "data-science/burn-image-classifier" => "custom-image-dataset", // Map to the official custom image dataset example
-                "data-science/burn-text-analyzer" => "text-classification",     // Map to the official text classification example
-                "data-science/burn-data-predictor" => "simple-regression",      // Map to the official regression example
+                "data-science/burn-data-predictor" => "simple-regression",
+                "data-science/burn-net" => "custom-training-loop", // Changed from "net" to "custom-training-loop"
                 _ => "mnist", // Default fallback
             };
             
@@ -361,9 +351,7 @@ pub fn apply_template(
                     .replace("name = \"simple-regression\"", &format!("name = \"{}\"", project_name))
                     .replace("name = \"text-classification\"", &format!("name = \"{}\"", project_name))
                     .replace("name = \"custom-image-dataset\"", &format!("name = \"{}\"", project_name))
-                    .replace("name = \"custom-csv-dataset\"", &format!("name = \"{}\"", project_name))
                     .replace("name = \"custom-training-loop\"", &format!("name = \"{}\"", project_name))
-                    .replace("name = \"image-classification-web\"", &format!("name = \"{}\"", project_name))
                     // Replace workspace settings with explicit values
                     .replace("edition.workspace = true", "edition = \"2021\"")
                     .replace("version.workspace = true", "version = \"0.1.0\"")
