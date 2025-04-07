@@ -24,6 +24,10 @@
       "target": "src/clustering.rs"
     },
     {
+      "source": "src/data_utils.rs",
+      "target": "src/data_utils.rs"
+    },
+    {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
     },
@@ -33,15 +37,33 @@
     },
     {
       "source": "data/sample_classification.csv",
-      "target": "data/sample_classification.csv"
+      "target": "data/sample_classification.csv",
+      "condition": "data_format == \"CSV files\" || data_format == \"All formats (CSV, JSON)\""
     },
     {
       "source": "data/sample_regression.csv",
-      "target": "data/sample_regression.csv"
+      "target": "data/sample_regression.csv",
+      "condition": "data_format == \"CSV files\" || data_format == \"All formats (CSV, JSON)\""
     },
     {
       "source": "data/sample_clustering.csv",
-      "target": "data/sample_clustering.csv"
+      "target": "data/sample_clustering.csv",
+      "condition": "data_format == \"CSV files\" || data_format == \"All formats (CSV, JSON)\""
+    },
+    {
+      "source": "data/sample_classification.json",
+      "target": "data/sample_classification.json",
+      "condition": "data_format == \"JSON files\" || data_format == \"All formats (CSV, JSON)\""
+    },
+    {
+      "source": "data/sample_regression.json",
+      "target": "data/sample_regression.json",
+      "condition": "data_format == \"JSON files\" || data_format == \"All formats (CSV, JSON)\""
+    },
+    {
+      "source": "data/sample_clustering.json",
+      "target": "data/sample_clustering.json",
+      "condition": "data_format == \"JSON files\" || data_format == \"All formats (CSV, JSON)\""
     }
   ],
   "dependencies": {
@@ -59,7 +81,8 @@
       "rand = \"0.8\"",
       "rand_xoshiro = \"0.6.0\"",
       "csv = \"1.3\"",
-      "serde = { version = \"1.0\", features = [\"derive\"] }"
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
     ]
   },
   "metadata": {
@@ -70,16 +93,23 @@
   "prompts": {
     "data_source": {
       "question": "What type of data source would you like to use for the examples?",
-      "options": ["CSV files (custom data)", "Synthetic data (generated)", "Both (examples will show both options)"],
+      "options": ["Synthetic data (generated)", "Custom data files", "Both (examples will show both options)"],
       "default": "Both (examples will show both options)"
+    },
+    "data_format": {
+      "question": "What data format would you like to use?",
+      "options": ["CSV files", "JSON files", "All formats (CSV, JSON)"],
+      "default": "CSV files",
+      "condition": "data_source == \"Custom data files\" || data_source == \"Both (examples will show both options)\""
     }
   },
   "next_steps": [
-    "🧪 Try LogisticRegression classification: cd {{project_name}} && cargo run -- classify",
-    "🌲 Try DecisionTree classification: cargo run -- tree",
-    "📈 Try LinearRegression example: cargo run -- regress",
-    "📊 Try DBSCAN clustering example: cargo run -- cluster",
+    "🧪 Try LogisticRegression classification: cd {{project_name}} && cargo run -- classification",
+    "🌲 Try DecisionTree classification: cargo run -- decision_tree",
+    "📈 Try LinearRegression example: cargo run -- regression",
+    "📊 Try clustering example: cargo run -- clustering",
     "🔍 Run all examples at once: cargo run -- all",
+    "📝 Generate sample data: cargo run -- generate [classification|regression|clustering] [csv|json|all]",
     "📚 See all available commands: cargo run -- help"
   ]
 }
