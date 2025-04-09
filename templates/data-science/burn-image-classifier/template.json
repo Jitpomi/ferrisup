@@ -1,7 +1,7 @@
 {
   "name": "burn-image-classifier",
   "description": "A deep learning template for classifying images into categories using the Burn framework",
-  "author": "Ferrisup Team",
+  "author": "FerrisUp Team",
   "version": "0.1.0",
   "license": "MIT",
   "type": "binary",
@@ -23,6 +23,26 @@
       "target": "src/config.rs"
     },
     {
+      "source": "src/error.rs",
+      "target": "src/error.rs"
+    },
+    {
+      "source": "src/visualization.rs",
+      "target": "src/visualization.rs"
+    },
+    {
+      "source": "src/lib.rs",
+      "target": "src/lib.rs"
+    },
+    {
+      "source": "src/tests.rs",
+      "target": "src/tests.rs"
+    },
+    {
+      "source": "examples/classify.rs",
+      "target": "examples/classify.rs"
+    },
+    {
       "source": "README.md",
       "target": "README.md"
     },
@@ -31,27 +51,57 @@
       "target": "CUSTOMIZATION.md"
     },
     {
+      "source": "download_cifar10.rs",
+      "target": "src/bin/download_cifar10.rs"
+    },
+    {
+      "source": "generate_synthetic.rs",
+      "target": "src/bin/generate_synthetic.rs"
+    },
+    {
+      "source": "src/bin/download_dataset.rs",
+      "target": "src/bin/download_dataset.rs"
+    },
+    {
+      "source": "generate_sample_data.sh",
+      "target": "generate_sample_data.sh",
+      "executable": true
+    },
+    {
+      "source": "setup_dataset.sh",
+      "target": "setup_dataset.sh",
+      "executable": true
+    },
+    {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
     }
   ],
   "dependencies": {
     "default": [
+      "burn = { version = \"0.16.1\", features = [\"train\"] }",
+      "burn-ndarray = { version = \"0.16.1\" }",
       "anyhow = \"1.0\"",
+      "thiserror = \"1.0\"",
       "clap = { version = \"4.5\", features = [\"derive\"] }",
-      "burn = { version = \"0.16.0\", features = [\"train\", \"ndarray\", \"vision\"] }",
-      "ndarray = \"0.15\"",
       "image = \"0.24\"",
       "rand = \"0.8\"",
       "indicatif = \"0.17\"",
+      "plotters = \"0.3\"",
       "serde = { version = \"1.0\", features = [\"derive\"] }",
-      "serde_json = \"1.0\""
+      "serde_json = \"1.0\"",
+      "reqwest = { version = \"0.11\", features = [\"blocking\"] }",
+      "flate2 = \"1.0\"",
+      "tar = \"0.4\""
     ]
   },
   "next_steps": [
-    "📸 Train on the included sample dataset: cd {{project_name}} && cargo run -- train",
-    "🧠 Evaluate the model: cargo run -- evaluate",
-    "🔍 Classify a new image: cargo run -- predict --image path/to/your/image.jpg",
+    "🔍 FIRST STEP - Set up datasets interactively: ./setup_dataset.sh",
+    "🔍 Or generate specific datasets: ./generate_sample_data.sh --dataset cifar10",
+    "🔍 Available datasets: cifar10, mnist, fashion-mnist, synthetic",
+    "📸 Train on a dataset: cargo run --bin app -- train --data-dir sample-data",
+    "🧠 Evaluate the model: cargo run --bin app -- evaluate --model-path ./model.json --data-dir sample-data",
+    "🔬 Run the tests: cargo test",
     "📊 Customize the model: Edit src/config.rs to adjust parameters",
     "📚 Learn more: Read CUSTOMIZATION.md for detailed customization options"
   ]

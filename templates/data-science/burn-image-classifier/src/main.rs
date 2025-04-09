@@ -233,22 +233,28 @@ fn train(data_dir: String, epochs: usize, output: String, batch_size: usize) -> 
     }
     
     // Save model
-    let output_dir = Path::new(&output);
-    if !output_dir.exists() {
-        std::fs::create_dir_all(output_dir)?;
-    }
+    let model_path = if output.ends_with(".json") {
+        output.to_string()
+    } else {
+        format!("{}/model.json", output)
+    };
     
-    let model_path = output_dir.join("model.json");
-    ImageClassifierModel::<NdArray>::save_file(&model, model_path.to_str().unwrap())?;
+    ImageClassifierModel::<NdArray>::save_file(&model, &model_path)?;
     
     // Plot training history
-    let history_path = output_dir.join("training_history.png");
+    let history_path = if output.ends_with(".json") {
+        let output_dir = Path::new(&output).parent().unwrap_or_else(|| Path::new("."));
+        output_dir.join("training_history.png").to_str().unwrap().to_string()
+    } else {
+        format!("{}/training_history.png", output)
+    };
+    
     plot_training_history(
         &train_losses,
         &valid_losses,
         &train_accuracies,
         &valid_accuracies,
-        history_path.to_str().unwrap(),
+        &history_path,
     )?;
     
     println!("Training completed. Model saved to {}", output);
