@@ -245,7 +245,7 @@ pub fn execute(
             };
             
             if !dx_installed {
-                println!("🔧 Installing dioxus-cli...");
+                println!("⚠️ dioxus-cli not found. Installing...");
                 let install_status = Command::new("cargo")
                     .args(["install", "dioxus-cli"])
                     .status()?;
@@ -345,53 +345,56 @@ npx create-tauri-app {}
         }
     } else if template == "data-science" {
         // For data science templates, first prompt for the ML framework
-        println!("\n📊 Select a Data Science approach:");
-        
+        // Using a simpler approach to avoid UI rendering issues
         let framework_options = vec![
-            "Data Analysis with Polars - For data processing and analysis (similar to pandas in Python)",
-            "Machine Learning with Linfa - Traditional ML algorithms (similar to scikit-learn in Python)",
-            "Deep Learning with Burn - Neural networks and deep learning by category (similar to PyTorch in Python)"
+            "Data Analysis with Polars",
+            "Machine Learning with Linfa",
+            "Deep Learning with Burn"
         ];
         
-        let framework_selection = Select::new()
-            .items(&framework_options)
+        // Create a selection without additional prompt text to avoid duplication
+        let selection = Select::new()
+            .with_prompt("📊 Select a Data Science approach")
             .default(0)
+            .items(&framework_options)
             .interact()?;
             
         // Based on framework selection, show appropriate templates
-        match framework_selection {
+        match selection {
             0 => {
                 // Polars selected
                 template = "data-science/polars-cli".to_string();
+                println!("📈 Selected: Data Analysis with Polars");
             },
             1 => {
                 // Linfa selected
                 template = "data-science/linfa-examples".to_string();
+                println!("🔍 Selected: Machine Learning with Linfa");
             },
             2 => {
                 // Burn selected - show task categories
-                println!("\n🧠 Select a Deep Learning task category (e.g., Image Processing, Text Processing, Numerical Data):");
-                
+                // Using a simpler approach for category selection
                 let burn_categories = vec![
-                    "Image Processing - Computer vision and image classification tasks",
-                    "Text Processing - Natural language processing and text analysis",
-                    "Numerical Data - Value prediction and regression analysis",
-                    "Advanced & Experimental - Neural network architecture experimentation"
+                    "Image Processing",
+                    "Text Processing",
+                    "Numerical Data",
+                    "Advanced & Experimental"
                 ];
                 
                 let category_selection = Select::new()
-                    .items(&burn_categories)
+                    .with_prompt("🧠 Select a Deep Learning task category")
                     .default(0)
+                    .items(&burn_categories)
                     .interact()?;
                 
                 // Define the tasks and their corresponding template paths for each category
                 let (category_prompt, tasks, template_paths) = match category_selection {
                     0 => (
-                        "\n🖼️ Select an Image Processing task:",
+                        "🖼️ Select an Image Processing task",
                         vec![
-                            "Image Recognition - Identify handwritten numbers with MNIST dataset",
-                            "Custom Image Classifier - Train a model on your own image dataset",
-                            "Image Classifier - Customizable CNN for multi-class image classification"
+                            "Image Recognition (MNIST dataset)",
+                            "Custom Image Classifier",
+                            "Image Classifier (Customizable CNN)"
                         ],
                         vec![
                             "data-science/burn-image-recognition",
@@ -400,10 +403,10 @@ npx create-tauri-app {}
                         ]
                     ),
                     1 => (
-                        "\n📝 Select a Text Processing task:",
+                        "📝 Select a Text Processing task",
                         vec![
-                            "Text Classifier - Categorize text into predefined classes",
-                            "Text Analyzer - Analyze text sentiment with customizable LSTM model"
+                            "Text Classifier",
+                            "Text Analyzer (Sentiment Analysis)"
                         ],
                         vec![
                             "data-science/burn-text-classifier",
@@ -411,10 +414,10 @@ npx create-tauri-app {}
                         ]
                     ),
                     2 => (
-                        "\n📊 Select a Numerical Data task:",
+                        "📊 Select a Numerical Data task",
                         vec![
-                            "Value Prediction - Forecast numerical values with regression models",
-                            "Data Predictor - Advanced regression with customizable architecture"
+                            "Value Prediction",
+                            "Data Predictor (Advanced Regression)"
                         ],
                         vec![
                             "data-science/burn-value-prediction",
@@ -422,28 +425,30 @@ npx create-tauri-app {}
                         ]
                     ),
                     3 => (
-                        "\n⚙️ Select an Advanced or Experimental task:",
+                        "⚙️ Select an Advanced or Experimental task",
                         vec![
-                            "Neural Network Playground - Experiment with custom network architectures"
+                            "Neural Network Playground"
                         ],
                         vec![
                             "data-science/burn-net"
                         ]
                     ),
                     _ => (
-                        "\n🖼️ Select an Image Processing task:",
-                        vec!["Image Recognition - Identify handwritten numbers with MNIST dataset"],
-                        vec!["data-science/burn-image-recognition"]
+                        "🖼️ Select an Image Processing task",
+                        vec![
+                            "Image Recognition (MNIST dataset)"
+                        ],
+                        vec![
+                            "data-science/burn-image-recognition"
+                        ]
                     ),
                 };
                 
-                // Display the category-specific prompt
-                println!("{}", category_prompt);
-                
                 // Show task selection and get user choice
                 let task_selection = Select::new()
-                    .items(&tasks)
+                    .with_prompt(category_prompt)
                     .default(0)
+                    .items(&tasks)
                     .interact()?;
                 
                 // Set the template path based on the task selection
@@ -453,10 +458,13 @@ npx create-tauri-app {}
                     // Fallback to the first template if selection is out of bounds
                     template_paths[0].to_string()
                 };
+                
+                println!("🧠 Selected: {}", tasks[task_selection]);
             },
             _ => {
                 // Fallback
                 template = "data-science/polars-cli".to_string();
+                println!("📈 Selected: Data Analysis with Polars (default)");
             }
         }
         
