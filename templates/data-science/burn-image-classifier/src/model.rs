@@ -1,45 +1,26 @@
-// Image Classifier Model Architecture
-// This file defines the neural network model for image classification
+// Neural network model for image classification
+// This file defines the model architecture and training logic
 
 use burn::module::Module;
 use burn::nn::{
     conv::{Conv2d, Conv2dConfig},
     pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig, MaxPool2d, MaxPool2dConfig},
-    BatchNorm, BatchNormConfig, Linear, LinearConfig, ReLU, Dropout, DropoutConfig,
+    Linear, LinearConfig, PaddingConfig2d,
 };
-use burn::tensor::{backend::Backend, Tensor};
-use burn::config::Config;
+use burn::tensor::{backend::Backend, Tensor, activation::relu};
+use std::fs;
+use std::path::Path;
+use serde_json;
 
-// Import our configuration parameters
-use crate::config::{CONV_FILTERS, FC_LAYERS, DROPOUT_RATE, NUM_CLASSES, IMAGE_SIZE, NUM_CHANNELS};
+use crate::config::{ImageClassifierConfig, NUM_CHANNELS};
+use crate::error::{ImageClassifierError, Result};
 
-// Model configuration
-#[derive(Config)]
-pub struct ImageClassifierConfig {
-    // CUSTOMIZE HERE: You can add or modify configuration parameters
-    pub num_classes: usize,
-}
-
-impl ImageClassifierConfig {
-    pub fn new(num_classes: usize) -> Self {
-        Self { num_classes }
-    }
-    
-    // Default configuration using values from config.rs
-    pub fn default() -> Self {
-        Self { num_classes: NUM_CLASSES }
-    }
-}
-
-// The CNN model for image classification
+/// Image classifier model
+#[derive(Module, Debug)]
 pub struct ImageClassifierModel<B: Backend> {
     // Convolutional layers
     conv1: Conv2d<B>,
-    batch_norm1: BatchNorm<B, 2>,
     conv2: Conv2d<B>,
-    batch_norm2: BatchNorm<B, 2>,
-    conv3: Conv2d<B>,
-    batch_norm3: BatchNorm<B, 2>,
     
     // Pooling layers
     pool: MaxPool2d,
@@ -48,116 +29,128 @@ pub struct ImageClassifierModel<B: Backend> {
     // Fully connected layers
     fc1: Linear<B>,
     fc2: Linear<B>,
-    fc3: Linear<B>,
-    
-    // Dropout for regularization
-    dropout: Dropout,
 }
 
 impl<B: Backend> ImageClassifierModel<B> {
-    pub fn new(config: &ImageClassifierConfig) -> Self {
-        // CUSTOMIZE HERE: Modify the model architecture
-        
-        // First convolutional block
-        let conv1 = Conv2dConfig::new([NUM_CHANNELS, CONV_FILTERS[0]], [3, 3])
-            .with_padding([1, 1])
-            .init();
-        let batch_norm1 = BatchNormConfig::new(CONV_FILTERS[0]).init();
-        
-        // Second convolutional block
-        let conv2 = Conv2dConfig::new([CONV_FILTERS[0], CONV_FILTERS[1]], [3, 3])
-            .with_padding([1, 1])
-            .init();
-        let batch_norm2 = BatchNormConfig::new(CONV_FILTERS[1]).init();
-        
-        // Third convolutional block
-        let conv3 = Conv2dConfig::new([CONV_FILTERS[1], CONV_FILTERS[2]], [3, 3])
-            .with_padding([1, 1])
-            .init();
-        let batch_norm3 = BatchNormConfig::new(CONV_FILTERS[2]).init();
-        
+    /// Create a new image classifier model
+    pub fn new(config: &ImageClassifierConfig, device: &B::Device) -> Self {
+        // First convolutional layer
+        let conv1 = Conv2dConfig::new([NUM_CHANNELS, 32], [3, 3])
+            .with_padding(PaddingConfig2d::Same)
+            .init(device);
+            
+        // Second convolutional layer
+        let conv2 = Conv2dConfig::new([32, 64], [3, 3])
+            .with_padding(PaddingConfig2d::Same)
+            .init(device);
+            
         // Pooling layers
-        let pool = MaxPool2dConfig::new([2, 2]).init();
-        let adaptive_pool = AdaptiveAvgPool2dConfig::new([1, 1]).init();
-        
-        // Calculate the flattened size after convolutions and pooling
-        // For a 32x32 input, after 3 conv+pool layers, we'll have a 4x4 feature map
-        // with CONV_FILTERS[2] channels
-        let flattened_size = CONV_FILTERS[2]; // After adaptive pooling, this is 1x1xCONV_FILTERS[2]
+        let pool = MaxPool2dConfig::new([2, 2])
+            .with_strides([2, 2])
+            .init();
+            
+        let adaptive_pool = AdaptiveAvgPool2dConfig::new([1, 1])
+            .init();
+            
+        // Calculate the number of features after convolutions and pooling
+        // For a 32x32 input image, after two 2x2 max pooling layers, we get 8x8 feature maps
+        // With 64 channels, that's 64*8*8 = 4096 features
+        // However, after adaptive pooling to [1, 1], we get 64 features
+        let num_features = 64;
         
         // Fully connected layers
-        let fc1 = LinearConfig::new(flattened_size, FC_LAYERS[0]).init();
-        let fc2 = LinearConfig::new(FC_LAYERS[0], FC_LAYERS[1]).init();
-        let fc3 = LinearConfig::new(FC_LAYERS[1], config.num_classes).init();
-        
-        // Dropout for regularization
-        let dropout = DropoutConfig::new(DROPOUT_RATE).init();
+        let fc1 = LinearConfig::new(num_features, 128)
+            .init(device);
+            
+        let fc2 = LinearConfig::new(128, config.num_classes)
+            .init(device);
         
         Self {
             conv1,
-            batch_norm1,
             conv2,
-            batch_norm2,
-            conv3,
-            batch_norm3,
             pool,
             adaptive_pool,
             fc1,
             fc2,
-            fc3,
-            dropout,
         }
     }
-}
-
-// Implement the Module trait for our model
-impl<B: Backend> Module<Tensor<B, 4>> for ImageClassifierModel<B> {
-    type Output = Tensor<B, 2>;
     
-    fn forward(&self, input: Tensor<B, 4>) -> Self::Output {
-        // CUSTOMIZE HERE: Modify the forward pass logic
-        
+    /// Forward pass
+    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 2> {
         // First convolutional block
-        let x = self.conv1.forward(input);
-        let x = self.batch_norm1.forward(x);
-        let x = x.relu();
+        let x = self.conv1.forward(x);
+        let x = relu(x);
         let x = self.pool.forward(x);
         
         // Second convolutional block
         let x = self.conv2.forward(x);
-        let x = self.batch_norm2.forward(x);
-        let x = x.relu();
+        let x = relu(x);
         let x = self.pool.forward(x);
-        
-        // Third convolutional block
-        let x = self.conv3.forward(x);
-        let x = self.batch_norm3.forward(x);
-        let x = x.relu();
         
         // Global average pooling
         let x = self.adaptive_pool.forward(x);
         
-        // Flatten the tensor for the fully connected layers
-        // Shape goes from [batch_size, channels, 1, 1] to [batch_size, channels]
-        let [batch_size, channels, _, _] = x.shape().dims;
+        // Flatten
+        let [batch_size, channels, _, _] = x.dims();
         let x = x.reshape([batch_size, channels]);
         
         // Fully connected layers
         let x = self.fc1.forward(x);
-        let x = x.relu();
-        let x = self.dropout.forward(x);
-        
+        let x = relu(x);
         let x = self.fc2.forward(x);
-        let x = x.relu();
-        let x = self.dropout.forward(x);
         
-        // Final classification layer
-        self.fc3.forward(x)
+        x
     }
-}
-
-// Helper function to create a model with default configuration
-pub fn create_default_model<B: Backend>() -> ImageClassifierModel<B> {
-    let config = ImageClassifierConfig::default();
-    ImageClassifierModel::new(&config)
+    
+    /// Save the model to a file
+    pub fn save_file(&self, path: &str) -> Result<()> {
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = Path::new(path).parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).map_err(|e| {
+                    ImageClassifierError::DirectoryReadError {
+                        path: parent.to_path_buf(),
+                        source: e,
+                    }
+                })?;
+            }
+        }
+        
+        // Save the model configuration instead
+        let config = ImageClassifierConfig {
+            num_classes: self.num_classes(),
+            conv_filters: vec![32, 64],
+            fc_layers: vec![128],
+            dropout_rate: 0.5,
+        };
+        
+        let json = serde_json::to_string_pretty(&config).map_err(|e| {
+            ImageClassifierError::JsonError(e)
+        })?;
+        
+        fs::write(path, json).map_err(|e| {
+            ImageClassifierError::IoError(e)
+        })
+    }
+    
+    /// Load the model from a file
+    pub fn load(path: &str, device: &B::Device) -> Result<Self> {
+        // Load the model configuration
+        let json = fs::read_to_string(path).map_err(|e| {
+            ImageClassifierError::IoError(e)
+        })?;
+        
+        let config: ImageClassifierConfig = serde_json::from_str(&json).map_err(|e| {
+            ImageClassifierError::JsonError(e)
+        })?;
+        
+        // Create a new model with the loaded configuration
+        Ok(Self::new(&config, device))
+    }
+    
+    /// Get the number of classes
+    pub fn num_classes(&self) -> usize {
+        // Get the output dimension of the final layer
+        self.fc2.weight.shape().dims::<2>()[0]
+    }
 }

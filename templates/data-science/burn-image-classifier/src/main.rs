@@ -1,27 +1,32 @@
-// Image Classifier Application
-// This program trains a neural network to classify images into categories
+// Main application for the image classifier
+// This file contains the command-line interface and main logic
 
-use burn::data::dataset::Dataset;
-use burn::module::Module;
-use burn::tensor::backend::Backend;
-use burn::train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep};
-use burn::optim::Adam;
-use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
-use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
-use std::fs;
-
-// Import our modules
-mod model;
-mod data;
 mod config;
+mod data;
+mod error;
+mod model;
+mod visualization;
 
-use model::{ImageClassifierConfig, ImageClassifierModel};
-use data::{ImageBatcher, ImageItem, ImageDataset, load_image_dataset};
-use config::{BATCH_SIZE, LEARNING_RATE, EPOCHS, IMAGE_SIZE, DEFAULT_DATA_DIR, DEFAULT_MODEL_FILE};
+use burn::data::dataloader::{DataLoaderBuilder};
+use burn::tensor::backend::Backend;
+use burn::tensor::{Tensor, TensorData};
+use burn_ndarray::{NdArray, NdArrayDevice};
+use clap::{Parser, Subcommand};
 
-// Command line interface for our application
+use crate::model::ImageClassifierModel;
+use crate::data::{load_image_dataset, ImageBatcher, image_to_tensor};
+use crate::error::{Result, ImageClassifierError};
+use crate::config::{
+    BATCH_SIZE, EPOCHS, DEFAULT_DATA_DIR, DEFAULT_MODEL_FILE, 
+    IMAGE_SIZE, NUM_CHANNELS, ImageClassifierConfig
+};
+use crate::visualization::{
+    plot_training_history, plot_predictions, Accuracy
+};
+
+use std::path::Path;
+
+/// Image Classifier CLI
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -29,368 +34,390 @@ struct Cli {
     command: Commands,
 }
 
-// Available commands: train, evaluate, or predict
 #[derive(Subcommand)]
 enum Commands {
-    // Train a new model
+    /// Train a new model
     Train {
-        // Directory containing training images organized in category folders
-        #[arg(long, default_value = DEFAULT_DATA_DIR)]
+        /// Path to the data directory
+        #[arg(short, long, default_value = DEFAULT_DATA_DIR)]
         data_dir: String,
         
-        // Number of training cycles
+        /// Number of epochs to train for
         #[arg(short, long, default_value_t = EPOCHS)]
         epochs: usize,
         
-        // Where to save the trained model
+        /// Output directory for the trained model
         #[arg(short, long, default_value = DEFAULT_MODEL_FILE)]
         output: String,
         
-        // How many images to process at once
+        /// Batch size for training
         #[arg(short, long, default_value_t = BATCH_SIZE)]
         batch_size: usize,
     },
     
-    // Evaluate an existing model
+    /// Evaluate a trained model
     Evaluate {
-        // Path to the saved model file
-        #[arg(short, long, default_value = DEFAULT_MODEL_FILE)]
-        model: String,
-        
-        // Directory containing test images organized in category folders
-        #[arg(long, default_value = DEFAULT_DATA_DIR)]
+        /// Path to the data directory
+        #[arg(short, long, default_value = DEFAULT_DATA_DIR)]
         data_dir: String,
-    },
-    
-    // Predict the category of a single image
-    Predict {
-        // Path to the saved model file
+        
+        /// Path to the model file
         #[arg(short, long, default_value = DEFAULT_MODEL_FILE)]
-        model: String,
+        model_path: String,
         
-        // Path to the image to classify
+        /// Batch size for evaluation
+        #[arg(short, long, default_value_t = BATCH_SIZE)]
+        batch_size: usize,
+    },
+    
+    /// Predict class for a single image
+    Predict {
+        /// Path to the image file
         #[arg(short, long)]
-        image: String,
+        image_path: String,
+        
+        /// Path to the model file
+        #[arg(short, long, default_value = DEFAULT_MODEL_FILE)]
+        model_path: String,
     },
 }
 
-// Main function - entry point of our program
 fn main() -> Result<()> {
-    // Parse command line arguments
     let cli = Cli::parse();
-
-    // Choose which command to run
-    match cli.command {
+    
+    match &cli.command {
         Commands::Train { data_dir, epochs, output, batch_size } => {
-            // Run the training process
-            train(data_dir, epochs, output, batch_size)?;
-        }
-        Commands::Evaluate { model, data_dir } => {
-            // Run the evaluation process
-            evaluate(model, data_dir)?;
-        }
-        Commands::Predict { model, image } => {
-            // Run the prediction process
-            predict(model, image)?;
-        }
+            train(data_dir.clone(), *epochs, output.clone(), *batch_size)
+        },
+        Commands::Evaluate { data_dir, model_path, batch_size } => {
+            evaluate(model_path.clone(), data_dir.clone(), *batch_size)
+        },
+        Commands::Predict { image_path, model_path } => {
+            predict(model_path.clone(), image_path.clone())
+        },
     }
-    
-    Ok(())
 }
 
-// Training function - teaches our model to classify images
 fn train(data_dir: String, epochs: usize, output: String, batch_size: usize) -> Result<()> {
-    // CUSTOMIZE HERE: Choose your backend (CPU, CUDA, etc.)
-    type B = burn::backend::ndarray::NdArray;
-    
-    println!("Loading images from {}...", data_dir);
-    
-    // Load the image dataset
+    // Load dataset
+    println!("Loading dataset from {}", data_dir);
     let dataset = load_image_dataset(&data_dir, IMAGE_SIZE)?;
     
-    // Get the number of categories (classes)
+    println!("Found {} images with {} classes", dataset.len(), dataset.num_classes());
+    
+    // Split into train and validation sets
+    let (train_dataset, valid_dataset) = dataset.split(0.8);
+    
+    println!("Training set: {} images", train_dataset.len());
+    println!("Validation set: {} images", valid_dataset.len());
+    
+    // Create device
+    let device = NdArrayDevice::default();
+    
+    // Create model
     let num_classes = dataset.num_classes();
-    let class_names = dataset.class_names();
-    
-    println!("Found {} classes: {:?}", num_classes, class_names);
-    println!("Found {} images", dataset.len());
-    
-    // Split into training and validation sets (80% train, 20% validation)
-    let (train_data, valid_data) = dataset.split_by_ratio([0.8, 0.2]);
-    
-    println!("Training set: {} images", train_data.len());
-    println!("Validation set: {} images", valid_data.len());
-    
-    // Create data batchers (group images into batches)
-    let train_batcher = ImageBatcher::<B>::new(batch_size);
-    let valid_batcher = ImageBatcher::<B>::new(batch_size);
-    
-    // Create data loaders
-    let train_loader = train_data.into_loader(train_batcher, batch_size, true, None);
-    let valid_loader = valid_data.into_loader(valid_batcher, batch_size, false, None);
-    
-    println!("Creating model with {} output classes...", num_classes);
-    
-    // Create a new model with configuration for our specific task
-    let config = ImageClassifierConfig::new(num_classes);
-    let model = ImageClassifierModel::<B>::new(&config);
-    
-    // Create an optimizer (Adam) to adjust model weights during training
-    let optimizer = Adam::new(LEARNING_RATE);
-    
-    // Create a training step handler
-    let mut train_step = TrainingStepHandler::new(model.clone(), optimizer);
-    
-    // Create a validation step handler
-    let mut valid_step = ValidationStepHandler::new(model.clone());
-    
-    println!("Starting training for {} epochs...", epochs);
-    
-    // Training loop
-    for epoch in 1..=epochs {
-        println!("Epoch {}/{}:", epoch, epochs);
-        
-        // Training phase
-        let mut train_metrics = ClassificationOutput::new();
-        
-        // Create a progress bar for training
-        let train_progress = ProgressBar::new(train_loader.len() as u64);
-        train_progress.set_style(ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {msg}")
-            .unwrap());
-        train_progress.set_message("Training");
-        
-        for batch in train_loader.iter() {
-            // Perform one training step
-            let output = train_step.step(&batch);
-            train_metrics.extend(&output);
-            train_progress.inc(1);
-        }
-        
-        train_progress.finish_with_message(format!(
-            "Train Loss: {:.4}, Train Accuracy: {:.4}",
-            train_metrics.loss(),
-            train_metrics.accuracy()
-        ));
-        
-        // Validation phase
-        let mut valid_metrics = ClassificationOutput::new();
-        
-        // Create a progress bar for validation
-        let valid_progress = ProgressBar::new(valid_loader.len() as u64);
-        valid_progress.set_style(ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.green/blue} {pos}/{len} {msg}")
-            .unwrap());
-        valid_progress.set_message("Validating");
-        
-        for batch in valid_loader.iter() {
-            // Perform one validation step
-            let output = valid_step.step(&batch);
-            valid_metrics.extend(&output);
-            valid_progress.inc(1);
-        }
-        
-        valid_progress.finish_with_message(format!(
-            "Valid Loss: {:.4}, Valid Accuracy: {:.4}",
-            valid_metrics.loss(),
-            valid_metrics.accuracy()
-        ));
-        
-        println!("");
-    }
-    
-    // Save the trained model
-    println!("Saving model to {}...", output);
-    let model_artifact = valid_step.model.into_artifact();
-    model_artifact.save(output)?;
-    
-    println!("Training complete!");
-    
-    Ok(())
-}
-
-// Evaluation function - tests how well our model classifies images
-fn evaluate(model_path: String, data_dir: String) -> Result<()> {
-    // CUSTOMIZE HERE: Choose your backend (CPU, CUDA, etc.)
-    type B = burn::backend::ndarray::NdArray;
-    
-    println!("Loading model from {}...", model_path);
-    
-    // Load the trained model
-    let artifact = burn::artifact::load(model_path)?;
-    let model = ImageClassifierModel::<B>::from_artifact(&artifact);
-    
-    println!("Loading images from {}...", data_dir);
-    
-    // Load the test dataset
-    let dataset = load_image_dataset(&data_dir, IMAGE_SIZE)?;
-    let class_names = dataset.class_names();
-    
-    println!("Found {} images in {} classes", dataset.len(), class_names.len());
-    
-    // Create a data batcher
-    let batcher = ImageBatcher::<B>::new(BATCH_SIZE);
-    
-    // Create a data loader
-    let loader = dataset.into_loader(batcher, BATCH_SIZE, false, None);
-    
-    // Create a validation step handler
-    let mut valid_step = ValidationStepHandler::new(model);
-    
-    // Evaluation metrics
-    let mut metrics = ClassificationOutput::new();
-    
-    // Create a progress bar
-    let progress = ProgressBar::new(loader.len() as u64);
-    progress.set_style(ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {msg}")
-        .unwrap());
-    progress.set_message("Evaluating");
-    
-    // Process each batch
-    for batch in loader.iter() {
-        // Perform one validation step
-        let output = valid_step.step(&batch);
-        metrics.extend(&output);
-        progress.inc(1);
-    }
-    
-    progress.finish();
-    
-    // Print the evaluation results
-    println!("\nEvaluation Results:");
-    println!("Loss: {:.4}", metrics.loss());
-    println!("Accuracy: {:.4}", metrics.accuracy());
-    
-    Ok(())
-}
-
-// Prediction function - classifies a single image
-fn predict(model_path: String, image_path: String) -> Result<()> {
-    // CUSTOMIZE HERE: Choose your backend (CPU, CUDA, etc.)
-    type B = burn::backend::ndarray::NdArray;
-    
-    println!("Loading model from {}...", model_path);
-    
-    // Load the trained model
-    let artifact = burn::artifact::load(model_path)?;
-    let model = ImageClassifierModel::<B>::from_artifact(&artifact);
-    
-    println!("Loading image from {}...", image_path);
-    
-    // Load and process the image
-    let img = image::open(&image_path)?;
-    let img = img.resize_exact(
-        IMAGE_SIZE as u32,
-        IMAGE_SIZE as u32,
-        image::imageops::FilterType::Triangle
-    );
-    
-    // Convert image to tensor data
-    let image_tensor = data::image_to_tensor(&img);
-    
-    // Create a batch with a single image
-    let mut images_data = burn::tensor::Data::new(
-        image_tensor,
-        [1, 3, IMAGE_SIZE, IMAGE_SIZE],
-    );
-    
-    // Create tensor from the data
-    let images = burn::tensor::Tensor::<B, 4>::from_data(images_data);
-    
-    // Run the model to get predictions
-    let output = model.forward(images);
-    
-    // Get the predicted class
-    let predictions = output.to_data();
-    let mut max_score = 0.0;
-    let mut predicted_class = 0;
-    
-    // Find the class with the highest score
-    for (i, &score) in predictions.value().iter().enumerate() {
-        if score > max_score {
-            max_score = score;
-            predicted_class = i;
-        }
-    }
-    
-    // Get the class name
-    let class_name = if predicted_class < config::CLASS_NAMES.len() {
-        config::CLASS_NAMES[predicted_class]
-    } else {
-        "Unknown"
+    let config = ImageClassifierConfig {
+        num_classes,
+        conv_filters: vec![32, 64],
+        fc_layers: vec![128],
+        dropout_rate: 0.5,
     };
     
-    // Print the prediction results
-    println!("\nPrediction Results:");
-    println!("Predicted class: {} ({})", class_name, predicted_class);
-    println!("Confidence: {:.2}%", max_score * 100.0);
+    let model = ImageClassifierModel::<NdArray>::new(&config, &device);
+    
+    // Create batcher
+    let batcher = ImageBatcher::<NdArray>::new(device.clone());
+    
+    // Create data loaders
+    let train_loader = DataLoaderBuilder::new(batcher.clone())
+        .batch_size(batch_size)
+        .shuffle(42) // Use a fixed seed for reproducibility
+        .build(train_dataset);
+        
+    let valid_loader = DataLoaderBuilder::new(batcher)
+        .batch_size(batch_size)
+        .build(valid_dataset);
+    
+    // Create metrics
+    let mut accuracy_metric = Accuracy::<NdArray>::new();
+    let mut train_losses = Vec::<f64>::new();
+    let mut valid_losses = Vec::<f64>::new();
+    let mut train_accuracies = Vec::<f64>::new();
+    let mut valid_accuracies = Vec::<f64>::new();
+    
+    // Training loop
+    for epoch in 0..epochs {
+        println!("Epoch {}/{}", epoch + 1, epochs);
+        
+        // Training phase
+        let mut train_loss = 0.0f32;
+        let mut train_batches = 0;
+        
+        accuracy_metric.reset();
+        
+        for (images, targets) in train_loader.iter() {
+            // Forward pass
+            let output = model.forward(images.clone());
+            
+            // Compute loss
+            let loss = cross_entropy_with_logits_loss(output.clone(), targets.clone());
+            
+            // Update metrics
+            train_loss += loss.mean().into_scalar();
+            train_batches += 1;
+            
+            // Calculate accuracy
+            let predictions = output.argmax(1);
+            let target_classes = targets.argmax(1);
+            
+            let pred_vec: Vec<f32> = predictions.into_data().into_vec().unwrap_or_default();
+            let target_vec: Vec<f32> = target_classes.into_data().into_vec().unwrap_or_default();
+            
+            for i in 0..pred_vec.len() {
+                if pred_vec[i] as usize == target_vec[i] as usize {
+                    accuracy_metric.add_correct();
+                } else {
+                    accuracy_metric.add_incorrect();
+                }
+            }
+        }
+        
+        let train_accuracy = accuracy_metric.compute();
+        train_loss /= train_batches as f32;
+        
+        train_losses.push(train_loss as f64);
+        train_accuracies.push(train_accuracy as f64);
+        
+        println!("Train Loss: {:.4}, Train Accuracy: {:.4}", train_loss, train_accuracy);
+        
+        // Validation phase
+        let mut valid_loss = 0.0f32;
+        let mut valid_batches = 0;
+        
+        accuracy_metric.reset();
+        
+        for (images, targets) in valid_loader.iter() {
+            // Forward pass
+            let output = model.forward(images.clone());
+            
+            // Compute loss
+            let loss = cross_entropy_with_logits_loss(output.clone(), targets.clone());
+            
+            // Update metrics
+            valid_loss += loss.mean().into_scalar();
+            valid_batches += 1;
+            
+            // Calculate accuracy
+            let predictions = output.argmax(1);
+            let target_classes = targets.argmax(1);
+            
+            let pred_vec: Vec<f32> = predictions.into_data().into_vec().unwrap_or_default();
+            let target_vec: Vec<f32> = target_classes.into_data().into_vec().unwrap_or_default();
+            
+            for i in 0..pred_vec.len() {
+                if pred_vec[i] as usize == target_vec[i] as usize {
+                    accuracy_metric.add_correct();
+                } else {
+                    accuracy_metric.add_incorrect();
+                }
+            }
+        }
+        
+        let valid_accuracy = accuracy_metric.compute();
+        valid_loss /= valid_batches as f32;
+        
+        valid_losses.push(valid_loss as f64);
+        valid_accuracies.push(valid_accuracy as f64);
+        
+        println!("Valid Loss: {:.4}, Valid Accuracy: {:.4}", valid_loss, valid_accuracy);
+    }
+    
+    // Save model
+    let output_dir = Path::new(&output);
+    if !output_dir.exists() {
+        std::fs::create_dir_all(output_dir)?;
+    }
+    
+    let model_path = output_dir.join("model.json");
+    ImageClassifierModel::<NdArray>::save_file(&model, model_path.to_str().unwrap())?;
+    
+    // Plot training history
+    let history_path = output_dir.join("training_history.png");
+    plot_training_history(
+        &train_losses,
+        &valid_losses,
+        &train_accuracies,
+        &valid_accuracies,
+        history_path.to_str().unwrap(),
+    )?;
+    
+    println!("Training completed. Model saved to {}", output);
     
     Ok(())
 }
 
-// Training step handler - manages one step of training
-struct TrainingStepHandler<B: Backend> {
-    model: ImageClassifierModel<B>,
-    optimizer: Adam<B>,
-}
-
-impl<B: Backend> TrainingStepHandler<B> {
-    fn new(model: ImageClassifierModel<B>, optimizer: Adam<B>) -> Self {
-        Self { model, optimizer }
+fn evaluate(model_path: String, data_dir: String, batch_size: usize) -> Result<()> {
+    // Load dataset
+    println!("Loading dataset from {}", data_dir);
+    let dataset = load_image_dataset(&data_dir, IMAGE_SIZE)?;
+    
+    println!("Found {} images with {} classes", dataset.len(), dataset.num_classes());
+    
+    // Create device
+    let device = NdArrayDevice::default();
+    
+    // Load model
+    let model = ImageClassifierModel::<NdArray>::load(&model_path, &device)?;
+    
+    // Create batcher
+    let batcher = ImageBatcher::<NdArray>::new(device.clone());
+    
+    // Store num_classes before moving dataset
+    let num_classes = dataset.num_classes();
+    
+    // Create data loader
+    let data_loader = DataLoaderBuilder::new(batcher)
+        .batch_size(batch_size)
+        .build(dataset);
+    
+    // Create metrics
+    let mut accuracy_metric = Accuracy::<NdArray>::new();
+    let mut confusion_matrix = vec![vec![0; num_classes]; num_classes];
+    
+    // Evaluation loop
+    for (images, targets) in data_loader.iter() {
+        // Forward pass
+        let output = model.forward(images.clone());
+        
+        // Get predicted classes (use argmax instead of softmax)
+        let predictions = output.argmax(1);
+        let target_classes = targets.argmax(1);
+        
+        let pred_vec: Vec<f32> = predictions.into_data().into_vec().unwrap_or_default();
+        let target_vec: Vec<f32> = target_classes.into_data().into_vec().unwrap_or_default();
+        
+        // Update metrics
+        for i in 0..pred_vec.len() {
+            let pred_idx = pred_vec[i] as usize;
+            let target_idx = target_vec[i] as usize;
+            
+            // Update confusion matrix
+            confusion_matrix[target_idx][pred_idx] += 1;
+            
+            // Update accuracy
+            if pred_idx == target_idx {
+                accuracy_metric.add_correct();
+            } else {
+                accuracy_metric.add_incorrect();
+            }
+        }
     }
-}
-
-// Implement the TrainStep trait for our training handler
-impl<B: Backend> TrainStep<ImageItem<B>, ClassificationOutput> for TrainingStepHandler<B> {
-    fn step(&mut self, batch: &ImageItem<B>) -> TrainOutput<ClassificationOutput> {
-        // Run a forward pass through the model
-        let output = self.model.forward(batch.images.clone());
-        
-        // Calculate the loss (how wrong the predictions are)
-        let loss = output.cross_entropy_with_logits(&batch.labels);
-        
-        // Calculate the gradients
-        let grads = loss.backward();
-        
-        // Update the model parameters
-        self.optimizer.update(&mut self.model, &grads);
-        
-        // Calculate accuracy
-        let accuracy = output.accuracy(&batch.labels);
-        
-        // Return the metrics
-        TrainOutput::new(
-            loss.into_scalar(),
-            ClassificationOutput::new_with_accuracy(loss.into_scalar(), accuracy.into_scalar()),
-        )
+    
+    // Calculate accuracy
+    let accuracy = accuracy_metric.compute();
+    
+    println!("Evaluation Results:");
+    println!("Accuracy: {:.4}", accuracy);
+    
+    // Print confusion matrix
+    println!("Confusion Matrix:");
+    println!("{:^10}", "");
+    print!("{:^10}", "Pred →");
+    for i in 0..num_classes {
+        print!("{:^5}", i);
     }
-}
-
-// Validation step handler - manages one step of validation
-struct ValidationStepHandler<B: Backend> {
-    model: ImageClassifierModel<B>,
-}
-
-impl<B: Backend> ValidationStepHandler<B> {
-    fn new(model: ImageClassifierModel<B>) -> Self {
-        Self { model }
+    println!();
+    
+    for (i, row) in confusion_matrix.iter().enumerate() {
+        print!("{:^10}", format!("True {}", i));
+        for &count in row {
+            print!("{:^5}", count);
+        }
+        println!();
     }
+    
+    Ok(())
 }
 
-// Implement the ValidStep trait for our validation handler
-impl<B: Backend> ValidStep<ImageItem<B>, ClassificationOutput> for ValidationStepHandler<B> {
-    fn step(&mut self, batch: &ImageItem<B>) -> ClassificationOutput {
-        // Run a forward pass through the model
-        let output = self.model.forward(batch.images.clone());
-        
-        // Calculate the loss (how wrong the predictions are)
-        let loss = output.cross_entropy_with_logits(&batch.labels);
-        
-        // Calculate accuracy
-        let accuracy = output.accuracy(&batch.labels);
-        
-        // Return the metrics
-        ClassificationOutput::new_with_accuracy(loss.into_scalar(), accuracy.into_scalar())
+fn predict(model_path: String, image_path: String) -> Result<()> {
+    // Load image
+    println!("Loading image from {}", image_path);
+    let img = image::open(&image_path).map_err(|e| ImageClassifierError::ImageError(e))?;
+    
+    // Convert image to tensor
+    let tensor = image_to_tensor(&img)?;
+    
+    // Create device
+    let device = NdArrayDevice::default();
+    
+    // Load model
+    let model = ImageClassifierModel::<NdArray>::load(&model_path, &device)?;
+    
+    // Create tensor from image
+    let tensor_data = TensorData::new(tensor, [1, NUM_CHANNELS, IMAGE_SIZE, IMAGE_SIZE]);
+    let input = Tensor::<NdArray, 4>::from_data(tensor_data, &device);
+    
+    // Forward pass
+    let output = model.forward(input);
+    
+    // Get top predictions (use argmax instead of softmax)
+    let (indices, values) = top_k(output, 5);
+    
+    // Print predictions
+    println!("Predictions:");
+    for (i, (class_idx, prob)) in indices.iter().zip(values.iter()).enumerate() {
+        println!("{}. Class {}: {:.2}%", i + 1, class_idx, prob * 100.0);
     }
+    
+    // Plot predictions
+    let output_path = "prediction.png";
+    plot_predictions(&img, &indices, &values, output_path)?;
+    
+    println!("Prediction visualization saved to {}", output_path);
+    
+    Ok(())
+}
+
+/// Calculate the top-k values and indices from a tensor
+fn top_k<B: Backend>(tensor: Tensor<B, 2>, k: usize) -> (Vec<usize>, Vec<f32>) {
+    let data = tensor.into_data();
+    let values = data.into_vec().unwrap_or_default();
+    
+    // Create (index, value) pairs
+    let mut pairs: Vec<(usize, f32)> = Vec::new();
+    for i in 0..values.len() {
+        pairs.push((i, values[i]));
+    }
+    
+    // Sort by value in descending order
+    pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    
+    // Take top k
+    let top_k_pairs = pairs.into_iter().take(k).collect::<Vec<_>>();
+    
+    // Split into separate vectors
+    let indices = top_k_pairs.iter().map(|&(i, _)| i).collect();
+    let values = top_k_pairs.iter().map(|&(_, v)| v).collect();
+    
+    (indices, values)
+}
+
+/// Calculate cross-entropy loss with logits
+fn cross_entropy_with_logits_loss<B: Backend>(output: Tensor<B, 2>, targets: Tensor<B, 2>) -> Tensor<B, 1> {
+    // Apply log softmax (manually calculate instead of using softmax().log())
+    let max_vals = output.clone().max_dim(1);
+    let max_vals = max_vals.unsqueeze::<2>();
+    let shifted = output.clone() - max_vals.clone();
+    let exp_shifted = shifted.clone().exp();
+    let sum_exp = exp_shifted.sum_dim(1);
+    let sum_exp = sum_exp.unsqueeze::<2>();
+    let log_softmax = shifted - sum_exp.log();
+    
+    // Calculate negative log likelihood loss for each sample
+    let loss = -(log_softmax * targets);
+    
+    // Sum along the class dimension to get per-sample loss
+    // Ensure we have a 1D tensor by flattening the result
+    let batch_size = output.shape().dims::<2>()[0];
+    loss.sum_dim(1).reshape([batch_size])
 }
