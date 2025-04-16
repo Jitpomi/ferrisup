@@ -21,6 +21,10 @@
     {
       "source": "style.css",
       "target": "style.css"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -38,5 +42,13 @@
       "wasm-bindgen-test = \"0.3.42\"",
       "web-sys = \"0.3.70\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install required tools if you haven't already",
+    "rustup target add wasm32-unknown-unknown",
+    "cargo install trunk",
+    "# Start the development server",
+    "trunk serve --open"
+  ]
 }

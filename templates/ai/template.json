@@ -6,6 +6,14 @@
     {
       "source": "lib.rs",
       "target": "src/lib.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
     }
   ],
   "dependencies": {
@@ -41,5 +49,13 @@
       "tempfile = \"3.8\"",
       "tokio = { version = \"1.36\", features = [\"rt\", \"macros\"] }"
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Choose AI capabilities by adding features to Cargo.toml",
+    "# For LLM support: cargo add llm-base tokenizers candle-core candle-nn",
+    "# For image generation: cargo add diffusers-rs image",
+    "cargo test",
+    "cargo build --release"
+  ]
 }

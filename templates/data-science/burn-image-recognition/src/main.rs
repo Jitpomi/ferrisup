@@ -1,21 +1,18 @@
-// Image Recognition Application
-// This program trains a neural network to recognize handwritten digits
-// using the MNIST dataset
-
-use burn::data::dataset::Dataset;
-use burn::module::Module;
-use burn::tensor::backend::Backend;
-use burn::train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep};
-use burn::config::Config;
+use anyhow::Result;
+use burn::backend::Autodiff;
+use burn::tensor::{Tensor, TensorData};
+use burn_ndarray::NdArray;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-// Import our model and data handling code
-mod model;
-mod data;
+// Import our modules
+use {{ project_name }}::{
+    model::Model,
+    training::{train, evaluate, create_dataloaders},
+};
 
-use model::{MnistConfig, MnistModel};
-use data::{MnistBatcher, MnistItem};
+// Define the backend type
+type Backend = Autodiff<NdArray<f32>>;
 
 // Command line interface for our application
 #[derive(Parser)]
@@ -25,220 +22,133 @@ struct Cli {
     command: Commands,
 }
 
-// Available commands: train or evaluate
+// Available commands: train, evaluate, or predict
 #[derive(Subcommand)]
 enum Commands {
     // Train a new model
     Train {
-        // Number of training cycles
-        #[arg(short, long, default_value_t = 10)]
+        #[arg(short, long, default_value = "10")]
         epochs: usize,
         
-        // Where to save the trained model
-        #[arg(short, long, default_value = "model.json")]
-        output: String,
-        
-        // How many images to process at once
-        #[arg(short, long, default_value_t = 32)]
+        #[arg(short, long, default_value = "64")]
         batch_size: usize,
+        
+        #[arg(short, long, default_value = "0.001")]
+        learning_rate: f64,
+        
+        #[arg(short, long, default_value = "./model.json")]
+        model_path: PathBuf,
     },
     
     // Evaluate an existing model
     Evaluate {
-        // Path to the saved model file
         #[arg(short, long)]
-        model: String,
+        model_path: PathBuf,
+        
+        #[arg(short, long, default_value = "64")]
+        batch_size: usize,
+    },
+    
+    // Predict using an existing model
+    Predict {
+        #[arg(short, long)]
+        model_path: PathBuf,
+        
+        #[arg(short, long)]
+        image_path: PathBuf,
     },
 }
 
 // Main function - entry point of our program
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Parse command line arguments
     let cli = Cli::parse();
-
-    // Choose which command to run
+    
+    // Create a device for computation
+    let device = Default::default();
+    
+    // Handle the different commands
     match cli.command {
-        Commands::Train { epochs, output, batch_size } => {
-            // Run the training process
-            train(epochs, output, batch_size);
-        }
-        Commands::Evaluate { model } => {
-            // Run the evaluation process
-            evaluate(model);
-        }
-    }
-}
-
-// Training function - teaches our model to recognize digits
-fn train(epochs: usize, output: String, batch_size: usize) {
-    // We'll use the CPU for computations
-    // You can change this to GPU if available
-    type B = burn::backend::ndarray::NdArray;
-    
-    println!("Loading MNIST dataset...");
-    
-    // Load the MNIST dataset
-    let dataset = data::load_mnist_dataset();
-    
-    // Split into training and validation sets
-    let (train_data, valid_data) = dataset.split_by_ratio([0.8, 0.2]);
-    
-    // Create data batchers (group images into batches)
-    let train_batcher = MnistBatcher::<B>::new(batch_size);
-    let valid_batcher = MnistBatcher::<B>::new(batch_size);
-    
-    // Create data loaders
-    let train_loader = train_data.into_loader(train_batcher, batch_size, true, None);
-    let valid_loader = valid_data.into_loader(valid_batcher, batch_size, false, None);
-    
-    println!("Creating model...");
-    
-    // Create a new model with default configuration
-    let config = MnistConfig::new();
-    let mut model = MnistModel::<B>::new(&config);
-    
-    // Create an optimizer (Adam) to adjust model weights during training
-    let learning_rate = 1e-3;
-    let optimizer = burn::optim::Adam::new(learning_rate);
-    
-    // Create a training step handler
-    let mut train_step = TrainingStepHandler::new(model.clone(), optimizer);
-    
-    // Create a validation step handler
-    let mut valid_step = ValidationStepHandler::new(model.clone());
-    
-    println!("Starting training for {} epochs...", epochs);
-    
-    // Training loop
-    for epoch in 1..=epochs {
-        // Training phase
-        let mut train_metrics = ClassificationOutput::new();
+        Commands::Train { epochs, batch_size, learning_rate, model_path } => {
+            println!("🚀 Training a new MNIST digit recognition model");
+            println!("📊 Epochs: {}", epochs);
+            println!("📦 Batch size: {}", batch_size);
+            println!("📈 Learning rate: {}", learning_rate);
+            
+            // Train the model
+            let _trained_model = train::<Backend>(
+                &device,
+                epochs,
+                batch_size,
+                learning_rate,
+                model_path.to_string_lossy().to_string(),
+            );
+            
+            println!("✅ Training completed successfully!");
+        },
         
-        for batch in train_loader.iter() {
-            // Perform one training step
-            let output = train_step.step(&batch);
-            train_metrics.extend(&output);
-        }
+        Commands::Evaluate { model_path, batch_size } => {
+            println!("🔍 Evaluating MNIST digit recognition model");
+            
+            // Load the model
+            let model = Model::<Backend>::load(model_path)?;
+            
+            // Create test dataloader (extract from tuple)
+            let (_train_loader, mut test_loader) = create_dataloaders::<Backend>(&device, batch_size);
+            
+            // Evaluate the model
+            let (accuracy, loss) = evaluate(&model, &mut test_loader);
+            
+            println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
+            println!("📉 Test loss: {:.4}", loss);
+        },
         
-        // Validation phase
-        let mut valid_metrics = ClassificationOutput::new();
-        
-        for batch in valid_loader.iter() {
-            // Perform one validation step
-            let output = valid_step.step(&batch);
-            valid_metrics.extend(&output);
-        }
-        
-        // Update the model with the best weights
-        model = train_step.model.clone();
-        
-        // Print training progress
-        println!(
-            "Epoch: {}/{}, Train Loss: {:.4}, Train Accuracy: {:.4}, Valid Loss: {:.4}, Valid Accuracy: {:.4}",
-            epoch,
-            epochs,
-            train_metrics.loss(),
-            train_metrics.accuracy(),
-            valid_metrics.loss(),
-            valid_metrics.accuracy()
-        );
+        Commands::Predict { model_path, image_path } => {
+            println!("🔮 Predicting digit from image");
+            
+            // Load the model
+            let model = Model::<Backend>::load(model_path)?;
+            
+            // Load and preprocess the image
+            let image = image::open(image_path)?
+                .to_luma8();
+            
+            // Resize to 28x28 if needed
+            let image = if image.dimensions() != (28, 28) {
+                image::imageops::resize(
+                    &image,
+                    28,
+                    28,
+                    image::imageops::FilterType::Nearest,
+                )
+            } else {
+                image
+            };
+            
+            // Convert to tensor
+            let image_data: Vec<f32> = image
+                .pixels()
+                .map(|p| (p[0] as f32 / 255.0 - 0.1307) / 0.3081)
+                .collect();
+            
+            // Create a 4D tensor [batch_size=1, channels=1, height=28, width=28]
+            let tensor = Tensor::<Backend, 4>::from_data(
+                TensorData::new(image_data, [1, 1, 28, 28]),
+                &device,
+            );
+            
+            // Make prediction
+            let output = model.forward(tensor);
+            
+            // Get the predicted digit
+            let prediction = output
+                .argmax(1)
+                .squeeze::<2>(1)
+                .into_scalar();
+            
+            println!("✅ Predicted digit: {}", prediction);
+        },
     }
     
-    // Save the trained model
-    println!("Saving model to {}...", output);
-    let artifact = model.into_artifact();
-    artifact.save(output).expect("Failed to save model");
-    
-    println!("Training complete!");
-}
-
-// Evaluation function - tests how well our model recognizes digits
-fn evaluate(model_path: String) {
-    // We'll use the CPU for computations
-    type B = burn::backend::ndarray::NdArray;
-    
-    println!("Loading model from {}...", model_path);
-    
-    // Load the saved model
-    let artifact = burn::artifact::Artifact::load(model_path)
-        .expect("Failed to load model");
-    let model = MnistModel::<B>::from_artifact(&artifact);
-    
-    println!("Loading MNIST test dataset...");
-    
-    // Load the MNIST test dataset
-    let dataset = data::load_mnist_test_dataset();
-    
-    // Create a data batcher
-    let batcher = MnistBatcher::<B>::new(32);
-    
-    // Create a data loader
-    let loader = dataset.into_loader(batcher, 32, false, None);
-    
-    // Create a validation step handler
-    let mut valid_step = ValidationStepHandler::new(model);
-    
-    // Evaluation phase
-    let mut metrics = ClassificationOutput::new();
-    
-    for batch in loader.iter() {
-        // Perform one validation step
-        let output = valid_step.step(&batch);
-        metrics.extend(&output);
-    }
-    
-    // Print evaluation results
-    println!(
-        "Test Loss: {:.4}, Test Accuracy: {:.4}",
-        metrics.loss(),
-        metrics.accuracy()
-    );
-}
-
-// Training step handler - manages one step of training
-struct TrainingStepHandler<B: Backend> {
-    model: MnistModel<B>,
-    optimizer: burn::optim::Adam<B>,
-}
-
-impl<B: Backend> TrainingStepHandler<B> {
-    fn new(model: MnistModel<B>, optimizer: burn::optim::Adam<B>) -> Self {
-        Self { model, optimizer }
-    }
-}
-
-// Implement the TrainStep trait for our training handler
-impl<B: Backend> TrainStep<MnistItem<B>, ClassificationOutput> for TrainingStepHandler<B> {
-    fn step(&mut self, batch: &MnistItem<B>) -> TrainOutput<ClassificationOutput> {
-        // Forward pass - get predictions from the model
-        let output = self.model.forward_classification(batch.images.clone(), batch.targets.clone());
-        
-        // Backward pass - calculate gradients
-        let grads = output.loss.backward();
-        
-        // Update model weights using the optimizer
-        self.model = self.optimizer.step(&self.model, &grads);
-        
-        // Return training metrics
-        TrainOutput::new(self.model.clone(), output)
-    }
-}
-
-// Validation step handler - manages one step of validation
-struct ValidationStepHandler<B: Backend> {
-    model: MnistModel<B>,
-}
-
-impl<B: Backend> ValidationStepHandler<B> {
-    fn new(model: MnistModel<B>) -> Self {
-        Self { model }
-    }
-}
-
-// Implement the ValidStep trait for our validation handler
-impl<B: Backend> ValidStep<MnistItem<B>, ClassificationOutput> for ValidationStepHandler<B> {
-    fn step(&mut self, batch: &MnistItem<B>) -> ClassificationOutput {
-        // Forward pass - get predictions from the model
-        self.model.forward_classification(batch.images.clone(), batch.targets.clone())
-    }
+    Ok(())
 }

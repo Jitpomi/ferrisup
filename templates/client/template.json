@@ -20,6 +20,12 @@
       ]
     }
   ],
+  "files": [
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
   "redirect": {
     "leptos": "client/leptos",
     "tauri": "client/tauri"

@@ -4,6 +4,10 @@
   "type": "binary",
   "files": [
     {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
       "source": "main.rs",
       "target": "src/main.rs"
     },

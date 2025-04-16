@@ -1,0 +1,1 @@
+std::result::Result<(), burn::record::RecorderError>

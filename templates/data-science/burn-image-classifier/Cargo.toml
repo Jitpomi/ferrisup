@@ -1,0 +1,31 @@
+[package]
+name = "burn-image-classifier-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Burn framework
+burn = { version = "0.16.1", features = ["train"] }
+burn-ndarray = { version = "0.16.1" }
+
+# Serialization and utilities
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+ndarray = "0.15"
+
+# Image processing
+image = "0.24"
+rand = "0.8"
+indicatif = "0.17"  # For progress bars
+plotters = "0.3"    # For visualization
+
+# Command line parsing
+clap = { version = "4.5", features = ["derive"] }
+
+# For downloading sample data
+reqwest = { version = "0.11", features = ["blocking"] }
+flate2 = "1.0"
+tar = "0.4"
+byteorder = "1.4"

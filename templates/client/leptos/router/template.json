@@ -21,6 +21,10 @@
     {
       "source": "style.css",
       "target": "style.css"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -40,5 +44,18 @@
       "wasm-bindgen-test = \"0.3.42\"",
       "web-sys = \"0.3.70\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install WebAssembly target",
+    "rustup target add wasm32-unknown-unknown",
+    "# Install Trunk for serving your application",
+    "cargo install trunk",
+    "# Start the development server",
+    "trunk serve --open",
+    "# Build for production",
+    "trunk build --release",
+    "# Run tests",
+    "wasm-pack test --headless --firefox"
+  ]
 }

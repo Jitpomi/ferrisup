@@ -12,6 +12,7 @@ use dialoguer::Select;
 use std::process::Command;
 use walkdir::WalkDir;
 use regex::Regex;
+use std::os::unix::fs::PermissionsExt;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -260,8 +261,7 @@ pub fn apply_template(
             }
             
             println!("\n✅ Linfa machine learning examples configured successfully!");
-        } else if template_name == "data-science/burn-image-recognition" || 
-                  template_name == "data-science/burn-value-prediction" || 
+        } else if template_name == "data-science/burn-value-prediction" || 
                   template_name == "data-science/burn-text-classifier" || 
                   template_name == "data-science/burn-custom-image" || 
                   template_name == "data-science/burn-data-predictor" ||
@@ -269,7 +269,6 @@ pub fn apply_template(
             
             // Map our template names to the corresponding Burn examples
             let burn_example = match template_name {
-                "data-science/burn-image-recognition" => "mnist",
                 "data-science/burn-value-prediction" => "simple-regression",
                 "data-science/burn-text-classifier" => "text-classification",
                 "data-science/burn-custom-image" => "custom-image-dataset",
@@ -737,6 +736,14 @@ fn process_file(
         } else {
             // Just copy the file
             fs::copy(&source_path, &target_path)?;
+            // Set executable bit for .sh files
+            if let Some(ext) = target_path.extension() {
+                if ext == "sh" {
+                    let mut perms = fs::metadata(&target_path)?.permissions();
+                    perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                    fs::set_permissions(&target_path, perms)?;
+                }
+            }
         }
     }
     

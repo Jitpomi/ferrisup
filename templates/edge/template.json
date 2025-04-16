@@ -52,6 +52,10 @@
       "source": "tests/web.rs.template",
       "target": "tests/web.rs",
       "condition": "testing_approach == 'headless_tests' || testing_approach == 'both'"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "next_steps": [

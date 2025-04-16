@@ -22,5 +22,11 @@
       "name": "fullstack",
       "description": "Complete application with API endpoints and server functions"
     }
+  ],
+  "files": [
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
   ]
 }

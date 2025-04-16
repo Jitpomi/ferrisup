@@ -10,6 +10,10 @@
     {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -26,5 +30,12 @@
     "default": [
       "reqwest = { version = \"0.11\", features = [\"json\"] }"
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo run",
+    "# Test the API with: curl http://localhost:3000/",
+    "# Add more routes in src/main.rs",
+    "# Enable OpenAPI with: poem-openapi = \"3.0.0\""
+  ]
 }

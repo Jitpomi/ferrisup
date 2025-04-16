@@ -1,14 +1,20 @@
-// Image Classifier Library
-// This library provides functionality for training and using image classification models
+// Public interface for the image classifier library
+// This file exports the main components of the library
 
-// Re-export modules for easier access
-pub mod model;
-pub mod data;
 pub mod config;
-pub mod training;
+pub mod data;
+pub mod error;
+pub mod model;
+pub mod visualization;
+#[cfg(test)]
+mod tests;
 
-// Re-export key types and functions
-pub use model::{ImageClassifierConfig, ImageClassifierModel};
-pub use data::{ImageBatcher, ImageItem, ImageDataset, load_image_dataset};
-pub use config::{BATCH_SIZE, LEARNING_RATE, EPOCHS, IMAGE_SIZE, DEFAULT_DATA_DIR, DEFAULT_MODEL_FILE};
-pub use training::{TrainingStepHandler, ValidationStepHandler};
+// Re-export main components
+pub use crate::config::{
+    BATCH_SIZE, EPOCHS, DEFAULT_DATA_DIR, DEFAULT_MODEL_FILE, 
+    IMAGE_SIZE, NUM_CHANNELS, NUM_CLASSES, ImageClassifierConfig
+};
+pub use crate::data::{ImageDataset, ImageBatcher, image_to_tensor, generate_synthetic_dataset, load_image_dataset};
+pub use crate::error::{ImageClassifierError, Result};
+pub use crate::model::ImageClassifierModel;
+pub use crate::visualization::{plot_training_history, plot_predictions, plot_confusion_matrix, Accuracy};

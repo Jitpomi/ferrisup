@@ -10,6 +10,10 @@
     {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -17,5 +21,12 @@
   },
   "dev-dependencies": {
     "default": []
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo run",
+    "# Edit src/main.rs to add your own code",
+    "# Add dependencies to Cargo.toml as needed",
+    "# Build for release: cargo build --release"
+  ]
 }

@@ -1,29 +1,25 @@
 [package]
-name = "{{name}}"
+name = "{{ project_name }}"
 version = "0.1.0"
 edition = "2021"
-authors = ["{{authors}}"]
-description = "Image recognition using the Burn framework"
 
 [dependencies]
-# Core dependencies
-clap = { version = "4.4", features = ["derive"] }
+burn = { version = "0.16.1", features = ["ndarray", "autodiff", "train"] }
+burn-tensor = { version = "0.16.1" }
+burn-train = { version = "0.16.1" }
+burn-autodiff = { version = "0.16.1" }
+burn-ndarray = { version = "0.16.1" }
+burn-dataset = { version = "0.16.1", features = ["vision"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+indicatif = "0.17.7"
+image = "0.24"
 
-# Burn framework - a Rust-native deep learning library
-burn = { version = "0.10.0", features = ["ndarray", "autodiff", "train"] }
+[lib]
+path = "src/lib.rs"
 
-# Optional: GPU acceleration - uncomment if you have a compatible GPU
-{% if gpu_acceleration %}
-# WGPU backend for GPU acceleration
-burn-wgpu = { version = "0.10.0" }
-{% endif %}
-
-{% if web_interface %}
-# Web interface dependencies
-burn-wgpu = { version = "0.10.0" }
-wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["HtmlCanvasElement", "ImageData"] }
-js-sys = "0.3"
-{% endif %}
+[[bin]]
+name = "app"
+path = "src/main.rs"

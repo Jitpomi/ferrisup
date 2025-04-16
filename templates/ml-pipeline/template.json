@@ -10,6 +10,10 @@
     {
       "source": "pipeline.rs",
       "target": "src/pipeline.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "database": {
@@ -54,5 +58,22 @@
       "quickcheck = \"1.0\"",
       "proptest = \"1.3\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install required dependencies",
+    "cargo build",
+    "# Run the pipeline",
+    "cargo run",
+    "# Run tests",
+    "cargo test",
+    "# Run benchmarks",
+    "cargo bench",
+    "# For database integration, set up PostgreSQL and configure the connection",
+    "export DATABASE_URL=postgres://user:password@localhost/ml_data",
+    "# For visualization, run the pipeline and check the output directory",
+    "cargo run -- --output-dir ./results",
+    "# For model training, prepare your dataset and run",
+    "cargo run -- --train --dataset ./data/training_data.csv"
+  ]
 }

@@ -1,106 +1,154 @@
-# Image Classifier with Burn
+# Image Classifier using Burn
 
-A highly customizable image classification template using the Burn deep learning framework for Rust.
+This is a deep learning template for classifying images into categories using the [Burn](https://burn.dev/) framework. It provides a complete solution for training, evaluating, and using a convolutional neural network (CNN) for image classification tasks.
 
-## Overview
+## What is Deep Learning? (For Beginners)
 
-This template provides a complete, customizable solution for image classification tasks. It's designed to be:
+Deep learning is a type of artificial intelligence that teaches computers to learn from examples, similar to how humans learn. In this template:
 
-- **Beginner-friendly**: Clear code structure with extensive documentation
-- **Highly customizable**: Easily adaptable for your specific image classification needs
-- **Production-ready**: Includes training, evaluation, and inference capabilities
+1. We use a **Convolutional Neural Network (CNN)** - a special type of AI model that's excellent at understanding images
+2. The model learns to recognize patterns in images through a process called **training**
+3. Once trained, it can identify new images it has never seen before
+
+Think of it like teaching a child to recognize animals by showing them many examples. After seeing enough cats and dogs, they can identify a new cat or dog they've never seen before.
+
+## Why This Structure?
+
+This template is organized in a modular way to make it easy to understand and customize:
+
+- **Data Module** (`src/data.rs`): Handles loading and preparing images
+- **Model Module** (`src/model.rs`): Defines the neural network structure
+- **Config Module** (`src/config.rs`): Contains settings you can easily change
+- **Visualization Module** (`src/visualization.rs`): Creates charts to help understand results
+- **Main Application** (`src/main.rs`): Ties everything together with a user-friendly interface
+
+This separation makes it easier to focus on one aspect at a time and customize the parts you need.
 
 ## Features
 
-- Convolutional Neural Network (CNN) architecture for image classification
-- Support for custom datasets with any number of classes
-- Data augmentation to improve model generalization
-- Comprehensive metrics and evaluation tools
-- Multiple backend support (CPU, GPU via CUDA/MPS, WebGPU)
+- **Complete CNN Architecture**: Pre-configured neural network optimized for image classification
+- **Data Loading & Preprocessing**: Tools for loading and preparing images
+- **Data Augmentation**: Automatically creates variations of your images to improve learning
+- **Training Pipeline**: Full training process with progress tracking
+- **Evaluation Tools**: Comprehensive testing with metrics and visualizations
+- **Prediction Interface**: Simple commands for classifying new images
+- **Visualization**: Training history plots and prediction charts
+- **Sample Dataset**: Built-in sample data generator for quick testing
+- **Unit Tests**: Comprehensive tests to ensure everything works correctly
 
 ## Getting Started
 
 ### Prerequisites
 
-- Rust toolchain (1.71.0 or newer)
-- For GPU acceleration:
-  - CUDA toolkit (for NVIDIA GPUs)
-  - Metal (for Apple Silicon)
-  - WebGPU-compatible system
+- Rust toolchain (1.70.0 or later recommended)
+- Cargo package manager
 
-### Running the Examples
+### Quick Start
 
-This template is structured as a library with example applications. The main example is a CLI tool for training and using image classification models.
+1. **Set up datasets interactively**:
+   ```bash
+   # This will guide you through setting up one or more datasets
+   ./setup_dataset.sh
+   ```
+   
+   Or choose a specific dataset manually:
+   ```bash
+   # Download and prepare the CIFAR-10 dataset (default)
+   ./generate_sample_data.sh
+   
+   # Or choose a different dataset
+   ./generate_sample_data.sh --dataset mnist
+   ./generate_sample_data.sh --dataset fashion-mnist
+   ./generate_sample_data.sh --dataset synthetic
+   
+   # For synthetic dataset, you can customize the number of classes and images
+   ./generate_sample_data.sh --dataset synthetic --num-classes 5 --images-per-class 200
+   ```
 
-To train a model on your own dataset:
+2. **Train the model**:
+   ```bash
+   # Train on the default dataset (linked as sample-data)
+   cargo run --bin app -- train --data-dir sample-data
+   
+   # Or train on a specific dataset
+   cargo run --bin app -- train --data-dir datasets/mnist
+   ```
 
-```bash
-# First, organize your images in class subdirectories:
-# data/
-#   ├── class1/
-#   │   ├── image1.jpg
-#   │   ├── image2.jpg
-#   │   └── ...
-#   ├── class2/
-#   │   ├── image1.jpg
-#   │   └── ...
-#   └── ...
+3. **Evaluate the model**:
+   ```bash
+   # Evaluate the trained model
+   cargo run --bin app -- evaluate --model-path model.json --data-dir sample-data
+   ```
 
-# Train the model (with CPU backend)
-cargo run --example image_classifier --features ndarray -- train --data-dir ./data --epochs 10
+4. **Predict on a single image**:
+   ```bash
+   # Predict the class of a single image
+   cargo run --bin app -- predict --image-path path/to/your/image.jpg --model-path model.json
+   ```
 
-# Train with GPU acceleration (if available)
-cargo run --example image_classifier --features tch-gpu -- train --data-dir ./data --epochs 10
-```
+### Using Your Own Dataset
 
-To evaluate the model:
+To use your own dataset instead of CIFAR-10:
 
-```bash
-cargo run --example image_classifier --features ndarray -- evaluate --model ./model.bin --data-dir ./test_data
-```
+1. **Organize your images** in a directory structure where each subdirectory represents a class:
+   ```
+   your-dataset/
+   ├── class1/
+   │   ├── image1.jpg
+   │   ├── image2.jpg
+   │   └── ...
+   ├── class2/
+   │   ├── image1.jpg
+   │   ├── image2.jpg
+   │   └── ...
+   └── ...
+   ```
 
-To classify a single image:
+2. **Update the configuration** in `src/config.rs` to match your dataset:
+   - Set `NUM_CLASSES` to the number of classes in your dataset
+   - Modify `CLASS_NAMES` to match your class names
 
-```bash
-cargo run --example image_classifier --features ndarray -- predict --model ./model.bin --image ./my_image.jpg
-```
+3. **Train the model** on your dataset:
+   ```bash
+   cargo run --bin app -- train --data-dir path/to/your-dataset
+   ```
+
+### Customizing the Model
+
+See the `CUSTOMIZATION.md` file for detailed instructions on how to modify the model architecture, training parameters, and other settings.
+
+## Configuration
+
+You can customize the model architecture, training parameters, and data preprocessing by editing the `src/config.rs` file. The main configurable parameters include:
+
+- Image size and number of channels
+- Number of classes and class names
+- Model architecture (convolutional filters, fully connected layers)
+- Training parameters (batch size, learning rate, epochs)
+- Data augmentation options
+
+## Examples
+
+Check out the `examples/` directory for example code showing how to use the image classifier in your own projects.
+
+## Visualization
+
+The training process generates visualizations to help you understand the model's performance:
+
+- `training_history.png`: Plot of training and validation loss and accuracy
+- `confusion_matrix.png`: Confusion matrix showing model performance on each class
+- `predictions.png`: Bar chart of top predictions for a single image
 
 ## Customization
 
-This template is designed to be easily customizable. See the [CUSTOMIZATION.md](CUSTOMIZATION.md) file for detailed instructions on how to adapt this template for your specific needs.
-
-Key customization points include:
-
-- Model architecture (layers, activation functions, etc.)
-- Training parameters (learning rate, batch size, etc.)
-- Data augmentation techniques
-- Input image size and preprocessing
-
-## Project Structure
-
-```
-src/
-├── lib.rs          # Library entry point and exports
-├── config.rs       # Configuration parameters
-├── data.rs         # Data loading and processing
-├── model.rs        # Neural network architecture
-└── training.rs     # Training and evaluation logic
-
-examples/
-└── image_classifier.rs  # CLI application for training and inference
-```
-
-## Backend Options
-
-This template supports multiple backends through Burn's backend system:
-
-- `ndarray`: CPU-based computation (default)
-- `tch-cpu`: LibTorch CPU backend
-- `tch-gpu`: LibTorch GPU backend (CUDA/MPS)
-- `wgpu`: WebGPU backend for cross-platform GPU acceleration
-
-Select a backend using the corresponding feature flag when running examples.
+For detailed information on how to customize this template for your specific needs, see the `CUSTOMIZATION.md` file.
 
 ## License
 
 This template is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [Burn Framework](https://burn.dev/) - The deep learning framework used
+- [Image Crate](https://github.com/image-rs/image) - For image processing
+- [Plotters](https://github.com/plotters-rs/plotters) - For visualization

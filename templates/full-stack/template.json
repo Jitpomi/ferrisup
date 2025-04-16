@@ -70,5 +70,28 @@
       "tokio-test = \"0.4\"",
       "criterion = \"0.5\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Set up the database",
+    "# Install PostgreSQL if needed",
+    "# Create a database: createdb your_database_name",
+    "export DATABASE_URL=postgres://username:password@localhost/your_database_name",
+    "# Build the entire workspace",
+    "cargo build",
+    "# Run the server",
+    "cargo run -p api",
+    "# For Dioxus web client",
+    "# Install Trunk: cargo install trunk",
+    "# Install WebAssembly target: rustup target add wasm32-unknown-unknown",
+    "# Run the client: cd client/app1 && trunk serve",
+    "# For Tauri desktop client",
+    "# Run the client: cd client/app2 && cargo tauri dev"
+  ],
+  "files": [
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ]
 }

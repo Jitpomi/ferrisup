@@ -10,6 +10,10 @@
     {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "dependencies": {
@@ -20,5 +24,13 @@
       "anyhow = \"1.0\"",
       "criterion = \"0.5\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo test",
+    "cargo doc --open",
+    "# Add your library functionality to src/lib.rs",
+    "# Run benchmarks with: cargo bench",
+    "# Update Cargo.toml with your library metadata before publishing"
+  ]
 }

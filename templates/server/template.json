@@ -11,6 +11,12 @@
       "default": "axum"
     }
   ],
+  "files": [
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
   "redirect": {
     "axum": "server/axum",
     "actix": "server/actix",

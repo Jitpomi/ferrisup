@@ -6,6 +6,10 @@
     {
       "source": "main.rs",
       "target": "src/main.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
     }
   ],
   "database": {
@@ -51,5 +55,19 @@
       "defmt-rtt = \"0.4\"",
       "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install the appropriate target for your microcontroller",
+    "# For RP2040: rustup target add thumbv6m-none-eabi",
+    "# For ESP32: rustup target add xtensa-esp32-none-elf",
+    "# For STM32: rustup target add thumbv7em-none-eabihf",
+    "# For Arduino: rustup target add avr-unknown-gnu-atmega328",
+    "# Install flashing tools",
+    "# For RP2040/STM32: cargo install probe-run",
+    "# For ESP32: cargo install espflash",
+    "# Build and flash the firmware",
+    "cargo build --target <your-target>",
+    "cargo run --target <your-target>"
+  ]
 }

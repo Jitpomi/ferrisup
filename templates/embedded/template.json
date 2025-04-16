@@ -65,5 +65,17 @@
       "defmt-rtt = \"0.4\"",
       "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install the appropriate target for your microcontroller",
+    "# For RP2040: rustup target add thumbv6m-none-eabi",
+    "# For STM32: rustup target add thumbv7em-none-eabihf",
+    "# For ESP32: rustup target add xtensa-esp32-none-elf",
+    "# For Arduino: rustup target add avr-unknown-gnu-atmega328",
+    "# Build the firmware",
+    "cargo build --target thumbv6m-none-eabi  # Adjust target based on your MCU",
+    "# Flash the firmware",
+    "cargo run --target thumbv6m-none-eabi  # Adjust target based on your MCU"
+  ]
 }

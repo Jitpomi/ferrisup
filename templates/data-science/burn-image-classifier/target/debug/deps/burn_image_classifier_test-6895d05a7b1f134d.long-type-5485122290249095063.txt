@@ -1,0 +1,1 @@
+DataLoaderBuilder<RawImageItem, (Tensor<NdArray, 4>, Tensor<NdArray, 2>)>

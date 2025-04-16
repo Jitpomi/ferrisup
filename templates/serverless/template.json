@@ -113,5 +113,25 @@
       "cargo-lambda = \"1.0\"",
       "http = \"0.2\""
     ]
-  }
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# For AWS Lambda:",
+    "# Install cargo-lambda: cargo install cargo-lambda",
+    "# Test locally: cargo lambda watch",
+    "# Deploy: cargo lambda deploy",
+    "# For GCP Functions:",
+    "# Build: docker build -t gcr.io/your-project/function .",
+    "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http",
+    "# For Azure Functions:",
+    "# Install Azure Functions Core Tools",
+    "# Test locally: func start",
+    "# Deploy: func azure functionapp publish your-function-app",
+    "# For Vercel:",
+    "# Install Vercel CLI: npm i -g vercel",
+    "# Deploy: vercel",
+    "# For Netlify:",
+    "# Install Netlify CLI: npm i -g netlify-cli",
+    "# Deploy: netlify deploy"
+  ]
 }
