@@ -1,122 +1,83 @@
-# MNIST Digit Recognition with Burn
+# Burn MNIST Image Recognition Template
 
-This project demonstrates how to build a handwritten digit recognition system using the Burn deep learning framework in Rust. It uses the MNIST dataset, which contains 70,000 images of handwritten digits (60,000 for training and 10,000 for testing).
+This project provides a robust, up-to-date workflow for MNIST digit recognition using the [Burn](https://burn.dev) deep learning framework (v0.16.1). It features:
+
+- Modern data batching and normalization
+- Flexible model definition
+- CLI for training, evaluation, and prediction
+- Out-of-the-box usage with CPU (NDArray backend)
+
+## Quickstart
+
+### 1. Install Rust and Clone
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone https://github.com/your-org/your-repo.git
+cd your-repo
+```
+
+### 2. Build
+
+```sh
+cargo build --release
+```
+
+### 3. Train a Model
+
+```sh
+cargo run --bin app -- train --epochs 10 --batch-size 64 --learning-rate 0.001 --model-path ./model.json
+```
+
+### 4. Evaluate
+
+```sh
+cargo run --bin app -- evaluate --model-path ./model.json --batch-size 64
+```
+
+### 5. Predict
+
+```sh
+cargo run --bin app -- predict --model-path ./model.json --image-path ./some_digit.png
+```
 
 ## Features
 
-- **Convolutional Neural Network (CNN)** architecture for image classification
-- **MNIST dataset** handling with automatic download
-- **Training pipeline** with validation
-- **Model evaluation** with accuracy metrics
-- **Single image prediction** for testing with your own handwritten digits
+- **Data:** Uses Burn’s built-in MNIST utilities and normalization ([src/data.rs](src/data.rs))
+- **Model:** Convolutional neural network ([src/model.rs](src/model.rs))
+- **Training/Eval:** Progress bars and metrics ([src/training.rs](src/training.rs))
+- **CLI:** Train, evaluate, or predict from the command line ([src/main.rs](src/main.rs))
+- **Dependencies:** All required crates included in `Cargo.toml`
 
-## Getting Started
+## Troubleshooting
 
-### Prerequisites
+- **MNIST Data Not Found:**
+  - Run `./download_mnist.sh` before training or evaluating.
+  - The CLI will print an error if the data is missing.
+- **Model File Not Found:**
+  - Make sure you have trained a model before evaluating or predicting, or specify the correct `--model-path`.
+- **Image File Not Found:**
+  - Double-check your `--image-path` for predictions.
+- **Dependency Issues:**
+  - Ensure your Rust toolchain is up to date (`rustup update`).
+  - If you update Burn or other dependencies, check for breaking changes.
+- **Platform Support:**
+  - The template is set up for CPU (NDArray backend). For GPU or Torch, see customization below.
 
-- Rust and Cargo (latest stable version recommended)
-- The `wasm32-unknown-unknown` target (required by Burn)
+## Testing
 
-### Downloading the Dataset
+Run smoke tests to verify the model builds and can do a forward pass:
 
-Before training, you need to download the MNIST dataset:
-
-```bash
-./download_mnist.sh
+```sh
+cargo test
 ```
-
-This script will download and extract the MNIST dataset files to the `data/mnist` directory.
-
-### Training a Model
-
-To train a new model on the MNIST dataset:
-
-```bash
-cargo run -- train
-```
-
-This will:
-1. Load the MNIST dataset from the `data/mnist` directory
-2. Train a CNN model for 10 epochs
-3. Save the trained model to `model.json`
-
-You can customize the training with these options:
-- `--epochs` or `-e`: Number of training epochs (default: 10)
-- `--batch-size` or `-b`: Batch size for training (default: 64)
-- `--learning-rate` or `-l`: Learning rate for the optimizer (default: 0.001)
-- `--model-path` or `-m`: Path to save the model (default: ./model.json)
-
-Example with custom parameters:
-```bash
-cargo run -- train --epochs 20 --batch-size 128 --learning-rate 0.0005
-```
-
-### Evaluating the Model
-
-To evaluate a trained model on the MNIST test set:
-
-```bash
-cargo run -- evaluate --model-path ./model.json
-```
-
-This will output the accuracy and loss metrics for the model on the test set.
-
-### Predicting with Your Own Images
-
-To test the model with sample MNIST images:
-
-```bash
-./download_sample_images.sh
-```
-
-This will download 10 sample images (one for each digit) to the `sample_images` directory.
-
-To predict the digit in an image:
-
-```bash
-cargo run -- predict --model-path ./model.json --image-path sample_images/digit_0.png
-```
-
-For best results with your own images:
-- Use a white digit on a black background
-- Center the digit in the image
-- The image will be automatically resized to 28x28 pixels
-
-## Model Architecture
-
-The CNN architecture used in this project consists of:
-
-1. Three convolutional blocks, each containing:
-   - 2D convolution layer
-   - Batch normalization
-   - GELU activation function
-
-2. Fully connected layers:
-   - Dropout (0.5) for regularization
-   - Hidden layer with 32 neurons
-   - Output layer with 10 neurons (one for each digit)
 
 ## Customization
 
-You can customize the model architecture by modifying the `model.rs` file:
+- **Swap out the backend:** To use GPU or Torch, edit `src/data.rs` and update the backend. You may need to add additional dependencies to `Cargo.toml`.
+- **Edit the model architecture:** Modify `src/model.rs` to change the model's architecture. You can add or remove layers, change activation functions, and more.
+- **Add new CLI commands or options:** Extend the CLI in `src/main.rs` to add new commands or options. You can use the existing commands as a reference.
 
-- Change the number of convolutional layers
-- Adjust the number of filters in each layer
-- Modify the kernel sizes
-- Change the activation functions
-- Adjust the dropout rate
+---
 
-## Performance
-
-With the default settings, the model typically achieves:
-- Training accuracy: ~99%
-- Test accuracy: ~98%
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Acknowledgments
-
-- The [Burn Framework](https://github.com/tracel-ai/burn) for providing a powerful deep learning library in Rust
-- The MNIST dataset creators for providing this benchmark dataset
+For more details, see the code and comments in each module. If you encounter any issues or want to extend the workflow, feel free to open an issue or PR!

@@ -1,20 +1,27 @@
-use anyhow::Result;
-use burn::backend::Autodiff;
-use burn::tensor::{Tensor, TensorData};
-use burn_ndarray::NdArray;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use image;
 
-// Import our modules
-use {{ project_name }}::{
-    model::Model,
-    training::{train, evaluate, create_dataloaders},
-};
+mod model;
+mod data;
+mod training;
 
-// Define the backend type
-type Backend = Autodiff<NdArray<f32>>;
+use data::{mnist_dataloader, normalize_mnist_pixel, MnistBatch};
+use model::Model;
+use training::{train, evaluate};
+use burn_autodiff::Autodiff;
+use burn::tensor::Tensor;
+use burn::prelude::Backend;
+use std::sync::Arc;
+use burn::record::{Recorder, CompactRecorder};
+use burn::module::Module;
+use burn::data::dataloader::DataLoader;
 
-// Command line interface for our application
+// For training
+// (Burn autodiff backend wrapper)
+type TrainBackend = Autodiff<burn_ndarray::NdArray>;
+type InferenceBackend = burn_ndarray::NdArray;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -22,133 +29,97 @@ struct Cli {
     command: Commands,
 }
 
-// Available commands: train, evaluate, or predict
 #[derive(Subcommand)]
 enum Commands {
-    // Train a new model
     Train {
         #[arg(short, long, default_value = "10")]
-        epochs: usize,
-        
+        num_epochs: usize,
         #[arg(short, long, default_value = "64")]
         batch_size: usize,
-        
         #[arg(short, long, default_value = "0.001")]
         learning_rate: f64,
-        
         #[arg(short, long, default_value = "./model.json")]
         model_path: PathBuf,
     },
-    
-    // Evaluate an existing model
     Evaluate {
         #[arg(short, long)]
         model_path: PathBuf,
-        
         #[arg(short, long, default_value = "64")]
         batch_size: usize,
     },
-    
-    // Predict using an existing model
     Predict {
         #[arg(short, long)]
         model_path: PathBuf,
-        
         #[arg(short, long)]
         image_path: PathBuf,
     },
 }
 
-// Main function - entry point of our program
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // Parse command line arguments
     let cli = Cli::parse();
-    
-    // Create a device for computation
-    let device = Default::default();
-    
-    // Handle the different commands
     match cli.command {
-        Commands::Train { epochs, batch_size, learning_rate, model_path } => {
-            println!("🚀 Training a new MNIST digit recognition model");
-            println!("📊 Epochs: {}", epochs);
-            println!("📦 Batch size: {}", batch_size);
-            println!("📈 Learning rate: {}", learning_rate);
-            
-            // Train the model
-            let _trained_model = train::<Backend>(
+        Commands::Train { num_epochs, batch_size, learning_rate, model_path } => {
+            println!("🚀 Training MNIST digit recognition model");
+            // Check for MNIST data presence
+            if !std::path::Path::new("./data/mnist/train-images-idx3-ubyte").exists() {
+                eprintln!("❌ MNIST data not found. Please run ./download_mnist.sh before training.");
+                std::process::exit(1);
+            }
+            let device = <TrainBackend as Backend>::Device::default();
+            train::<TrainBackend>(
                 &device,
-                epochs,
+                num_epochs,
                 batch_size,
                 learning_rate,
                 model_path.to_string_lossy().to_string(),
             );
-            
             println!("✅ Training completed successfully!");
         },
-        
         Commands::Evaluate { model_path, batch_size } => {
             println!("🔍 Evaluating MNIST digit recognition model");
-            
-            // Load the model
-            let model = Model::<Backend>::load(model_path)?;
-            
-            // Create test dataloader (extract from tuple)
-            let (_train_loader, mut test_loader) = create_dataloaders::<Backend>(&device, batch_size);
-            
-            // Evaluate the model
-            let (accuracy, loss) = evaluate(&model, &mut test_loader);
-            
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
+            let device = <InferenceBackend as Backend>::Device::default();
+            let mut model = Model::<InferenceBackend>::new(&device);
+            let record = CompactRecorder::new().load(model_path, &device)?;
+            model = model.load_record(record);
+            let test_loader: Arc<dyn DataLoader<MnistBatch<InferenceBackend>>> = mnist_dataloader::<InferenceBackend>(false, device.clone(), batch_size, None, 2);
+            let (loss, accuracy) = evaluate::<InferenceBackend>(&model, test_loader.as_ref());
             println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
             println!("📉 Test loss: {:.4}", loss);
         },
-        
         Commands::Predict { model_path, image_path } => {
             println!("🔮 Predicting digit from image");
-            
-            // Load the model
-            let model = Model::<Backend>::load(model_path)?;
-            
-            // Load and preprocess the image
-            let image = image::open(image_path)?
-                .to_luma8();
-            
-            // Resize to 28x28 if needed
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
+            if !image_path.exists() {
+                eprintln!("❌ Image file not found: {}", image_path.display());
+                std::process::exit(1);
+            }
+            let device = <InferenceBackend as Backend>::Device::default();
+            let mut model = Model::<InferenceBackend>::new(&device);
+            let record = CompactRecorder::new().load(model_path, &device)?;
+            model = model.load_record(record);
+            let image = image::open(image_path)?.to_luma8();
             let image = if image.dimensions() != (28, 28) {
-                image::imageops::resize(
-                    &image,
-                    28,
-                    28,
-                    image::imageops::FilterType::Nearest,
-                )
+                image::imageops::resize(&image, 28, 28, image::imageops::FilterType::Nearest)
             } else {
                 image
             };
-            
-            // Convert to tensor
-            let image_data: Vec<f32> = image
-                .pixels()
-                .map(|p| (p[0] as f32 / 255.0 - 0.1307) / 0.3081)
-                .collect();
-            
-            // Create a 4D tensor [batch_size=1, channels=1, height=28, width=28]
-            let tensor = Tensor::<Backend, 4>::from_data(
-                TensorData::new(image_data, [1, 1, 28, 28]),
-                &device,
-            );
-            
-            // Make prediction
-            let output = model.forward(tensor);
-            
-            // Get the predicted digit
-            let prediction = output
-                .argmax(1)
-                .squeeze::<2>(1)
-                .into_scalar();
-            
-            println!("✅ Predicted digit: {}", prediction);
-        },
+            let image_data: Vec<f32> = image.pixels().map(|p| normalize_mnist_pixel(p[0])).collect();
+            let input = Tensor::<InferenceBackend, 3>::from_floats(image_data.as_slice(), &device);
+            let output = model.forward(input);
+            let pred_data = output.argmax(1).to_data();
+            let pred_slice = pred_data.as_slice().unwrap_or(&[0]);
+            let pred = pred_slice[0];
+            println!("Predicted digit: {}", pred);
+        }
     }
-    
     Ok(())
 }

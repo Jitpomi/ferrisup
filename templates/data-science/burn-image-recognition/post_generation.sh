@@ -1,5 +1,3 @@
-
-
 #!/bin/bash
 set -e
 
@@ -396,16 +394,22 @@ use burn_ndarray::NdArray;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-// Import our modules
+# Ensure MNIST data is always downloaded before training
+if [ ! -f data/mnist/train-images-idx3-ubyte ] || [ ! -f data/mnist/train-labels-idx1-ubyte ]; then
+  echo "Downloading MNIST dataset automatically..."
+  ./download_mnist.sh
+fi
+
+# Import our modules
 use {{ project_name }}::{
     model::Model,
     training::{train, evaluate},
 };
 
-// Define the backend type
+# Define the backend type
 type Backend = NdArray<f32>;
 
-// Command line interface for our application
+# Command line interface for our application
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -413,10 +417,10 @@ struct Cli {
     command: Commands,
 }
 
-// Available commands: train, evaluate, or predict
+# Available commands: train, evaluate, or predict
 #[derive(Subcommand)]
 enum Commands {
-    // Train a new model
+    # Train a new model
     Train {
         #[arg(short, long, default_value = "10")]
         epochs: usize,
@@ -431,7 +435,7 @@ enum Commands {
         model_path: PathBuf,
     },
     
-    // Evaluate an existing model
+    # Evaluate an existing model
     Evaluate {
         #[arg(short, long)]
         model_path: PathBuf,
@@ -440,7 +444,7 @@ enum Commands {
         batch_size: usize,
     },
     
-    // Predict using an existing model
+    # Predict using an existing model
     Predict {
         #[arg(short, long)]
         model_path: PathBuf,
@@ -450,15 +454,15 @@ enum Commands {
     },
 }
 
-// Main function - entry point of our program
+# Main function - entry point of our program
 fn main() -> Result<()> {
-    // Parse command line arguments
+    # Parse command line arguments
     let cli = Cli::parse();
     
-    // Create a device for computation
+    # Create a device for computation
     let device = Default::default();
     
-    // Handle the different commands
+    # Handle the different commands
     match cli.command {
         Commands::Train { epochs, batch_size, learning_rate, model_path } => {
             println!("🚀 Training a new MNIST digit recognition model");
@@ -466,10 +470,10 @@ fn main() -> Result<()> {
             println!("📦 Batch size: {}", batch_size);
             println!("📈 Learning rate: {}", learning_rate);
             
-            // Create a new model
+            # Create a new model
             let model = Model::<Backend>::default();
             
-            // Train the model
+            # Train the model
             let trained_model = train(
                 &device,
                 model,
@@ -485,10 +489,10 @@ fn main() -> Result<()> {
         Commands::Evaluate { model_path, batch_size } => {
             println!("🔍 Evaluating MNIST digit recognition model");
             
-            // Load the model
+            # Load the model
             let model = Model::<Backend>::load(model_path)?;
             
-            // Evaluate the model
+            # Evaluate the model
             let (accuracy, loss) = evaluate(&device, model, batch_size);
             
             println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
@@ -498,14 +502,14 @@ fn main() -> Result<()> {
         Commands::Predict { model_path, image_path } => {
             println!("🔮 Predicting digit from image");
             
-            // Load the model
+            # Load the model
             let model = Model::<Backend>::load(model_path)?;
             
-            // Load and preprocess the image
+            # Load and preprocess the image
             let image = image::open(image_path)?
                 .to_luma8();
             
-            // Resize to 28x28 if needed
+            # Resize to 28x28 if needed
             let image = if image.dimensions() != (28, 28) {
                 image::imageops::resize(
                     &image,
@@ -517,22 +521,22 @@ fn main() -> Result<()> {
                 image
             };
             
-            // Convert to tensor
+            # Convert to tensor
             let image_data: Vec<f32> = image
                 .pixels()
                 .map(|p| (p[0] as f32 / 255.0 - 0.1307) / 0.3081)
                 .collect();
             
-            // Create a 4D tensor [batch_size=1, channels=1, height=28, width=28]
+            # Create a 4D tensor [batch_size=1, channels=1, height=28, width=28]
             let tensor = Tensor::<Backend, 4>::from_data(
                 TensorData::new(image_data, [1, 1, 28, 28]),
                 &device,
             );
             
-            // Make prediction
+            # Make prediction
             let output = model.forward(tensor);
             
-            // Get the predicted digit
+            # Get the predicted digit
             let prediction = output
                 .argmax(1)
                 .squeeze(1)
@@ -698,5 +702,15 @@ EOL
 # Make the scripts executable
 chmod +x download_sample_images.sh
 chmod +x download_mnist.sh
+
+# Automatically download MNIST dataset into the generated app's directory
+if [ -d "$DESTINATION_DIR" ]; then
+  cd "$DESTINATION_DIR"
+  if [ ! -f data/mnist/train-images-idx3-ubyte ] || [ ! -f data/mnist/train-labels-idx1-ubyte ]; then
+    echo "Downloading MNIST dataset automatically into new app..."
+    ./download_mnist.sh
+  fi
+  cd -
+fi
 
 echo "✅ Setup completed successfully!"

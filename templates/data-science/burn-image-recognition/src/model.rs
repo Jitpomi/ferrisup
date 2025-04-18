@@ -1,119 +1,151 @@
+use crate::data::MnistBatch;
 use burn::{
-    module::Module,
-    nn::{conv::{Conv2dConfig}, BatchNorm, BatchNormConfig, Linear, LinearConfig},
-    tensor::{backend::Backend, Tensor},
-    record::{NamedMpkFileRecorder, FullPrecisionSettings, Recorder},
-    tensor::activation::relu,
+    nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
+    prelude::*,
+    tensor::backend::AutodiffBackend,
+    train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
+use burn::record::{Recorder, CompactRecorder};
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
     conv1: ConvBlock<B>,
     conv2: ConvBlock<B>,
-    fc1: Linear<B>,
-    
-    fc2: Linear<B>,
+    conv3: ConvBlock<B>,
+    dropout: nn::Dropout,
+    fc1: nn::Linear<B>,
+    fc2: nn::Linear<B>,
+    activation: nn::Gelu,
 }
 
+const NUM_CLASSES: usize = 10;
+
 impl<B: Backend> Model<B> {
-    /// Create a new model
     pub fn new(device: &B::Device) -> Self {
-        let conv1 = ConvBlock::new(
-            Conv2dConfig::new([1, 32], [3, 3]),
-            device,
-        );
-        
-        let conv2 = ConvBlock::new(
-            Conv2dConfig::new([32, 64], [3, 3]),
-            device,
-        );
-        
-        let fc1 = LinearConfig::new(1600, 128)
+        let conv1 = ConvBlock::new([1, 8], [3, 3], device); // out: [Batch,8,26,26]
+        let conv2 = ConvBlock::new([8, 16], [3, 3], device); // out: [Batch,16,24x24]
+        let conv3 = ConvBlock::new([16, 24], [3, 3], device); // out: [Batch,24,22x22]
+        let hidden_size = 24 * 22 * 22;
+        let fc1 = nn::LinearConfig::new(hidden_size, 32)
+            .with_bias(false)
             .init(device);
-        
-        let fc2 = LinearConfig::new(128, 10)
+        let fc2 = nn::LinearConfig::new(32, NUM_CLASSES)
+            .with_bias(false)
             .init(device);
-        
+
+        let dropout = nn::DropoutConfig::new(0.5).init();
+
         Self {
             conv1,
             conv2,
+            conv3,
+            dropout,
             fc1,
             fc2,
+            activation: nn::Gelu::new(),
         }
     }
-    
-    /// Load a model from a file
-    pub fn load<P: Into<std::path::PathBuf>>(path: P) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::new();
-        let device = <B as Backend>::Device::default();
-        let pathbuf: std::path::PathBuf = path.into();
-        let record = recorder.load(pathbuf, &device)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
-        let mut model = Self::new(&device);
-        model = model.load_record(record);
-        Ok(model)
-    }
-    
-    /// Save the model to a file
-    pub fn save<P: Into<std::path::PathBuf> + Clone>(&self, path: P) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::new();
-        let pathbuf: std::path::PathBuf = path.clone().into();
-        self.clone().save_file(pathbuf, &recorder)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)
-    }
-    
-    /// Forward pass
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 2> {
-        // First conv block
-        let x = self.conv1.forward(input);
+
+    pub fn forward(&self, input: Tensor<B, 3>) -> Tensor<B, 2> {
+        let [batch_size, height, width] = input.dims();
+        println!("Input dims: [{}, {}, {}]", batch_size, height, width);
         
-        // Max pooling (Burn 0.16+)
-        let x = burn::tensor::module::max_pool2d(x, [2, 2], [2, 2], [0, 0], [1, 1]);
+        let x = input.reshape([batch_size, 1, height, width]).detach();
+        println!("After reshape to 4D: {:?}", x.dims());
         
-        // Second conv block
+        let x = self.conv1.forward(x);
+        println!("After conv1: {:?}", x.dims());
+        
         let x = self.conv2.forward(x);
+        println!("After conv2: {:?}", x.dims());
         
-        // Max pooling (Burn 0.16+)
-        let x = burn::tensor::module::max_pool2d(x, [2, 2], [2, 2], [0, 0], [1, 1]);
+        let x = self.conv3.forward(x);
+        println!("After conv3: {:?}", x.dims());
         
-        // Flatten
         let [batch_size, channels, height, width] = x.dims();
-        let x = x.reshape([batch_size, channels * height * width]);
+        println!("Before reshape to 2D: batch_size={}, channels={}, height={}, width={}", batch_size, channels, height, width);
         
-        // Fully connected layers
-        let x = relu(self.fc1.forward(x));
+        let x = x.reshape([batch_size, channels * height * width]);
+        println!("After reshape to 2D: {:?}", x.dims());
+        
+        let x = self.dropout.forward(x);
+        println!("After dropout: {:?}", x.dims());
+        
+        let x = self.fc1.forward(x);
+        println!("After fc1: {:?}", x.dims());
+        
+        let x = self.activation.forward(x);
+        println!("After activation: {:?}", x.dims());
+        
         let x = self.fc2.forward(x);
+        println!("After fc2: {:?}", x.dims());
         
         x
+    }
+
+    pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        let targets = item.targets;
+        println!("Targets dims: {:?}", targets.dims());
+        let output = self.forward(item.images);
+        println!("Output dims: {:?}", output.dims());
+        let loss = CrossEntropyLossConfig::new()
+            .init(&output.device())
+            .forward(output.clone(), targets.clone());
+        println!("Loss computed, shape should be scalar");
+
+        ClassificationOutput {
+            loss,
+            output,
+            targets,
+        }
+    }
+
+    pub fn save(&self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+        let record = self.clone().into_record();
+        CompactRecorder::new().record(record, path.to_path_buf())?;
+        Ok(())
     }
 }
 
 #[derive(Module, Debug)]
 pub struct ConvBlock<B: Backend> {
-    conv: burn::nn::conv::Conv2d<B>,
+    conv: nn::conv::Conv2d<B>,
     norm: BatchNorm<B, 2>,
+    activation: nn::Gelu,
 }
 
 impl<B: Backend> ConvBlock<B> {
-    pub fn new(config: Conv2dConfig, device: &B::Device) -> Self {
-        let conv = config.init(device);
-        let norm = BatchNormConfig::new(config.channels[1])
+    pub fn new(channels: [usize; 2], kernel_size: [usize; 2], device: &B::Device) -> Self {
+        let conv = nn::conv::Conv2dConfig::new(channels, kernel_size)
+            .with_padding(PaddingConfig2d::Valid)
             .init(device);
-            
-        Self { conv, norm }
+        let norm = nn::BatchNormConfig::new(channels[1]).init(device);
+
+        Self {
+            conv,
+            norm,
+            activation: nn::Gelu::new(),
+        }
     }
-    
+
     pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        // Do NOT reshape before batch norm. BatchNorm2D expects 4D: [batch, channels, height, width]
         let x = self.conv.forward(input);
         let x = self.norm.forward(x);
-        relu(x)
+
+        self.activation.forward(x)
     }
 }
 
-impl<B: Backend> Default for Model<B> {
-    fn default() -> Self {
-        let device = B::Device::default();
-        Self::new(&device)
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
+        let item = self.forward_classification(item);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        self.forward_classification(item)
     }
 }
