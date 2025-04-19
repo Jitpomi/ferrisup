@@ -426,7 +426,6 @@ This project was generated using FerrisUp.
             
             // Display custom next steps for the Burn example
             let next_steps = get_burn_example_next_steps(burn_example, project_name);
-            println!("\nNext steps:");
             for step in next_steps {
                 println!("  {}", step);
             }
@@ -566,7 +565,6 @@ This project was generated using FerrisUp.
     
     // Display next steps if available
     if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
-        println!("\nNext steps:");
         for step in next_steps {
             println!("  {}", step);
         }
