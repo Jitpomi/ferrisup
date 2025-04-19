@@ -89,6 +89,48 @@ cargo test
 - **Edit the model architecture:** Modify `src/model.rs` to change the model's architecture. You can add or remove layers, change activation functions, and more.
 - **Add new CLI commands or options:** Extend the CLI in `src/main.rs` to add new commands or options. You can use the existing commands as a reference.
 
+## Advanced Extensions
+
+Although this template is designed as a minimal example for MNIST digit recognition, it provides a solid foundation that can be extended for more advanced image processing tasks:
+
+### Object Detection
+The convolutional backbone can be adapted for:
+- Simple digit/object localization by adding bounding box outputs
+- Single-digit detection in more complex images
+- Multi-digit detection with appropriate post-processing
+
+### Image Segmentation
+The CNN architecture can be transformed for:
+- Digit segmentation (pixel-level classification)
+- Simple U-Net style implementations for medical image segmentation
+- Handwriting extraction from documents
+
+### Multi-label Classification
+The classification head can be modified for:
+- Recognizing multiple digits in a single image
+- Identifying both digit value and properties (slant, thickness, style)
+- Character + symbol recognition in combined datasets
+
+### Image Similarity Search
+The feature extraction layers can be repurposed for:
+- Handwriting style comparison and matching
+- Similar digit retrieval from databases
+- Style-based clustering of handwritten characters
+
+### Few-Shot Learning
+The pretrained model serves as an excellent base for:
+- Adapting to new handwritten character sets with minimal examples
+- Quick adaptation to different languages or writing systems
+- Personalized handwriting recognition with few samples
+
+### Anomaly Detection
+This architecture can be transformed for:
+- Detecting unusual or incorrect digit formations
+- Quality control in automated digit recognition systems
+- Identifying outliers in handwritten data
+
+While the MNIST template is simpler than the full classifier template, these extensions are still possible with appropriate modifications to the model architecture and training pipeline. For more complex implementations, consider starting with the more robust `burn-image-classifier` template.
+
 ---
 
 For more details, see the code and comments in each module. If you encounter any issues or want to extend the workflow, feel free to open an issue or PR!

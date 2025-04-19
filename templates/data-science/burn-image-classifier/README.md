@@ -154,6 +154,54 @@ The training process generates visualizations to help you understand the model's
 
 For detailed information on how to customize this template for your specific needs, see the `CUSTOMIZATION.md` file.
 
+## Advanced Extensions
+
+This image classifier template provides an excellent foundation that can be extended for more advanced computer vision tasks:
+
+### Object Detection
+Build upon the classification backbone by:
+- Adding bounding box regression heads
+- Implementing region proposal or anchor box mechanisms
+- Adding non-maximum suppression for overlapping detections
+- Supporting datasets like COCO or Pascal VOC
+
+### Image Segmentation
+Modify the architecture into an encoder-decoder structure:
+- Convert the classifier backbone into an encoder
+- Add a decoder network (like in U-Net architecture)
+- Modify the loss function for pixel-level predictions
+- Adapt the data pipeline for segmentation masks
+
+### Multi-label Classification
+With minimal changes to the classifier:
+- Replace softmax activation with sigmoid for multiple class predictions
+- Modify the loss function (Binary Cross Entropy instead of Categorical)
+- Update evaluation metrics for multi-label scenarios
+- Support datasets with multiple labels per image
+
+### Image Similarity Search
+Transform your classifier into a similarity engine:
+- Remove the classification head, using the feature extraction layers
+- Implement embedding generation and vector similarity metrics
+- Create a search index for fast nearest-neighbor lookup
+- Perfect for "find similar images" applications
+
+### Few-Shot Learning
+Leverage transfer learning capabilities:
+- Use the pre-trained classifier as a feature extractor
+- Implement prototypical networks or matching networks
+- Create support for learning from very few examples (1-5 shots)
+- Easily adapt to new classes without extensive retraining
+
+### Anomaly Detection
+Turn your classifier into an anomaly detector:
+- Use the feature extraction layers as an embedding generator
+- Implement statistical or reconstruction-based anomaly scoring
+- Create specialized visualization for anomaly heatmaps
+- Ideal for industrial quality control or medical applications
+
+The modular design of this template makes these extensions straightforward, allowing you to build advanced computer vision applications while leveraging the foundation provided here.
+
 ## License
 
 This template is licensed under the MIT License - see the LICENSE file for details.
