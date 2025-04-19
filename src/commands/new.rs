@@ -254,6 +254,9 @@ pub fn execute(
             // Apply the template using the template manager
             template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
             
+            // DO NOT print next steps here; let the template manager handle it
+            return Ok(());
+            
         } else if framework_selected == "dioxus" {
             println!("📦 Creating Dioxus project with dioxus-cli");
             
