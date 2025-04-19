@@ -1060,6 +1060,55 @@ pub fn get_template_next_steps(template_name: &str, project_name: &str, variable
         }
     }
     
+    // Check for provider-specific next steps
+    let provider_specific_next_steps = if template_name == "serverless" || template_name.starts_with("serverless/") {
+        let current_vars = match variables {
+            Some(vars) => {
+                if let Some(obj) = vars.as_object() {
+                    obj.clone()
+                } else {
+                    Map::new()
+                }
+            },
+            None => Map::new(),
+        };
+        
+        if let Some(cloud_provider) = current_vars.get("cloud_provider") {
+            if let Some(provider) = cloud_provider.as_str() {
+                let next_steps_key = format!("next_steps_{}", provider);
+                template_config.get(&next_steps_key)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    if let Some(steps) = provider_specific_next_steps {
+        if let Some(steps_array) = steps.as_array() {
+            let mut result = Vec::new();
+            
+            // Process each step
+            for step in steps_array {
+                if let Some(step_str) = step.as_str() {
+                    let mut processed_step = step_str.to_string();
+                    
+                    // Replace {{project_name}} with the actual project name
+                    if processed_step.contains("{{project_name}}") {
+                        processed_step = processed_step.replace("{{project_name}}", project_name);
+                    }
+                    
+                    result.push(processed_step);
+                }
+            }
+            
+            return Some(result);
+        }
+    }
+    
     None
 }
 

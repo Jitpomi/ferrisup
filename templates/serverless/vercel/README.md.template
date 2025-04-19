@@ -1,0 +1,48 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting Vercel Functions.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main function code
+├── Cargo.toml          # Rust dependencies
+└── vercel.json         # Vercel deployment configuration
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- [Vercel CLI](https://vercel.com/docs/cli) - For deploying to Vercel
+
+## Local Development
+
+For Vercel Functions, you can test locally with Vercel CLI:
+
+1. Start development server:
+   ```bash
+   vercel dev
+   ```
+
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:3000/api/{{project_name}}" -d '{"name": "world"}'
+   ```
+
+## Deployment
+
+To deploy your Vercel Function:
+
+1. Deploy to Vercel:
+   ```bash
+   vercel
+   ```
+
+## Additional Resources
+
+- [Vercel Serverless Functions Documentation](https://vercel.com/docs/functions/serverless-functions)
+- [Vercel Rust Runtime](https://github.com/vercel-community/rust)

@@ -49,187 +49,201 @@ A Rust serverless function created with FerrisUp targeting {{cloud_provider}}.
 - [Vercel CLI](https://vercel.com/docs/cli) - For deploying to Vercel
 {{/if}}
 {{#if (eq cloud_provider "netlify")}}
-- [Netlify CLI](https://docs.netlify.com/cli/get-started/) - For deploying to Netlify
+- [Netlify CLI](https://www.netlify.com/products/cli/) - For deploying to Netlify
 {{/if}}
 
-### Local Development
+## Local Development
 
 {{#if (eq cloud_provider "aws")}}
-1. Build the project:
-   ```
-   make build
+### AWS Lambda
+
+To test your AWS Lambda function locally:
+
+1. Install Cargo Lambda:
+   ```bash
+   cargo install cargo-lambda
    ```
 
-2. Run locally:
-   ```
-   make local
+2. Run the function locally:
+   ```bash
+   cargo lambda watch
    ```
 
-3. Test with an HTTP request:
-   ```
-   curl http://localhost:9000/lambda-url/{{project_name}}/
+3. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:9000/lambda-url/{{project_name}}" -d '{"name": "world"}'
    ```
 {{/if}}
+
 {{#if (eq cloud_provider "gcp")}}
-1. Build the project:
-   ```
+### GCP Cloud Functions
+
+For Google Cloud Functions, you can test locally with the Functions Framework:
+
+1. Build your function:
+   ```bash
    cargo build --release
    ```
 
-2. Run locally:
-   ```
-   cargo run
+2. Use Docker to test:
+   ```bash
+   docker build -t {{project_name}} .
+   docker run -p 8080:8080 {{project_name}}
    ```
 
-3. Test with an HTTP request:
-   ```
-   curl http://localhost:8080
+3. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:8080" -d '{"name": "world"}'
    ```
 {{/if}}
-{{#if (eq cloud_provider "azure")}}
-1. Build the project:
-   ```
-   cargo build --release
-   ```
 
-2. Run locally with Azure Functions Core Tools:
-   ```
+{{#if (eq cloud_provider "azure")}}
+### Azure Functions
+
+For Azure Functions, you can test locally with Azure Functions Core Tools:
+
+1. Start your function app:
+   ```bash
    func start
    ```
 
-3. Test with an HTTP request:
-   ```
-   curl http://localhost:7071/api/{{project_name}}
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:7071/api/{{project_name}}" -d '{"name": "world"}'
    ```
 {{/if}}
-{{#if (eq cloud_provider "vercel")}}
-1. Build the project:
-   ```
-   cargo build --release
-   ```
 
-2. Run locally with Vercel CLI:
-   ```
+{{#if (eq cloud_provider "vercel")}}
+### Vercel Functions
+
+For Vercel Functions, you can test locally with Vercel CLI:
+
+1. Start development server:
+   ```bash
    vercel dev
    ```
 
-3. Test with an HTTP request:
-   ```
-   curl http://localhost:3000/api
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:3000/api/{{project_name}}" -d '{"name": "world"}'
    ```
 {{/if}}
-{{#if (eq cloud_provider "netlify")}}
-1. Build the project:
-   ```
-   cargo build --release
-   ```
 
-2. Run locally with Netlify CLI:
-   ```
+{{#if (eq cloud_provider "netlify")}}
+### Netlify Functions
+
+For Netlify Functions, you can test locally with Netlify CLI:
+
+1. Start development server:
+   ```bash
    netlify dev
    ```
 
-3. Test with an HTTP request:
-   ```
-   curl http://localhost:8888/.netlify/functions/{{project_name}}
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:8888/.netlify/functions/{{project_name}}" -d '{"name": "world"}'
    ```
 {{/if}}
 
-### Deployment
+## Deployment
 
 {{#if (eq cloud_provider "aws")}}
-Deploy to AWS Lambda:
-```
-make deploy
-```
+### AWS Lambda
 
-This will:
-1. Build your Rust code with cargo-lambda
-2. Package your function with AWS SAM
-3. Deploy to AWS Lambda
+To deploy your AWS Lambda function:
+
+1. Configure AWS credentials:
+   ```bash
+   aws configure
+   ```
+
+2. Deploy with Cargo Lambda:
+   ```bash
+   cargo lambda deploy
+   ```
 {{/if}}
+
 {{#if (eq cloud_provider "gcp")}}
-Deploy to Google Cloud Functions:
-```
-gcloud builds submit --config cloudbuild.yaml
-```
+### GCP Cloud Functions
 
-This will:
-1. Build your Rust code in a Docker container
-2. Deploy to Google Cloud Functions
+To deploy your Google Cloud Function:
+
+1. Configure GCP credentials:
+   ```bash
+   gcloud auth login
+   ```
+
+2. Deploy to GCP:
+   ```bash
+   gcloud functions deploy {{project_name}} \
+     --runtime=rust \
+     --trigger-http \
+     --allow-unauthenticated
+   ```
 {{/if}}
+
 {{#if (eq cloud_provider "azure")}}
-Deploy to Azure Functions:
-```
-func azure functionapp publish <your-function-app-name>
-```
+### Azure Functions
 
-Make sure to create a Function App in Azure Portal first.
+To deploy your Azure Function:
+
+1. Configure Azure credentials:
+   ```bash
+   az login
+   ```
+
+2. Deploy to Azure:
+   ```bash
+   func azure functionapp publish your-function-app
+   ```
 {{/if}}
+
 {{#if (eq cloud_provider "vercel")}}
-Deploy to Vercel:
-```
-vercel --prod
-```
+### Vercel Functions
+
+To deploy your Vercel Function:
+
+1. Deploy to Vercel:
+   ```bash
+   vercel
+   ```
 {{/if}}
+
 {{#if (eq cloud_provider "netlify")}}
-Deploy to Netlify:
-```
-netlify deploy --prod
-```
+### Netlify Functions
+
+To deploy your Netlify Function:
+
+1. Deploy to Netlify:
+   ```bash
+   netlify deploy --prod
+   ```
 {{/if}}
 
-## Customizing Your Function
-
-The main function code is in `src/main.rs`. You can modify this file to implement your business logic.
-
-{{#if (eq cloud_provider "aws")}}
-For AWS Lambda, you can:
-- Add more event triggers in the `template.yml` file
-- Configure environment variables in the `template.yml` file
-- Adjust memory and timeout settings in the `template.yml` file
-{{/if}}
-{{#if (eq cloud_provider "gcp")}}
-For Google Cloud Functions, you can:
-- Modify the `cloudbuild.yaml` file to customize the deployment
-- Add environment variables in the Google Cloud Console
-{{/if}}
-{{#if (eq cloud_provider "azure")}}
-For Azure Functions, you can:
-- Add more bindings in the `function.json` file
-- Configure environment variables in the Azure Portal
-{{/if}}
-{{#if (eq cloud_provider "vercel")}}
-For Vercel Functions, you can:
-- Customize routing in the `vercel.json` file
-- Add environment variables in the Vercel Dashboard
-{{/if}}
-{{#if (eq cloud_provider "netlify")}}
-For Netlify Functions, you can:
-- Customize routing in the `netlify.toml` file
-- Add environment variables in the Netlify Dashboard
-{{/if}}
-
-## Resources
+## Additional Resources
 
 {{#if (eq cloud_provider "aws")}}
 - [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
-- [cargo-lambda Documentation](https://www.cargo-lambda.info/)
-- [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
+- [Cargo Lambda GitHub](https://github.com/cargo-lambda/cargo-lambda)
+- [AWS SDK for Rust](https://github.com/awslabs/aws-sdk-rust)
 {{/if}}
+
 {{#if (eq cloud_provider "gcp")}}
 - [Google Cloud Functions Documentation](https://cloud.google.com/functions/docs)
-- [Cloud Build Documentation](https://cloud.google.com/build/docs)
+- [Google Cloud Rust SDK](https://github.com/googleapis/google-cloud-rust)
 {{/if}}
+
 {{#if (eq cloud_provider "azure")}}
 - [Azure Functions Documentation](https://docs.microsoft.com/en-us/azure/azure-functions/)
-- [Azure Functions Rust Custom Handler](https://docs.microsoft.com/en-us/azure/azure-functions/functions-custom-handlers)
+- [Azure SDK for Rust](https://github.com/Azure/azure-sdk-for-rust)
 {{/if}}
+
 {{#if (eq cloud_provider "vercel")}}
-- [Vercel Documentation](https://vercel.com/docs)
-- [Vercel Rust Runtime](https://vercel.com/docs/functions/runtimes/rust)
+- [Vercel Serverless Functions Documentation](https://vercel.com/docs/functions/serverless-functions)
+- [Vercel Rust Runtime](https://github.com/vercel-community/rust)
 {{/if}}
+
 {{#if (eq cloud_provider "netlify")}}
 - [Netlify Functions Documentation](https://docs.netlify.com/functions/overview/)
-- [Netlify Rust Functions](https://docs.netlify.com/functions/build-with-rust/)
+- [Netlify Rust Functions Example](https://github.com/netlify/rust-functions-example)
 {{/if}}

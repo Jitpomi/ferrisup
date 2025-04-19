@@ -24,113 +24,39 @@
     "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
     "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
   },
-  "files": [
-    {
-      "source": "main.rs.template",
-      "target": "src/main.rs"
-    },
-    {
-      "source": "Cargo.toml.template",
-      "target": "Cargo.toml"
-    },
-    {
-      "source": "README.md.template",
-      "target": "README.md"
-    },
-    {
-      "condition": "cloud_provider == 'aws'",
-      "source": "aws/template.yml",
-      "target": "template.yml"
-    },
-    {
-      "condition": "cloud_provider == 'aws'",
-      "source": "aws/Makefile",
-      "target": "Makefile"
-    },
-    {
-      "condition": "cloud_provider == 'gcp'",
-      "source": "gcp/cloudbuild.yaml",
-      "target": "cloudbuild.yaml"
-    },
-    {
-      "condition": "cloud_provider == 'gcp'",
-      "source": "gcp/Dockerfile",
-      "target": "Dockerfile"
-    },
-    {
-      "condition": "cloud_provider == 'azure'",
-      "source": "azure/host.json",
-      "target": "host.json"
-    },
-    {
-      "condition": "cloud_provider == 'azure'",
-      "source": "azure/function.json",
-      "target": "function.json"
-    },
-    {
-      "condition": "cloud_provider == 'vercel'",
-      "source": "vercel/vercel.json",
-      "target": "vercel.json"
-    },
-    {
-      "condition": "cloud_provider == 'netlify'",
-      "source": "netlify/netlify.toml",
-      "target": "netlify.toml"
+  "redirect": {
+    "cloud_provider": {
+      "aws": "serverless/aws",
+      "gcp": "serverless/gcp",
+      "azure": "serverless/azure",
+      "vercel": "serverless/vercel",
+      "netlify": "serverless/netlify"
     }
-  ],
-  "database": {
-    "db_type": "dynamodb",
-    "orm": "aws-sdk"
   },
-  "dependencies": {
-    "default": [
-      "serde = { version = \"1.0\", features = [\"derive\"] }",
-      "serde_json = \"1.0\"",
-      "tokio = { version = \"1.36\", features = [\"macros\", \"rt-multi-thread\"] }",
-      "anyhow = \"1.0\"",
-      "tracing = \"0.1\"",
-      "tracing-subscriber = \"0.3\""
-    ],
-    "aws": [
-      "lambda_runtime = \"0.9\"",
-      "aws_lambda_events = \"0.12\""
-    ],
-    "gcp": [
-      "cloud-functions = \"0.4\""
-    ],
-    "azure": [
-      "azure_functions = \"0.46\""
-    ],
-    "vercel": [
-      "vercel_runtime = \"1.1\""
-    ],
-    "netlify": [
-      "netlify_lambda_http = \"0.5\""
-    ]
-  },
-  "dev-dependencies": {
-    "default": [
-      "cargo-lambda = \"1.0\"",
-      "http = \"0.2\""
-    ]
-  },
-  "next_steps": [
+  "next_steps_aws": [
     "cd {{project_name}}",
-    "# For AWS Lambda:",
     "# Install cargo-lambda: cargo install cargo-lambda",
     "# Test locally: cargo lambda watch",
-    "# Deploy: cargo lambda deploy",
-    "# For GCP Functions:",
+    "# Deploy: cargo lambda deploy"
+  ],
+  "next_steps_gcp": [
+    "cd {{project_name}}",
     "# Build: docker build -t gcr.io/your-project/function .",
-    "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http",
-    "# For Azure Functions:",
+    "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http"
+  ],
+  "next_steps_azure": [
+    "cd {{project_name}}",
     "# Install Azure Functions Core Tools",
     "# Test locally: func start",
-    "# Deploy: func azure functionapp publish your-function-app",
-    "# For Vercel:",
+    "# Deploy: func azure functionapp publish your-function-app"
+  ],
+  "next_steps_vercel": [
+    "cd {{project_name}}",
     "# Install Vercel CLI: npm i -g vercel",
-    "# Deploy: vercel",
-    "# For Netlify:",
+    "# Deploy: vercel"
+  ],
+  "next_steps_netlify": [
+    "cd {{project_name}}",
     "# Install Netlify CLI: npm i -g netlify-cli",
     "# Deploy: netlify deploy"
   ]

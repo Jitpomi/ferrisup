@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
 use crate::utils::create_directory;
-use serde_json::{self, json};
+use serde_json::{self, json, Value};
 use std::fs;
 use std::io;
 use handlebars::Handlebars;
@@ -85,52 +85,75 @@ pub fn execute(
     // Get template configuration to check for options
     let template_config = template_manager::get_template_config(&template)?;
     
-    // Check if the template has options that need user input
-    if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
-        let mut vars = serde_json::Map::new();
-        
-        for option in options {
-            if let (Some(name), Some(desc), Some(option_type)) = (
-                option.get("name").and_then(|n| n.as_str()),
-                option.get("description").and_then(|d| d.as_str()),
-                option.get("type").and_then(|t| t.as_str())
-            ) {
-                if option_type == "select" && option.get("options").is_some() {
-                    let option_values: Vec<&str> = option.get("options")
-                        .and_then(|o| o.as_array())
-                        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
-                        .unwrap_or_default();
-                    
-                    if !option_values.is_empty() {
-                        let default_idx = option.get("default")
-                            .and_then(|d| d.as_str())
-                            .and_then(|d| option_values.iter().position(|&v| v == d))
-                            .unwrap_or(0);
+    // Skip options handling for templates we're handling manually
+    if template != "server" && template != "serverless" {
+        // Check if the template has options that need user input
+        if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
+            let mut vars = serde_json::Map::new();
+            
+            for option in options {
+                if let (Some(name), Some(desc), Some(option_type)) = (
+                    option.get("name").and_then(|n| n.as_str()),
+                    option.get("description").and_then(|d| d.as_str()),
+                    option.get("type").and_then(|t| t.as_str())
+                ) {
+                    if option_type == "select" && option.get("options").is_some() {
+                        let option_values: Vec<&str> = option.get("options")
+                            .and_then(|o| o.as_array())
+                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+                            .unwrap_or_default();
                         
-                        let selection = Select::new()
+                        if !option_values.is_empty() {
+                            let default_idx = option.get("default")
+                                .and_then(|d| d.as_str())
+                                .and_then(|d| option_values.iter().position(|&v| v == d))
+                                .unwrap_or(0);
+                            
+                            let selection = Select::new()
+                                .with_prompt(desc)
+                                .items(&option_values)
+                                .default(default_idx)
+                                .interact()?;
+                            
+                            let selected_value = option_values[selection];
+                            vars.insert(name.to_string(), json!(selected_value));
+                            
+                            // If there's a help message for this option, display it
+                            if let Some(help_messages) = template_config.get("help") {
+                                if let Some(help_message) = help_messages.get(selected_value).and_then(|m| m.as_str()) {
+                                    println!("ℹ️  {}", help_message);
+                                }
+                            }
+                            
+                            // If we're selecting a static server, and it's not "none", display guidance
+                            if name == "static_server" && selected_value != "none" {
+                                println!("📝 Using {} as static file server. Run `{} . --port 8080` to start.", 
+                                    selected_value, selected_value);
+                            }
+                            
+                            // Echo selection
+                            println!("Using {} as the {}", selected_value, name);
+                        }
+                    } else if option_type == "input" {
+                        let default = option.get("default").and_then(|d| d.as_str()).unwrap_or("");
+                        
+                        let input = Input::<String>::new()
                             .with_prompt(desc)
-                            .items(&option_values)
-                            .default(default_idx)
+                            .default(default.to_string())
                             .interact()?;
                         
-                        let selected_value = option_values[selection];
-                        vars.insert(name.to_string(), json!(selected_value));
+                        vars.insert(name.to_string(), json!(input));
                         
-                        // Display help text if available
-                        if let Some(help) = template_config.get("help").and_then(|h| h.as_object()) {
-                            if let Some(help_text) = help.get(selected_value).and_then(|t| t.as_str()) {
-                                println!("ℹ️  {}", help_text);
-                            }
-                        }
-                        
-                        println!("Using {} as the {}", selected_value, name);
+                        // Echo input
+                        println!("Using {} as the {}", input, name);
                     }
                 }
             }
-        }
-        
-        if !vars.is_empty() {
-            additional_vars = Some(serde_json::Value::Object(vars));
+            
+            // Set additional_vars if we have any
+            if !vars.is_empty() {
+                additional_vars = Some(json!(vars));
+            }
         }
     }
 
@@ -501,87 +524,39 @@ npx create-tauri-app {}
     // Check for required dependencies based on template
     check_dependencies(&template)?;
 
-    // Apply the template using the template_manager
-    if template.starts_with("client/") {
-        // Template path is already fully qualified
-        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
-    } else if template == "server" {
-        // For server templates, we'll handle everything manually to avoid the duplicate prompt issue
-        
-        // First prompt for framework selection
-        let framework_options = vec![
-            "axum",
-            "actix", 
-            "poem"
-        ];
+    // Handle special cases for server and serverless templates
+    if template == "server" {
+        // Server template handling
+        let framework_options = ["axum", "actix", "poem"];
         
         let selection = Select::new()
-            .with_prompt("Server framework")
-            .default(0)
+            .with_prompt("Which web framework would you like to use?")
             .items(&framework_options)
+            .default(0)
             .interact()?;
             
         let framework_selected = framework_options[selection];
         println!("Using {} as the server_framework", framework_selected);
         
-        // Create target directories
-        if !app_path.exists() {
-            fs::create_dir_all(app_path)?;
+        // Handle server template creation manually instead of using the template system
+        let framework_template_dir_path = PathBuf::from(format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected));
+        
+        if !framework_template_dir_path.exists() {
+            return Err(anyhow::anyhow!("Could not find template directory for {} framework", framework_selected));
         }
         
-        // Create src directory
-        let src_dir = app_path.join("src");
-        if !src_dir.exists() {
-            fs::create_dir_all(&src_dir)?;
-        }
-        
-        // Define paths for source files based on selected framework
-        let template_dir = format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected);
-        let template_dir_path = PathBuf::from(&template_dir);
-        
-        // Copy main.rs
-        let main_rs_src = template_dir_path.join("src").join("main.rs");
-        if main_rs_src.exists() {
-            let content = fs::read_to_string(&main_rs_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Register helpers
-            handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
-                _: &handlebars::Handlebars<'_>, 
-                _: &handlebars::Context, 
-                _: &mut handlebars::RenderContext<'_, '_>, 
-                out: &mut dyn handlebars::Output| 
-            -> handlebars::HelperResult {
-                let param1 = h.param(0).unwrap().value();
-                let param2 = h.param(1).unwrap().value();
-                out.write(&(param1 == param2).to_string())?;
-                Ok(())
-            }));
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name),
-                "server_framework": framework_selected
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(src_dir.join("main.rs"), rendered)?;
+        // Copy src directory
+        let src_dir = framework_template_dir_path.join("src");
+        if src_dir.exists() {
+            copy_dir_all(&src_dir, &app_path.join("src"))?;
         } else {
-            return Err(anyhow::anyhow!("Could not find main.rs for {} framework", framework_selected));
+            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
         }
         
-        // Copy Cargo.toml
-        let cargo_toml_src = template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_src.exists() {
-            let content = fs::read_to_string(&cargo_toml_src)?;
+        // Copy Cargo.toml.template and process it
+        let cargo_toml_template = framework_template_dir_path.join("Cargo.toml.template");
+        if cargo_toml_template.exists() {
+            let content = fs::read_to_string(&cargo_toml_template)?;
             
             // Create handlebars instance for templating
             let mut handlebars = Handlebars::new();
@@ -590,8 +565,7 @@ npx create-tauri-app {}
             // Create template vars
             let template_vars = json!({
                 "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name),
-                "server_framework": framework_selected
+                "project_name_pascal_case": to_pascal_case(&name)
             });
             
             // Apply templating
@@ -605,7 +579,7 @@ npx create-tauri-app {}
         }
         
         // Copy README.md from the framework-specific template
-        let readme_src = template_dir_path.join("README.md");
+        let readme_src = framework_template_dir_path.join("README.md");
         
         if readme_src.exists() {
             let content = fs::read_to_string(&readme_src)?;
@@ -664,67 +638,200 @@ npx create-tauri-app {}
                 fs::write(app_path.join("README.md"), rendered)?;
             }
         }
+    } else if template == "serverless" {
+        // Serverless template handling
+        let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
         
-        // Check for wasm target 
-        println!("🔍 Checking for wasm32-unknown-unknown target...");
-        let output = Command::new("rustup")
-            .args([
-                "target",
-                "list",
-                "--installed"
-            ])
-            .output()?;
-        
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        if !output_str.contains("wasm32-unknown-unknown") {
-            println!("⚠️ wasm32-unknown-unknown target not found, installing...");
-            let install_output = Command::new("rustup")
-                .args([
-                    "target",
-                    "add",
-                    "wasm32-unknown-unknown"
-                ])
-                .output()?;
+        let selection = Select::new()
+            .with_prompt("Which cloud provider would you like to target for your serverless function?")
+            .items(&provider_options)
+            .default(0)
+            .interact()?;
             
-            if install_output.status.success() {
-                println!("✅ wasm32-unknown-unknown target installed successfully");
-            } else {
-                println!("❌ Failed to install wasm32-unknown-unknown target");
-                println!("{}", String::from_utf8_lossy(&install_output.stderr));
-            }
-        } else {
-            println!("✅ wasm32-unknown-unknown target is already installed");
+        let provider_selected = provider_options[selection];
+        
+        // Display appropriate help message based on selected provider
+        let help_messages = json!({
+            "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
+            "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
+            "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
+            "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
+            "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
+        });
+        
+        if let Some(help_message) = help_messages.get(provider_selected).and_then(|v| v.as_str()) {
+            println!("ℹ️  {}", help_message);
         }
         
-        // Show next steps
-        let next_steps_template_path = template_dir_path.join("template.json");
-        if next_steps_template_path.exists() {
-            let next_steps_json = fs::read_to_string(&next_steps_template_path)?;
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&next_steps_json) {
-                if let Some(next_steps) = json.get("next_steps").and_then(|ns| ns.as_array()) {
-                    println!("\nNext steps:");
-                    for step in next_steps {
-                        if let Some(step_str) = step.as_str() {
-                            // Apply template substitution to next steps
+        println!("Using {} as the cloud_provider", provider_selected);
+        
+        // Handle serverless template creation manually
+        let provider_template_dir_path = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
+        
+        if !provider_template_dir_path.exists() {
+            return Err(anyhow::anyhow!("Could not find template directory for {} provider", provider_selected));
+        }
+        
+        // Copy src directory
+        let src_dir = provider_template_dir_path.join("src");
+        if src_dir.exists() {
+            copy_dir_all(&src_dir, &app_path.join("src"))?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find src directory for {} provider", provider_selected));
+        }
+        
+        // Copy Cargo.toml.template and process it
+        let cargo_toml_template = provider_template_dir_path.join("Cargo.toml.template");
+        if cargo_toml_template.exists() {
+            let content = fs::read_to_string(&cargo_toml_template)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("Cargo.toml"), rendered)?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} provider", provider_selected));
+        }
+        
+        // Copy README.md from the provider-specific template
+        let readme_src = provider_template_dir_path.join("README.md.template");
+        
+        if readme_src.exists() {
+            let content = fs::read_to_string(&readme_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("README.md"), rendered)?;
+        }
+        
+        // Copy provider-specific configuration files
+        let template_json_path = provider_template_dir_path.join("template.json");
+        let template_config = if template_json_path.exists() {
+            let content = fs::read_to_string(&template_json_path)?;
+            serde_json::from_str::<Value>(&content).unwrap_or_else(|_| json!({}))
+        } else {
+            json!({})
+        };
+        
+        if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
+            for file_entry in files {
+                if let (Some(source), Some(target)) = (
+                    file_entry.get("source").and_then(|s| s.as_str()),
+                    file_entry.get("target").and_then(|t| t.as_str())
+                ) {
+                    let source_path = provider_template_dir_path.join(source);
+                    if source_path.exists() {
+                        if source_path.is_dir() {
+                            copy_dir_all(&source_path, &app_path.join(target))?;
+                        } else {
+                            // Read the source file
+                            let content = fs::read_to_string(&source_path)?;
+                            
+                            // Create handlebars instance for templating
                             let mut handlebars = Handlebars::new();
                             handlebars.register_escape_fn(handlebars::no_escape);
+                            
+                            // Create template vars
                             let template_vars = json!({
-                                "project_name": name
+                                "project_name": name,
+                                "project_name_pascal_case": to_pascal_case(&name)
                             });
                             
-                            let rendered = handlebars.render_template(step_str, &template_vars)
-                                .unwrap_or_else(|_| step_str.to_string());
+                            // Apply templating
+                            let rendered = handlebars.render_template(&content, &template_vars)
+                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
                                 
-                            println!("  {}", rendered);
+                            // Write to target file
+                            let target_path = app_path.join(target);
+                            if let Some(parent) = target_path.parent() {
+                                fs::create_dir_all(parent)?;
+                            }
+                            fs::write(target_path, rendered)?;
                         }
                     }
                 }
             }
         }
         
-        println!("\n🎉 Project {} created successfully!", name);
+        // Copy any provider-specific files directly from the provider directory
+        for entry in fs::read_dir(&provider_template_dir_path)? {
+            let entry = entry?;
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            
+            // Skip src, template.json, Cargo.toml.template, and README.md.template
+            if file_name_str == "src" || file_name_str == "template.json" || 
+               file_name_str == "Cargo.toml.template" || file_name_str == "README.md.template" {
+                continue;
+            }
+            
+            let source_path = entry.path();
+            let target_path = app_path.join(&file_name);
+            
+            if source_path.is_dir() {
+                copy_dir_all(&source_path, &target_path)?;
+            } else {
+                // Read the source file
+                let content = fs::read_to_string(&source_path)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Create template vars
+                let template_vars = json!({
+                    "project_name": name,
+                    "project_name_pascal_case": to_pascal_case(&name)
+                });
+                
+                // Apply templating
+                let rendered = handlebars.render_template(&content, &template_vars)
+                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                    
+                // Write to target file
+                fs::write(target_path, rendered)?;
+            }
+        }
         
-        return Ok(());
+        // Show provider-specific next steps
+        let template_json = fs::read_to_string(PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR"))))?;
+        let template_config: Value = serde_json::from_str(&template_json)?;
+        let next_steps_key = format!("next_steps_{}", provider_selected);
+        
+        println!("\nNext steps:");
+        if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
+            for step in next_steps {
+                if let Some(step_str) = step.as_str() {
+                    let processed_step = step_str.replace("{{project_name}}", &name);
+                    println!("  {}", processed_step);
+                }
+            }
+        }
     } else if template == "embedded" {
         println!("📦 Creating embedded project for microcontrollers");
         
@@ -905,51 +1012,6 @@ npx create-tauri-app {}
         let template_path = format!("client/leptos/{}", template);
         template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
     } else if template == "edge" {
-        println!("🔍 Checking for wasm32-unknown-unknown target...");
-        let wasm_check = Command::new("rustup")
-            .args(["target", "list", "--installed"])
-            .output()?;
-        
-        let wasm_output = String::from_utf8_lossy(&wasm_check.stdout);
-        if !wasm_output.contains("wasm32-unknown-unknown") {
-            println!("⚠️ wasm32-unknown-unknown target not found. Installing...");
-            let status = Command::new("rustup")
-                .args(["target", "add", "wasm32-unknown-unknown"])
-                .status()?;
-            
-            if !status.success() {
-                println!("❌ Failed to install wasm32-unknown-unknown target.");
-                println!("Please install it manually with: rustup target add wasm32-unknown-unknown");
-            } else {
-                println!("✅ wasm32-unknown-unknown target installed successfully");
-            }
-        } else {
-            println!("✅ wasm32-unknown-unknown target is already installed");
-        }
-        
-        // Check for wasm-pack
-        println!("🔍 Checking for wasm-pack...");
-        let wasm_pack_check = Command::new("wasm-pack")
-            .arg("--version")
-            .output();
-        
-        match wasm_pack_check {
-            Ok(_) => println!("✅ wasm-pack is already installed"),
-            Err(_) => {
-                println!("⚠️ wasm-pack not found. Installing...");
-                let status = Command::new("cargo")
-                    .args(["install", "wasm-pack"])
-                    .status()?;
-                
-                if !status.success() {
-                    println!("❌ Failed to install wasm-pack.");
-                    println!("Please install it manually with: cargo install wasm-pack");
-                } else {
-                    println!("✅ wasm-pack installed successfully");
-                }
-            }
-        }
-        
         template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
     } else {
         // For other templates, use as is

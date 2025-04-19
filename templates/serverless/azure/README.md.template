@@ -1,0 +1,55 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting Azure Functions.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main function code
+├── Cargo.toml          # Rust dependencies
+├── host.json           # Azure Functions host configuration
+└── function.json       # Function trigger configuration
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) - For deploying to Azure Functions
+- [Azure Functions Core Tools](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local) - For local testing
+
+## Local Development
+
+For Azure Functions, you can test locally with Azure Functions Core Tools:
+
+1. Start your function app:
+   ```bash
+   func start
+   ```
+
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:7071/api/{{project_name}}" -d '{"name": "world"}'
+   ```
+
+## Deployment
+
+To deploy your Azure Function:
+
+1. Configure Azure credentials:
+   ```bash
+   az login
+   ```
+
+2. Deploy to Azure:
+   ```bash
+   func azure functionapp publish your-function-app
+   ```
+
+## Additional Resources
+
+- [Azure Functions Documentation](https://docs.microsoft.com/en-us/azure/azure-functions/)
+- [Azure SDK for Rust](https://github.com/Azure/azure-sdk-for-rust)

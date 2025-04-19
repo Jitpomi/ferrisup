@@ -1,0 +1,65 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting AWS Lambda.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main Lambda function code
+├── Cargo.toml          # Rust dependencies
+├── template.yml        # AWS SAM template
+└── Makefile            # Build and deployment commands
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- [AWS CLI](https://aws.amazon.com/cli/) - For deploying to AWS Lambda
+- [Cargo Lambda](https://github.com/cargo-lambda/cargo-lambda) - For local testing and deployment
+
+## Local Development
+
+### AWS Lambda
+
+To test your AWS Lambda function locally:
+
+1. Install Cargo Lambda:
+   ```bash
+   cargo install cargo-lambda
+   ```
+
+2. Run the function locally:
+   ```bash
+   cargo lambda watch
+   ```
+
+3. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:9000/lambda-url/{{project_name}}" -d '{"name": "world"}'
+   ```
+
+## Deployment
+
+### AWS Lambda
+
+To deploy your AWS Lambda function:
+
+1. Configure AWS credentials:
+   ```bash
+   aws configure
+   ```
+
+2. Deploy with Cargo Lambda:
+   ```bash
+   cargo lambda deploy
+   ```
+
+## Additional Resources
+
+- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
+- [Cargo Lambda GitHub](https://github.com/cargo-lambda/cargo-lambda)
+- [AWS SDK for Rust](https://github.com/awslabs/aws-sdk-rust)
