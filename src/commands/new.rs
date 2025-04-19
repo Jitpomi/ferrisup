@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
@@ -7,6 +7,7 @@ use crate::utils::create_directory;
 use serde_json::{self, json};
 use std::fs;
 use std::io;
+use handlebars::Handlebars;
 
 // Helper function to recursively copy directories
 fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
@@ -504,6 +505,226 @@ npx create-tauri-app {}
     if template.starts_with("client/") {
         // Template path is already fully qualified
         template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+    } else if template == "server" {
+        // For server templates, we'll handle everything manually to avoid the duplicate prompt issue
+        
+        // First prompt for framework selection
+        let framework_options = vec![
+            "axum",
+            "actix", 
+            "poem"
+        ];
+        
+        let selection = Select::new()
+            .with_prompt("Server framework")
+            .default(0)
+            .items(&framework_options)
+            .interact()?;
+            
+        let framework_selected = framework_options[selection];
+        println!("Using {} as the server_framework", framework_selected);
+        
+        // Create target directories
+        if !app_path.exists() {
+            fs::create_dir_all(app_path)?;
+        }
+        
+        // Create src directory
+        let src_dir = app_path.join("src");
+        if !src_dir.exists() {
+            fs::create_dir_all(&src_dir)?;
+        }
+        
+        // Define paths for source files based on selected framework
+        let template_dir = format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected);
+        let template_dir_path = PathBuf::from(&template_dir);
+        
+        // Copy main.rs
+        let main_rs_src = template_dir_path.join("src").join("main.rs");
+        if main_rs_src.exists() {
+            let content = fs::read_to_string(&main_rs_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Register helpers
+            handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
+                _: &handlebars::Handlebars<'_>, 
+                _: &handlebars::Context, 
+                _: &mut handlebars::RenderContext<'_, '_>, 
+                out: &mut dyn handlebars::Output| 
+            -> handlebars::HelperResult {
+                let param1 = h.param(0).unwrap().value();
+                let param2 = h.param(1).unwrap().value();
+                out.write(&(param1 == param2).to_string())?;
+                Ok(())
+            }));
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name),
+                "server_framework": framework_selected
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(src_dir.join("main.rs"), rendered)?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find main.rs for {} framework", framework_selected));
+        }
+        
+        // Copy Cargo.toml
+        let cargo_toml_src = template_dir_path.join("Cargo.toml.template");
+        if cargo_toml_src.exists() {
+            let content = fs::read_to_string(&cargo_toml_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name),
+                "server_framework": framework_selected
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("Cargo.toml"), rendered)?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} framework", framework_selected));
+        }
+        
+        // Copy README.md from the framework-specific template
+        let readme_src = template_dir_path.join("README.md");
+        
+        if readme_src.exists() {
+            let content = fs::read_to_string(&readme_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("README.md"), rendered)?;
+        } else {
+            // Fallback to the main server README if framework-specific one doesn't exist
+            let main_readme_src = PathBuf::from(format!("{}/templates/server/README.md", env!("CARGO_MANIFEST_DIR")));
+            if main_readme_src.exists() {
+                let content = fs::read_to_string(&main_readme_src)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Register helpers
+                handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
+                    _: &handlebars::Handlebars<'_>, 
+                    _: &handlebars::Context, 
+                    _: &mut handlebars::RenderContext<'_, '_>, 
+                    out: &mut dyn handlebars::Output| 
+                -> handlebars::HelperResult {
+                    let param1 = h.param(0).unwrap().value();
+                    let param2 = h.param(1).unwrap().value();
+                    out.write(&(param1 == param2).to_string())?;
+                    Ok(())
+                }));
+                
+                // Create template vars
+                let template_vars = json!({
+                    "project_name": name,
+                    "project_name_pascal_case": to_pascal_case(&name),
+                    "server_framework": framework_selected
+                });
+                
+                // Apply templating
+                let rendered = handlebars.render_template(&content, &template_vars)
+                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                    
+                // Write to target file
+                fs::write(app_path.join("README.md"), rendered)?;
+            }
+        }
+        
+        // Check for wasm target 
+        println!("🔍 Checking for wasm32-unknown-unknown target...");
+        let output = Command::new("rustup")
+            .args([
+                "target",
+                "list",
+                "--installed"
+            ])
+            .output()?;
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if !output_str.contains("wasm32-unknown-unknown") {
+            println!("⚠️ wasm32-unknown-unknown target not found, installing...");
+            let install_output = Command::new("rustup")
+                .args([
+                    "target",
+                    "add",
+                    "wasm32-unknown-unknown"
+                ])
+                .output()?;
+            
+            if install_output.status.success() {
+                println!("✅ wasm32-unknown-unknown target installed successfully");
+            } else {
+                println!("❌ Failed to install wasm32-unknown-unknown target");
+                println!("{}", String::from_utf8_lossy(&install_output.stderr));
+            }
+        } else {
+            println!("✅ wasm32-unknown-unknown target is already installed");
+        }
+        
+        // Show next steps
+        let next_steps_template_path = template_dir_path.join("template.json");
+        if next_steps_template_path.exists() {
+            let next_steps_json = fs::read_to_string(&next_steps_template_path)?;
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&next_steps_json) {
+                if let Some(next_steps) = json.get("next_steps").and_then(|ns| ns.as_array()) {
+                    println!("\nNext steps:");
+                    for step in next_steps {
+                        if let Some(step_str) = step.as_str() {
+                            // Apply template substitution to next steps
+                            let mut handlebars = Handlebars::new();
+                            handlebars.register_escape_fn(handlebars::no_escape);
+                            let template_vars = json!({
+                                "project_name": name
+                            });
+                            
+                            let rendered = handlebars.render_template(step_str, &template_vars)
+                                .unwrap_or_else(|_| step_str.to_string());
+                                
+                            println!("  {}", rendered);
+                        }
+                    }
+                }
+            }
+        }
+        
+        println!("\n🎉 Project {} created successfully!", name);
+        
+        return Ok(());
     } else if template == "embedded" {
         println!("📦 Creating embedded project for microcontrollers");
         
@@ -829,4 +1050,25 @@ fn check_dependencies(template: &str) -> Result<()> {
     }
     
     Ok(())
+}
+
+// Helper function to convert a string to PascalCase
+fn to_pascal_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    
+    for c in s.chars() {
+        if c == '-' || c == '_' || c == ' ' {
+            capitalize_next = true;
+        } else {
+            if capitalize_next {
+                result.push(c.to_uppercase().next().unwrap());
+                capitalize_next = false;
+            } else {
+                result.push(c);
+            }
+        }
+    }
+    
+    result
 }

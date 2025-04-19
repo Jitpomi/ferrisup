@@ -1,10 +1,10 @@
 {
   "name": "axum-server",
-  "description": "A modern Rust web server using the Axum framework",
+  "description": "A Rust web server using the Axum framework",
   "type": "binary",
   "files": [
     {
-      "source": "main.rs",
+      "source": "src/main.rs",
       "target": "src/main.rs"
     },
     {
@@ -18,12 +18,12 @@
   ],
   "dependencies": {
     "default": [
-      "axum = \"0.8.3\"",
+      "axum = \"0.7\"",
       "tokio = { version = \"1.36\", features = [\"full\"] }",
       "serde = { version = \"1.0\", features = [\"derive\"] }",
       "serde_json = \"1.0\"",
       "tower = \"0.4\"",
-      "tower-http = { version = \"0.5\", features = [\"trace\"] }",
+      "tower-http = { version = \"0.4\", features = [\"fs\", \"trace\"] }",
       "tracing = \"0.1\"",
       "tracing-subscriber = \"0.3\""
     ]
@@ -38,6 +38,6 @@
     "cargo run",
     "# Test the API with: curl http://localhost:3000/",
     "# Add more routes in src/main.rs",
-    "# Explore middleware options with tower-http"
+    "# Enable OpenAPI with: axum-openapi = \"0.1\""
   ]
 }

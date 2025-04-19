@@ -169,30 +169,49 @@ pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
 }
 
 /// Apply a template to a target directory
-/// 
-/// # Arguments
-/// 
-/// * `template_name` - The name of the template to apply
-/// * `target_dir` - The directory to apply the template to
-/// * `project_name` - The name of the project
-/// * `variables` - Additional variables to use in template substitution
-/// 
-/// # Returns
-/// 
-/// * `Result<()>` - Ok if successful, Err otherwise
-pub fn apply_template(
-    template_name: &str,
-    target_dir: &Path,
-    project_name: &str,
-    variables: Option<Value>,
-) -> Result<()> {
+pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str, variables: Option<Value>) -> Result<()> {
+    // Get the template configuration
+    let template_config = get_template_config(template_name)?;
+    
+    // Check if the template has a redirect based on a variable
+    if let Some(redirect) = template_config.get("redirect") {
+        if let Some(redirect_obj) = redirect.as_object() {
+            // If we have variables, check for redirects
+            if let Some(vars) = variables.as_ref() {
+                for (key, value) in redirect_obj {
+                    // For each redirect key, check if we have a matching variable
+                    for (var_name, var_value) in vars.as_object().unwrap_or(&Map::new()) {
+                        if var_name == key && var_value.is_string() {
+                            if let Some(redirect_path) = value.as_str().filter(|p| !p.is_empty()) {
+                                // Apply the redirected template instead
+                                return apply_template(redirect_path, target_dir, project_name, variables);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Process the template files
     let template_dir = get_template_dir(template_name)?;
     
-    // Create target directory if it doesn't exist
-    fs::create_dir_all(target_dir)?;
+    // Register handlebars helpers
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
     
-    // Get template configuration
-    let template_config = get_template_config(template_name)?;
+    // Register the eq helper for conditional checks
+    handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
+        _: &handlebars::Handlebars<'_>, 
+        _: &handlebars::Context, 
+        _: &mut handlebars::RenderContext<'_, '_>, 
+        out: &mut dyn handlebars::Output| 
+    -> handlebars::HelperResult {
+        let param1 = h.param(0).unwrap().value();
+        let param2 = h.param(1).unwrap().value();
+        out.write(&(param1 == param2).to_string())?;
+        Ok(())
+    }));
     
     // Prepare template variables
     let mut template_vars = json!({
@@ -201,7 +220,7 @@ pub fn apply_template(
     });
     
     // Add user-provided variables
-    if let Some(vars) = variables {
+    if let Some(ref vars) = variables {
         if let Some(obj) = vars.as_object() {
             if let Some(obj_mut) = template_vars.as_object_mut() {
                 for (_key, value) in obj {
@@ -424,230 +443,119 @@ This project was generated using FerrisUp.
         }
     }
     
-    // Handle edge template-specific setup
-    if template_name == "edge" {
-        // Process edge template options first
-        println!("\n{}", "WebAssembly Edge App Configuration:".bold().green());
+    // Process the template-specific options
+    let options = template_config.get("options").and_then(|o| o.as_array());
+    if let Some(options) = options {
+        let mut vars = template_vars.as_object_mut().unwrap();
         
-        let mut additional_vars = Map::new();
-        
-        if let Some(options) = template_config.get("options") {
-            if let Some(obj) = options.as_object() {
-                // Process testing_approach option
-                if let Some(testing_approach_option) = obj.get("testing_approach") {
-                    if let Some(testing_approach_obj) = testing_approach_option.as_object() {
-                        let prompt = testing_approach_obj.get("prompt")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or("How would you like to test your WebAssembly code?");
-                        
-                        let values = testing_approach_obj.get("values")
-                            .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
-                            .unwrap_or_else(|| vec!["browser_example", "headless_tests", "both"]);
-                        
-                        // Display help text if available
-                        if let Some(help_obj) = testing_approach_obj.get("help").and_then(|h| h.as_object()) {
-                            println!("\nTesting approach options:");
-                            for value in &values {
-                                if let Some(help_text) = help_obj.get(*value).and_then(|h| h.as_str()) {
-                                    println!("  {} - {}", value, help_text);
-                                }
-                            }
-                            println!("");
-                        }
-                        
-                        let testing_approach = prompt_with_options(prompt, &values)?;
-                        additional_vars.insert("testing_approach".to_string(), json!(testing_approach));
-                    }
+        // Only prompt for options if skip_framework_prompt is not set to true
+        let skip_framework_prompt = variables
+            .as_ref()
+            .and_then(|v| v.get("skip_framework_prompt"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+            
+        if !skip_framework_prompt {
+            for option in options {
+                let option_obj = option.as_object().unwrap();
+                let name = option_obj.get("name").unwrap().as_str().unwrap();
+                let description = option_obj.get("description").unwrap().as_str().unwrap();
+                
+                // Skip server_framework prompt if we're applying a server/* template directly
+                if name == "server_framework" && 
+                   (template_name == "server/axum" || 
+                    template_name == "server/actix" || 
+                    template_name == "server/poem") {
+                    continue;
                 }
                 
-                // Process static_server option
-                if let Some(static_server_option) = obj.get("static_server") {
-                    if let Some(static_server_obj) = static_server_option.as_object() {
-                        let prompt = static_server_obj.get("prompt")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or("Which static file server would you like to use for browser testing?");
-                        
-                        let values = static_server_obj.get("values")
-                            .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
-                            .unwrap_or_else(|| vec!["miniserve", "static-web-server", "none"]);
-                        
-                        // Display help text if available
-                        if let Some(help_obj) = static_server_obj.get("help").and_then(|h| h.as_object()) {
-                            println!("\nStatic file server options:");
-                            for value in &values {
-                                if let Some(help_text) = help_obj.get(*value).and_then(|h| h.as_str()) {
-                                    println!("  {} - {}", value, help_text);
-                                }
-                            }
-                            println!("");
-                        }
-                        
-                        let static_server = prompt_with_options(prompt, &values)?;
-                        additional_vars.insert("static_server".to_string(), json!(static_server));
+                // Skip prompting if the value is already provided in variables
+                if variables.as_ref().and_then(|v| v.get(name)).is_some() {
+                    // Copy the value from input variables
+                    if let Some(value) = variables.as_ref().and_then(|v| v.get(name)) {
+                        vars.insert(name.to_string(), value.clone());
                     }
+                    continue;
                 }
-            }
-        }
-        
-        // Add the additional variables to the template variables
-        if let Some(obj_mut) = template_vars.as_object_mut() {
-            for (key, value) in additional_vars {
-                obj_mut.insert(key, value);
-            }
-        }
-        
-        // Now check for and install dependencies
-        println!("🔍 Checking for wasm32-unknown-unknown target...");
-        let output = Command::new("rustup")
-            .args([
-                "target",
-                "list",
-                "--installed"
-            ])
-            .output()?;
-        
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        if !output_str.contains("wasm32-unknown-unknown") {
-            println!("⚠️ wasm32-unknown-unknown target not found, installing...");
-            let install_output = Command::new("rustup")
-                .args([
-                    "target",
-                    "add",
-                    "wasm32-unknown-unknown"
-                ])
-                .output()?;
-            
-            if install_output.status.success() {
-                println!("✅ wasm32-unknown-unknown target installed successfully");
-            } else {
-                println!("❌ Failed to install wasm32-unknown-unknown target");
-                println!("{}", String::from_utf8_lossy(&install_output.stderr));
-            }
-        } else {
-            println!("✅ wasm32-unknown-unknown target is already installed");
-        }
-        
-        // Check if wasm-pack is installed
-        println!("🔍 Checking for wasm-pack...");
-        let wasm_pack_output = Command::new("which")
-            .arg("wasm-pack")
-            .output()?;
-        
-        if !wasm_pack_output.status.success() {
-            println!("⚠️ wasm-pack not found, installing...");
-            let install_output = Command::new("cargo")
-                .args(&["install", "wasm-pack"])
-                .output()?;
-            
-            if install_output.status.success() {
-                println!("✅ wasm-pack installed successfully");
-            } else {
-                println!("❌ Failed to install wasm-pack");
-                println!("{}", String::from_utf8_lossy(&install_output.stderr));
-            }
-        } else {
-            println!("✅ wasm-pack is already installed");
-        }
-        
-        // Check if static file server is installed (if selected)
-        if let Some(static_server) = template_vars.get("static_server").and_then(|s| s.as_str()) {
-            if static_server != "none" {
-                println!("🔍 Checking for {}...", static_server);
-                let server_output = Command::new("which")
-                    .arg(static_server)
-                    .output()?;
                 
-                if !server_output.status.success() {
-                    println!("⚠️ {} not found, installing...", static_server);
-                    let install_output = Command::new("cargo")
-                        .args(&["install", static_server])
-                        .output()?;
+                let option_type = option_obj.get("type").unwrap().as_str().unwrap();
+                
+                if option_type == "select" {
+                    let options_array = option_obj.get("options").unwrap().as_array().unwrap();
+                    let options: Vec<&str> = options_array.iter().map(|o| o.as_str().unwrap()).collect();
                     
-                    if install_output.status.success() {
-                        println!("✅ {} installed successfully", static_server);
-                    } else {
-                        println!("❌ Failed to install {}", static_server);
-                        println!("{}", String::from_utf8_lossy(&install_output.stderr));
-                    }
-                } else {
-                    println!("✅ {} is already installed", static_server);
+                    let selection = Select::new()
+                        .with_prompt(description)
+                        .default(0)
+                        .items(&options)
+                        .interact()?;
+                        
+                    let selected = options[selection];
+                    println!("Using {} as the {}", selected, name);
+                    vars.insert(name.to_string(), json!(selected));
+                } else if option_type == "input" {
+                    let default = option_obj.get("default").map(|d| d.as_str().unwrap()).unwrap_or("");
+                    let value = prompt_with_default(description, default)?;
+                    vars.insert(name.to_string(), json!(value));
+                } else if option_type == "boolean" {
+                    let default = option_obj.get("default").map(|d| d.as_bool().unwrap()).unwrap_or(false);
+                    let options = if default { &["yes", "no"] } else { &["no", "yes"] };
+                    let value = prompt_with_options(description, options)?;
+                    let bool_value = value == "yes";
+                    vars.insert(name.to_string(), json!(bool_value));
                 }
             }
-        }
-        
-        // Check if cargo-generate is installed and up-to-date
-        println!("Checking for cargo-generate...");
-        
-        // First check if cargo-generate is installed
-        let cargo_generate_check = std::process::Command::new("cargo")
-            .args(["generate", "--version"])
-            .output();
-            
-        let needs_install = if let Ok(output) = cargo_generate_check {
-            if !output.status.success() {
-                // Not installed
-                true
-            } else {
-                // Installed, check version
-                let version_str = String::from_utf8_lossy(&output.stdout);
-                println!("Found cargo-generate: {}", version_str.trim());
-                
-                // Parse the version string to check if it's outdated
-                // Format is typically "cargo-generate 0.X.Y"
-                if let Some(version_part) = version_str.split_whitespace().nth(1) {
-                    // For simplicity, we'll consider anything below 0.10.0 as outdated
-                    // This can be adjusted as needed
-                    let is_outdated = version_part.starts_with("0.") && 
-                                     (version_part.starts_with("0.1.") || 
-                                      version_part.starts_with("0.2.") || 
-                                      version_part.starts_with("0.3.") || 
-                                      version_part.starts_with("0.4.") || 
-                                      version_part.starts_with("0.5.") || 
-                                      version_part.starts_with("0.6.") || 
-                                      version_part.starts_with("0.7.") || 
-                                      version_part.starts_with("0.8.") || 
-                                      version_part.starts_with("0.9."));
-                    
-                    if is_outdated {
-                        println!("Detected outdated cargo-generate version. Updating...");
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    // Couldn't parse version, assume it needs updating
-                    true
-                }
-            }
-        } else {
-            // Command failed, assume not installed
-            true
-        };
-        
-        if needs_install {
-            println!("Installing/updating cargo-generate...");
-            let install_result = std::process::Command::new("cargo")
-                .args(&["install", "cargo-generate", "--force"])
-                .status()?;
-                
-            if !install_result.success() {
-                return Err(anyhow!("Failed to install cargo-generate. Please install it manually with 'cargo install cargo-generate'"));
-            }
-            
-            println!("Successfully installed/updated cargo-generate.");
         }
     }
     
-    // Register handlebars helpers
-    let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(handlebars::no_escape);
-    
-    // Copy template files to target directory
+    // Process files specified in the template.json
     if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-        for file_entry in files {
-            process_file(file_entry, &template_dir, target_dir, &template_vars, &mut handlebars)?;
+        for file in files {
+            if let Some(file_obj) = file.as_object() {
+                let source = file_obj.get("source").and_then(|s| s.as_str());
+                let target = file_obj.get("target").and_then(|t| t.as_str());
+                
+                if let (Some(source_path), Some(target_path)) = (source, target) {
+                    // Create parent directories for the target
+                    let target_file = target_dir.join(target_path);
+                    if let Some(parent) = target_file.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    
+                    // Get content from template
+                    let source_file = template_dir.join(source_path);
+                    
+                    if !source_file.exists() {
+                        return Err(anyhow!("Source file does not exist: {}", source_file.display()));
+                    }
+                    
+                    let content = fs::read_to_string(&source_file)
+                        .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
+                    
+                    // Apply template variables
+                    let rendered = handlebars.render_template(&content, &template_vars)
+                        .map_err(|e| anyhow!("Failed to render template: {}", e))?;
+                    
+                    // Write to target
+                    fs::write(&target_file, rendered)?;
+                    
+                    // If it's a script, make it executable on Unix
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let is_script = target_path.ends_with(".sh") || 
+                                        content.starts_with("#!/bin/bash") ||
+                                        content.starts_with("#!/usr/bin/env");
+                        
+                        if is_script {
+                            let metadata = fs::metadata(&target_file)?;
+                            let mut perms = metadata.permissions();
+                            perms.set_mode(0o755); // rwxr-xr-x
+                            fs::set_permissions(&target_file, perms)?;
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -826,8 +734,8 @@ fn apply_transformations(content: &str, transformations: &[Value], variables: &V
                 if let Some(replacement_obj) = replacement_value.as_object() {
                     // Check for variable matches in the replacement object
                     if let Some(vars) = variables.as_object() {
-                        for (var_key, _var_value) in vars {
-                            if let Some(replacement) = replacement_obj.get(var_key) {
+                        for (var_name, _var_value) in vars {
+                            if let Some(replacement) = replacement_obj.get(var_name) {
                                 if let Some(replacement_str) = replacement.as_str() {
                                     result = result.replace(pattern, replacement_str);
                                 }
@@ -1351,9 +1259,7 @@ fn fix_early_stopping_implementations(target_dir: &Path) -> Result<()> {
             );
             
             // Write the updated content back to the file
-            if updated_content != content {
-                std::fs::write(file_path, updated_content)?;
-            }
+            std::fs::write(file_path, updated_content)?;
         }
     }
     
@@ -1916,7 +1822,7 @@ fn fix_model_api(target_dir: &Path) -> Result<()> {
             // New: fn forward(&self, input: &Tensor<B, 4>) -> Tensor<B, 4>
             updated_content = Regex::new(r"fn\s+forward\(\s*&self,\s*([a-zA-Z0-9_]+)\s*:\s*Tensor<([^>]+)>\s*\)")
                 .unwrap()
-                .replace_all(&updated_content, "fn forward(&self, $1: &Tensor<$2>)")
+                .replace_all(&updated_content, "fn forward(&self, $1: &$2)")
                 .to_string();
             
             // Pattern 6: Fix built-in module forward calls to remove references
