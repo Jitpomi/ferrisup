@@ -307,7 +307,17 @@ pub fn execute(
             println!("\n🎉 Project {} created successfully!", name);
             println!("\nNext steps:");
             println!("  cd {}", name);
-            println!("  dx serve");
+            // Detect if this is a Dioxus workspace (web, desktop, mobile all exist)
+            let web_exists = std::path::Path::new(&format!("{}/web", name)).exists();
+            let desktop_exists = std::path::Path::new(&format!("{}/desktop", name)).exists();
+            let mobile_exists = std::path::Path::new(&format!("{}/mobile", name)).exists();
+            if web_exists || desktop_exists || mobile_exists {
+                println!("  dx serve --package web    # For web application");
+                println!("  dx serve --package desktop    # For desktop application");
+                println!("  dx serve --package mobile    # For mobile application");
+            } else {
+                println!("  dx serve");
+            }
             
             return Ok(());
             
