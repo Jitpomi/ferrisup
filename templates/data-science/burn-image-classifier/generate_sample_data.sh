@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # Script to download and organize dataset for the image classifier
 
@@ -76,5 +75,5 @@ echo "Sample data setup complete!"
 echo "You can find the sample data in the '$OUTPUT_DIR' directory."
 echo ""
 echo "Next steps:"
-echo "1. Train the model: cargo run --bin app -- train --data-dir $OUTPUT_DIR"
-echo "2. Evaluate the model: cargo run --bin app -- evaluate --model-path model.json --data-dir $OUTPUT_DIR"
+echo "1. Train the model: cargo run --bin $(basename $(pwd)) -- train --data-dir $OUTPUT_DIR"
+echo "2. Evaluate the model: cargo run --bin $(basename $(pwd)) -- evaluate --model-path model.json --data-dir $OUTPUT_DIR"

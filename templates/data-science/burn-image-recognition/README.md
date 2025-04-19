@@ -1,5 +1,16 @@
 # Burn MNIST Image Recognition Template
 
+> **Part of the FerrisUp Image Classification Template Family**
+>
+> This template is grouped under **Image Classification** alongside the General Image Classifier template (`burn-image-classifier`).
+>
+> - Use **this template** for a quickstart, minimal example using MNIST (grayscale digit recognition).
+> - Use **burn-image-classifier** for general-purpose image classification with RGB images (e.g., CIFAR-10 or your own dataset), more advanced configuration, and custom data support.
+>
+> **Summary of Differences:**
+> - This template is simpler, focused on grayscale digits, and best for demos or teaching.
+> - The classifier template supports custom datasets, RGB images, and is more configurable.
+
 This project provides a robust, up-to-date workflow for MNIST digit recognition using the [Burn](https://burn.dev) deep learning framework (v0.16.1). It features:
 
 - Modern data batching and normalization
@@ -26,19 +37,19 @@ cargo build --release
 ### 3. Train a Model
 
 ```sh
-cargo run --bin app -- train --epochs 10 --batch-size 64 --learning-rate 0.001 --model-path ./model.json
+cargo run --bin {{ project_name }} -- train --epochs 10 --batch-size 64 --learning-rate 0.001 --model-path ./model.json
 ```
 
 ### 4. Evaluate
 
 ```sh
-cargo run --bin app -- evaluate --model-path ./model.json --batch-size 64
+cargo run --bin {{ project_name }} -- evaluate --model-path ./model.json --batch-size 64
 ```
 
 ### 5. Predict
 
 ```sh
-cargo run --bin app -- predict --model-path ./model.json --image-path ./some_digit.png
+cargo run --bin {{ project_name }} -- predict --model-path ./model.json --image-path ./some_digit.png
 ```
 
 ## Features

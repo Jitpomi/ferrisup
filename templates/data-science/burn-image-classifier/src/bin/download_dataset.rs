@@ -101,11 +101,11 @@ fn download_cifar10(output_dir: &str) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 fn download_mnist(output_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // URLs for MNIST dataset
-    let train_images_url = "http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz";
-    let train_labels_url = "http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz";
-    let test_images_url = "http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz";
-    let test_labels_url = "http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz";
+    // URLs for MNIST dataset - using a more reliable mirror
+    let train_images_url = "https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz";
+    let train_labels_url = "https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz";
+    let test_images_url = "https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz";
+    let test_labels_url = "https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz";
     
     let temp_dir = format!("{}/mnist_temp", output_dir);
     fs::create_dir_all(&temp_dir)?;
@@ -135,11 +135,11 @@ fn download_mnist(output_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn download_fashion_mnist(output_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // URLs for Fashion-MNIST dataset
-    let train_images_url = "http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-images-idx3-ubyte.gz";
-    let train_labels_url = "http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-labels-idx1-ubyte.gz";
-    let test_images_url = "http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/t10k-images-idx3-ubyte.gz";
-    let test_labels_url = "http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/t10k-labels-idx1-ubyte.gz";
+    // URLs for Fashion-MNIST dataset - using a more reliable mirror
+    let train_images_url = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/train-images-idx3-ubyte.gz";
+    let train_labels_url = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/train-labels-idx1-ubyte.gz";
+    let test_images_url = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/t10k-images-idx3-ubyte.gz";
+    let test_labels_url = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/t10k-labels-idx1-ubyte.gz";
     
     let temp_dir = format!("{}/fashion_mnist_temp", output_dir);
     fs::create_dir_all(&temp_dir)?;

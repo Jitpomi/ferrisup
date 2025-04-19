@@ -99,8 +99,8 @@
     "🔍 FIRST STEP - Set up datasets interactively: ./setup_dataset.sh",
     "🔍 Or generate specific datasets: ./generate_sample_data.sh --dataset cifar10",
     "🔍 Available datasets: cifar10, mnist, fashion-mnist, synthetic",
-    "📸 Train on a dataset: cargo run --bin app -- train --data-dir sample-data",
-    "🧠 Evaluate the model: cargo run --bin app -- evaluate --model-path ./model.json --data-dir sample-data",
+    "📸 Train on a dataset: cargo run --bin {{project_name}} -- train --data-dir datasets/mnist",
+    "🧠 Evaluate the model: cargo run --bin {{project_name}} -- evaluate --model-path ./model.json --data-dir datasets/mnist",
     "🔬 Run the tests: cargo test",
     "📊 Customize the model: Edit src/config.rs to adjust parameters",
     "📚 Learn more: Read CUSTOMIZATION.md for detailed customization options"

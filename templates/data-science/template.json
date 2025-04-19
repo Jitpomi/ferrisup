@@ -53,7 +53,35 @@
     ],
     "database": [
       "sqlx = { version = \"0.7\", features = [\"runtime-tokio\", \"postgres\", \"sqlite\"] }"
-    ]
+    ],
+    "image-classification": {
+      "label": "Image Classification",
+      "description": "Templates for classifying images into categories using deep learning (Burn).",
+      "groups": {
+        "burn-image-recognition": {
+          "label": "MNIST Digit Recognition (Simple)",
+          "description": "Classify 28x28 grayscale images of handwritten digits (MNIST) using a simple CNN. Best for quick starts, demos, and teaching."
+        },
+        "burn-image-classifier": {
+          "label": "General Image Classifier (CIFAR-10/Custom)",
+          "description": "Classify RGB images (e.g., CIFAR-10 or your own dataset) using a configurable CNN. Supports custom data, more advanced workflows."
+        }
+      },
+      "other_groups": [
+        {
+          "label": "Image Generation",
+          "description": "(Coming soon) Templates for generating new images using GANs, VAEs, etc."
+        },
+        {
+          "label": "Image Segmentation",
+          "description": "(Coming soon) Templates for pixel-wise image segmentation (e.g., U-Net)."
+        },
+        {
+          "label": "Image Detection",
+          "description": "(Coming soon) Templates for object detection with bounding boxes (e.g., YOLO, SSD)."
+        }
+      ]
+    }
   },
   "dev-dependencies": {
     "default": [

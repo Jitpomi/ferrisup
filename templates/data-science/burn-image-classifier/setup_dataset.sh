@@ -151,16 +151,15 @@ esac
 # Ask if user wants to train the model now
 if [ "$dataset_choice" != "6" ]; then
     if ask_yes_no "Would you like to train the model on the default dataset now?" "N"; then
-        echo "Starting model training..."
-        cargo run --bin app -- train --data-dir sample-data --epochs 5
-    else
-        echo ""
-        echo "You can train the model later using:"
-        echo "  cargo run --bin app -- train --data-dir sample-data"
-        echo ""
-        echo "Or specify a different dataset:"
-        echo "  cargo run --bin app -- train --data-dir datasets/mnist"
+        echo "Starting training with 5 epochs..."
+        cargo run --bin $(basename $(pwd)) -- train --data-dir datasets/mnist --epochs 5
     fi
+    
+    echo "Dataset setup complete!"
+    echo "To train the model:"
+    echo "  cargo run --bin $(basename $(pwd)) -- train --data-dir datasets/mnist"
+    echo "or:"
+    echo "  cargo run --bin $(basename $(pwd)) -- train --data-dir datasets/cifar10"
 fi
 
 echo ""
@@ -170,7 +169,7 @@ echo "Available datasets:"
 ls -la "$base_dir"
 echo ""
 echo "Next steps:"
-echo "  1. Train the model: cargo run --bin app -- train --data-dir sample-data"
-echo "  2. Evaluate the model: cargo run --bin app -- evaluate --model-path model.json --data-dir sample-data"
+echo "  1. Train the model: cargo run --bin $(basename $(pwd)) -- train --data-dir datasets/mnist"
+echo "  2. Evaluate the model: cargo run --bin $(basename $(pwd)) -- evaluate --model-path model.json --data-dir datasets/mnist"
 echo "  3. Customize the model: Edit src/config.rs to adjust parameters"
 echo "  4. Learn more: Read CUSTOMIZATION.md for detailed customization options"

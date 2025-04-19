@@ -389,19 +389,46 @@ npx create-tauri-app {}
                 
                 // Define the tasks and their corresponding template paths for each category
                 let (category_prompt, tasks, template_paths) = match category_selection {
-                    0 => (
-                        "🖼️ Select an Image Processing task",
-                        vec![
-                            "Image Recognition (MNIST dataset)",
-                            "Custom Image Classifier",
-                            "Image Classifier (Customizable CNN)"
-                        ],
-                        vec![
-                            "data-science/burn-image-recognition",
-                            "data-science/burn-custom-image",
-                            "data-science/burn-image-classifier"
-                        ]
-                    ),
+                    0 => {
+                        // First present the image processing task categories
+                        let image_categories = vec![
+                            "Image Classification",
+                            // Future categories (commented out until implemented)
+                            // "Image Generation (Coming Soon)",
+                            // "Image Segmentation (Coming Soon)",
+                            // "Image Detection (Coming Soon)"
+                        ];
+                        
+                        println!("🖼️ Select an Image Processing task:");
+                        let image_category = Select::new()
+                            .items(&image_categories)
+                            .default(0)
+                            .interact()?;
+                        
+                        // Based on the selected category, show appropriate options
+                        match image_category {
+                            0 => {
+                                // Image Classification options
+                                (
+                                    "📊 Select an Image Classification model",
+                                    vec![
+                                        "MNIST Digit Recognition (Simple)",
+                                        "General Image Classifier (CIFAR-10/Custom)"
+                                    ],
+                                    vec![
+                                        "data-science/burn-image-recognition",
+                                        "data-science/burn-image-classifier"
+                                    ]
+                                )
+                            },
+                            // Add other image categories in the future
+                            _ => (
+                                "📊 Select an Image Classification model",
+                                vec!["MNIST Digit Recognition (Simple)"],
+                                vec!["data-science/burn-image-recognition"]
+                            )
+                        }
+                    },
                     1 => (
                         "📝 Select a Text Processing task",
                         vec![
@@ -434,13 +461,9 @@ npx create-tauri-app {}
                         ]
                     ),
                     _ => (
-                        "🖼️ Select an Image Processing task",
-                        vec![
-                            "Image Recognition (MNIST dataset)"
-                        ],
-                        vec![
-                            "data-science/burn-image-recognition"
-                        ]
+                        "🖼️ Select an Image Classification model",
+                        vec!["MNIST Digit Recognition (Simple)"],
+                        vec!["data-science/burn-image-recognition"]
                     ),
                 };
                 

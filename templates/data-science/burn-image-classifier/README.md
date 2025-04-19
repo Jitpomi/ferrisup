@@ -1,5 +1,16 @@
 # Image Classifier using Burn
 
+> **Part of the FerrisUp Image Classification Template Family**
+>
+> This template is grouped under **Image Classification** alongside the MNIST Digit Recognition template (`burn-image-recognition`).
+>
+> - Use **this template** for general-purpose image classification with RGB images (e.g., CIFAR-10 or your own dataset), more advanced configuration, and custom data support.
+> - Use **burn-image-recognition** for a quickstart, minimal example using MNIST (grayscale digit recognition).
+>
+> **Summary of Differences:**
+> - This template supports custom datasets, RGB images, and is more configurable.
+> - The MNIST template is simpler, focused on grayscale digits, and best for demos or teaching.
+
 This is a deep learning template for classifying images into categories using the [Burn](https://burn.dev/) framework. It provides a complete solution for training, evaluating, and using a convolutional neural network (CNN) for image classification tasks.
 
 ## What is Deep Learning? (For Beginners)
@@ -67,23 +78,23 @@ This separation makes it easier to focus on one aspect at a time and customize t
 
 2. **Train the model**:
    ```bash
-   # Train on the default dataset (linked as sample-data)
-   cargo run --bin app -- train --data-dir sample-data
-   
-   # Or train on a specific dataset
-   cargo run --bin app -- train --data-dir datasets/mnist
+   # Train the model with default parameters
+   cargo run --bin {{ project_name }} -- train --data-dir datasets/mnist
+
+   # Or use a specific dataset
+   cargo run --bin {{ project_name }} -- train --data-dir datasets/cifar10
    ```
 
 3. **Evaluate the model**:
    ```bash
    # Evaluate the trained model
-   cargo run --bin app -- evaluate --model-path model.json --data-dir sample-data
+   cargo run --bin {{ project_name }} -- evaluate --model-path model.json --data-dir datasets/mnist
    ```
 
 4. **Predict on a single image**:
    ```bash
    # Predict the class of a single image
-   cargo run --bin app -- predict --image-path path/to/your/image.jpg --model-path model.json
+   cargo run --bin {{ project_name }} -- predict --image-path path/to/your/image.jpg --model-path model.json
    ```
 
 ### Using Your Own Dataset
@@ -110,7 +121,7 @@ To use your own dataset instead of CIFAR-10:
 
 3. **Train the model** on your dataset:
    ```bash
-   cargo run --bin app -- train --data-dir path/to/your-dataset
+   cargo run --bin {{ project_name }} -- train --data-dir path/to/your-dataset
    ```
 
 ### Customizing the Model

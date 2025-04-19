@@ -153,7 +153,6 @@ pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
         
         // Deep Learning with Burn Framework - Image Processing
         ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers with MNIST dataset".to_string()),
-        ("data-science/burn-custom-image".to_string(), "Burn - Custom Image Classifier: Train a model on your own image dataset".to_string()),
         ("data-science/burn-image-classifier".to_string(), "Burn - Image Classifier: Customizable CNN for multi-class image classification".to_string()),
         
         // Deep Learning with Burn Framework - Text Processing
@@ -263,7 +262,6 @@ pub fn apply_template(
             println!("\n✅ Linfa machine learning examples configured successfully!");
         } else if template_name == "data-science/burn-value-prediction" || 
                   template_name == "data-science/burn-text-classifier" || 
-                  template_name == "data-science/burn-custom-image" || 
                   template_name == "data-science/burn-data-predictor" ||
                   template_name == "data-science/burn-net" {
             
@@ -271,7 +269,6 @@ pub fn apply_template(
             let burn_example = match template_name {
                 "data-science/burn-value-prediction" => "simple-regression",
                 "data-science/burn-text-classifier" => "text-classification",
-                "data-science/burn-custom-image" => "custom-image-dataset",
                 "data-science/burn-data-predictor" => "simple-regression",
                 "data-science/burn-net" => "custom-training-loop", // Changed from "net" to "custom-training-loop"
                 _ => "mnist", // Default fallback
