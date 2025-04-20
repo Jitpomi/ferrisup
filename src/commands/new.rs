@@ -1,13 +1,16 @@
+use anyhow::{anyhow, Result};
+use std::fs;
+use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use anyhow::{Result, anyhow};
-use dialoguer::{Select, Input};
-use crate::template_manager;
-use crate::utils::create_directory;
-use serde_json::{self, json, Value};
-use std::fs;
-use std::io;
+use colored::*;
+use dialoguer::{Input, Select};
+use serde_json::{json, Value};
 use handlebars::Handlebars;
+
+// Import from our new architecture
+use crate::project::templates;
+use crate::utils::create_directory;
 
 // Helper function to recursively copy directories
 fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
@@ -66,7 +69,7 @@ pub fn execute(
                 return Err(anyhow!("Template is required in non-interactive mode"));
             }
             
-            let templates_with_desc = template_manager::list_templates()?;
+            let templates_with_desc = templates::list_templates()?;
             let mut templates: Vec<&str> = templates_with_desc.iter().map(|(name, _)| name.as_str()).collect();
             
             // Add edge template if not present
@@ -108,10 +111,10 @@ pub fn execute(
     };
 
     // Declare additional_vars here
-    let mut additional_vars = None;
+    let mut _additional_vars = None;
 
     // Get template configuration to check for options
-    let template_config = template_manager::get_template_config(&template)?;
+    let template_config = templates::get_template_config(&template)?;
     
     // Handle special templates
     if template == "server" {
@@ -533,7 +536,7 @@ pub fn execute(
                                         if let Some(_provider_redirect) = app_redirect.get(selected_provider) {
                                             // We found a redirect configuration, use it to determine the template
                                             template = format!("edge/{}/{}", selected_app_type, selected_provider);
-                                            additional_vars = Some(json!(vars_map));
+                                            _additional_vars = Some(json!(vars_map));
                                             
                                             // Debug log the actual path we're trying to use
                                             let full_template_path = format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template);
@@ -558,7 +561,7 @@ pub fn execute(
                                             }
                                             
                                             // Handle the edge template explicitly
-                                            handle_edge_template(&template, app_path, &name, additional_vars.clone())?;
+                                            handle_edge_template(&template, app_path, &name, _additional_vars.clone())?;
                                             return Ok(());
                                         } else {
                                             return Err(anyhow!("No template configuration found for provider: {}", selected_provider));
@@ -655,7 +658,7 @@ pub fn execute(
                 
                 // Set additional_vars if we have any
                 if !vars.is_empty() {
-                    additional_vars = Some(json!(vars));
+                    _additional_vars = Some(json!(vars));
                 }
             }
         }
@@ -756,7 +759,7 @@ pub fn execute(
             let template_path = format!("client/leptos/{}", template);
             
             // Apply the template using the template manager
-            template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
+            templates::apply_template(&template_path, app_path, &name, _additional_vars.clone())?;
             
             // DO NOT print next steps here; let the template manager handle it
             return Ok(());
@@ -1054,109 +1057,59 @@ npx create-tauri-app {}
     if template == "embedded" {
         println!("📦 Creating embedded project for microcontrollers");
         
-        // Check if the user selected Embassy framework from the options
-        let use_embassy = if let Some(vars) = &additional_vars {
-            if let Some(framework) = vars.get("framework").and_then(|f| f.as_str()) {
-                framework == "Yes, use Embassy framework"
-            } else {
-                false
-            }
+        // Get framework option if available
+        let framework = if let Some(vars) = &_additional_vars {
+            vars.get("framework").and_then(|f| f.as_str()).unwrap_or("none")
         } else {
-            false
+            "none"
         };
         
-        if use_embassy {
-            // User selected Embassy framework
-            println!("📦 Creating Embassy project using cargo-embassy");
-            
-            // Check if cargo-embassy is installed
-            println!("🔍 Checking for cargo-embassy...");
-            let embassy_check = Command::new("cargo")
-                .args(["embassy", "--version"])
-                .output();
-                
-            let embassy_installed = match embassy_check {
-                Ok(output) => output.status.success(),
-                Err(_) => false
+        // Check if the user selected Embassy framework
+        if framework == "Yes, use Embassy framework" {
+            // Get MCU target from the configuration
+            let target = if let Some(vars) = &_additional_vars {
+                vars.get("mcu_target")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("rp2040")
+                    .to_string()
+            } else {
+                "rp2040".to_string()
             };
             
-            if !embassy_installed {
-                println!("⚠️ cargo-embassy not found. Installing...");
-                let status = Command::new("cargo")
-                    .args(["install", "cargo-embassy"])
-                    .status()?;
-                
-                if !status.success() {
-                    println!("❌ Failed to install cargo-embassy.");
-                    println!("Please install it manually with: cargo install cargo-embassy");
-                    return Err(anyhow!("Failed to install cargo-embassy"));
-                } else {
-                    println!("✅ cargo-embassy installed successfully");
+            // Create JSON options from variables
+            let mut options_map = serde_json::Map::new();
+            options_map.insert("mcu_target".to_string(), json!(target));
+            options_map.insert("template".to_string(), json!("embedded-embassy"));
+            let json_options = Value::Object(options_map);
+            
+            // Use the Embassy CLI handler from project_handlers
+            let handler = crate::project::find_handler("embedded-embassy", &json_options)
+                .ok_or_else(|| anyhow!("Embassy CLI handler not found"))?;
+            
+            println!("📦 Creating {} project with {} handler", name, handler.name());
+            
+            // Initialize the project using the handler
+            handler.initialize_project(&name, app_path, &json_options)?;
+            
+            // Display next steps
+            println!("\n✅ {} project created successfully!", name.green());
+            
+            let next_steps = handler.get_next_steps(&name, &json_options);
+            if !next_steps.is_empty() {
+                println!("\n{}", "Next steps:".bold().green());
+                for step in next_steps {
+                    println!("- {}", step);
                 }
-            } else {
-                println!("✅ cargo-embassy is already installed");
             }
             
-            // Get microcontroller chip for Embassy
-            let mcu_targets = vec!["rp2040", "stm32f4", "nrf52840", "esp32c3"];
-            let selection = Select::new()
-                .with_prompt("Select microcontroller chip")
-                .items(&mcu_targets)
-                .default(0)
-                .interact()?;
-                
-            let mcu_chip = mcu_targets[selection];
-            println!("Using {} as the microcontroller chip", mcu_chip);
+            println!("\n🎉 Project {} created successfully!", name);
             
-            // Create the project using cargo-embassy
-            println!("🔄 Creating new Embassy project...");
-            
-            // Create a parent directory for the Embassy project
-            let parent_dir = Path::new(".").join("embassy_temp");
-            fs::create_dir_all(&parent_dir)?;
-            
-            // Run cargo-embassy init from the parent directory
-            let status = Command::new("cargo")
-                .args(["embassy", "init", "--chip", mcu_chip, &name])
-                .current_dir(&parent_dir)
-                .status()?;
-                
-            if !status.success() {
-                println!("❌ Failed to create Embassy project.");
-                return Err(anyhow!("Failed to create Embassy project"));
-            }
-            
-            // Move the generated project to the target directory
-            let project_dir = parent_dir.join(&name);
-            if project_dir.exists() {
-                // Copy all files from the generated project to the target directory
-                let target_dir = Path::new(&name);
-                if !target_dir.exists() {
-                    fs::create_dir_all(target_dir)?;
-                }
-                
-                copy_dir_all(&project_dir, target_dir)?;
-                
-                // Clean up the temporary directory
-                fs::remove_dir_all(parent_dir)?;
-                
-                println!("🎉 Embassy project {} created successfully!", name);
-                println!("\nNext steps:");
-                println!("  cd {}", name);
-                println!("  # Build the project");
-                println!("  cargo build --release");
-                println!("  # Run the project");
-                println!("  cargo run --release");
-                
-                return Ok(());
-            } else {
-                println!("❌ Failed to create Embassy project.");
-                return Err(anyhow!("Failed to create Embassy project: Project directory not found"));
-            }
-        } else {
-            // Standard embedded template
+            return Ok(());
+        }
+        // Standard embedded template
+        else {
             // Get microcontroller target from options
-            let mcu_target = if let Some(vars) = &additional_vars {
+            let target = if let Some(vars) = &_additional_vars {
                 vars.get("mcu_target")
                     .and_then(|t| t.as_str())
                     .unwrap_or("rp2040")
@@ -1165,10 +1118,10 @@ npx create-tauri-app {}
                 "rp2040".to_string()
             };
             
-            println!("Using {} as the microcontroller target", mcu_target);
+            println!("Using {} as the microcontroller target", target);
             
             // Create target-specific dependencies string
-            let mcu_target_deps = match mcu_target.as_str() {
+            let mcu_target_deps = match target.as_str() {
                 "rp2040" => "rp2040-hal = \"0.9\"\nrp2040-boot2 = \"0.3\"\nusb-device = \"0.2\"\nusbd-serial = \"0.1\"",
                 "stm32" => "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }",
                 "esp32" => "esp32-hal = \"0.16\"\nesp-backtrace = \"0.9\"\nesp-println = \"0.6\"",
@@ -1178,11 +1131,11 @@ npx create-tauri-app {}
             
             // Create variables for template substitution
             let mut vars = serde_json::Map::new();
-            vars.insert("mcu_target".to_string(), json!(mcu_target));
+            vars.insert("mcu_target".to_string(), json!(target));
             vars.insert("mcu_target_deps".to_string(), json!(mcu_target_deps));
             
             // Merge with existing additional_vars if any
-            if let Some(ref existing_vars) = additional_vars {
+            if let Some(ref existing_vars) = &_additional_vars {
                 if let Some(existing_obj) = existing_vars.as_object() {
                     for (k, v) in existing_obj {
                         if k != "mcu_target" && k != "mcu_target_deps" {
@@ -1193,46 +1146,22 @@ npx create-tauri-app {}
             }
             
             // Apply the template using the template manager
-            template_manager::apply_template(&template, app_path, &name, Some(serde_json::Value::Object(vars)))?;
+            templates::apply_template(&template, app_path, &name, Some(serde_json::Value::Object(vars)))?;
             
-            // Suggest installing the appropriate Rust target
-            let rust_target = match mcu_target.as_str() {
-                "rp2040" => "thumbv6m-none-eabi",
-                "stm32" => "thumbv7em-none-eabihf",
-                "esp32" => "xtensa-esp32-none-elf",
-                "arduino" => "avr-unknown-gnu-atmega328",
-                _ => "thumbv6m-none-eabi",
-            };
+            // Let the template's next steps handle all output 
+            // We don't need additional steps here since the template.json now has conditional steps
             
-            println!("\nℹ️ You'll need to install the appropriate Rust target:");
-            println!("  rustup target add {}", rust_target);
+            println!("\n🎉 Project {} created successfully!", name);
             
-            match mcu_target.as_str() {
-                "rp2040" => {
-                    println!("  cargo install probe-run");
-                    println!("  cargo run --target {}", rust_target);
-                },
-                "esp32" => {
-                    println!("  cargo install espflash");
-                    println!("  cargo build --target {}", rust_target);
-                    println!("  espflash flash --monitor target/{}/debug/{}", rust_target, name);
-                },
-                "arduino" => {
-                    println!("  cargo install ravedude");
-                    println!("  cargo run --target {}", rust_target);
-                },
-                _ => {
-                    println!("  cargo build --target {}", rust_target);
-                }
-            }
+            return Ok(());
         }
     } else if template == "counter" || template == "router" || template == "todo" {
         // For Leptos templates, prepend "client/leptos/"
         let template_path = format!("client/leptos/{}", template);
-        template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
+        templates::apply_template(&template_path, app_path, &name, _additional_vars.clone())?;
     } else {
         // For other templates, use as is
-        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+        templates::apply_template(&template, app_path, &name, _additional_vars.clone())?;
     }
 
     // Initialize git repository if requested
@@ -1445,7 +1374,7 @@ fn to_pascal_case(s: &str) -> String {
 }
 
 // Helper function to handle edge templates
-fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_vars: Option<serde_json::Value>) -> Result<()> {
+pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additional_vars: Option<serde_json::Value>) -> Result<()> {
     // Handle edge template creation manually
     let template_dir_path = PathBuf::from(format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template));
     
@@ -1585,6 +1514,75 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
             // Write to target file
             fs::write(target_path, rendered)?;
         }
+    }
+    
+    Ok(())
+}
+
+// Helper function to handle embedded projects
+pub fn handle_embedded_project(name: &str, app_path: &Path, _template: &str, _additional_vars: Option<serde_json::Value>) -> Result<()> {
+    // Handle embedded template creation manually
+    let template_dir_path = PathBuf::from(format!("{}/templates/embedded", env!("CARGO_MANIFEST_DIR")));
+    
+    if !template_dir_path.exists() {
+        return Err(anyhow::anyhow!("Could not find template directory for embedded template"));
+    }
+    
+    // Copy src directory
+    let src_dir = template_dir_path.join("src");
+    if src_dir.exists() {
+        copy_dir_all(&src_dir, &app_path.join("src"))?;
+    } else {
+        return Err(anyhow::anyhow!("Could not find src directory for embedded template"));
+    }
+    
+    // Copy Cargo.toml.template and process it
+    let cargo_toml_template = template_dir_path.join("Cargo.toml.template");
+    if cargo_toml_template.exists() {
+        let content = fs::read_to_string(&cargo_toml_template)?;
+        
+        // Create handlebars instance for templating
+        let mut handlebars = Handlebars::new();
+        handlebars.register_escape_fn(handlebars::no_escape);
+        
+        // Create template vars
+        let template_vars = json!({
+            "project_name": name,
+            "project_name_pascal_case": to_pascal_case(&name)
+        });
+        
+        // Apply templating
+        let rendered = handlebars.render_template(&content, &template_vars)
+            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+            
+        // Write to target file
+        fs::write(app_path.join("Cargo.toml"), rendered)?;
+    } else {
+        return Err(anyhow::anyhow!("Could not find Cargo.toml.template for embedded template"));
+    }
+    
+    // Copy README.md from the template
+    let readme_src = template_dir_path.join("README.md");
+    
+    if readme_src.exists() {
+        let content = fs::read_to_string(&readme_src)?;
+        
+        // Create handlebars instance for templating
+        let mut handlebars = Handlebars::new();
+        handlebars.register_escape_fn(handlebars::no_escape);
+        
+        // Create template vars
+        let template_vars = json!({
+            "project_name": name,
+            "project_name_pascal_case": to_pascal_case(&name)
+        });
+        
+        // Apply templating
+        let rendered = handlebars.render_template(&content, &template_vars)
+            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+            
+        // Write to target file
+        fs::write(app_path.join("README.md"), rendered)?;
     }
     
     Ok(())

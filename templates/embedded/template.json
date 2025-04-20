@@ -42,7 +42,7 @@
   ],
   "transformations": [
     {
-      "pattern": "main.rs",
+      "pattern": "src/main.rs",
       "replacement": {
         "rp2040": "main.rs.rp2040",
         "stm32": "main.rs.stm32",
@@ -66,16 +66,79 @@
       "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
     ]
   },
-  "next_steps": [
-    "cd {{project_name}}",
-    "# Install the appropriate target for your microcontroller",
-    "# For RP2040: rustup target add thumbv6m-none-eabi",
-    "# For STM32: rustup target add thumbv7em-none-eabihf",
-    "# For ESP32: rustup target add xtensa-esp32-none-elf",
-    "# For Arduino: rustup target add avr-unknown-gnu-atmega328",
-    "# Build the firmware",
-    "cargo build --target thumbv6m-none-eabi  # Adjust target based on your MCU",
-    "# Flash the firmware",
-    "cargo run --target thumbv6m-none-eabi  # Adjust target based on your MCU"
-  ]
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "# Check the README.md for microcontroller-specific setup and build instructions"
+    ],
+    "conditional": [
+      {
+        "when": "mcu_target == 'rp2040'",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add thumbv6m-none-eabi",
+          "cargo install probe-run",
+          "# Build the firmware",
+          "cargo build --target thumbv6m-none-eabi",
+          "# Flash the firmware",
+          "cargo run --target thumbv6m-none-eabi"
+        ]
+      },
+      {
+        "when": "mcu_target == 'stm32'",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add thumbv7em-none-eabihf",
+          "# Build the firmware",
+          "cargo build --target thumbv7em-none-eabihf",
+          "# Flash the firmware",
+          "cargo run --target thumbv7em-none-eabihf"
+        ]
+      },
+      {
+        "when": "mcu_target == 'esp32'",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add xtensa-esp32-none-elf",
+          "cargo install espflash",
+          "# Build the firmware",
+          "cargo build --target xtensa-esp32-none-elf",
+          "# Flash the firmware",
+          "espflash flash --monitor target/xtensa-esp32-none-elf/debug/{{project_name}}"
+        ]
+      },
+      {
+        "when": "mcu_target == 'arduino'",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add avr-unknown-gnu-atmega328",
+          "cargo install ravedude",
+          "# Build the firmware",
+          "cargo build --target avr-unknown-gnu-atmega328",
+          "# Flash the firmware",
+          "cargo run --target avr-unknown-gnu-atmega328"
+        ]
+      }
+    ]
+  },
+  "post_setup_info": {
+    "conditional": [
+      {
+        "when": "mcu_target == 'rp2040'",
+        "message": " For RP2040 development, you might want to check out the rp-hal repo: https://github.com/rp-rs/rp-hal"
+      },
+      {
+        "when": "mcu_target == 'esp32'",
+        "message": " For ESP32 development, you might want to check out the esp-rs organization: https://github.com/esp-rs"
+      },
+      {
+        "when": "mcu_target == 'stm32'",
+        "message": " For STM32 development, you might want to check out the stm32-rs organization: https://github.com/stm32-rs"
+      },
+      {
+        "when": "mcu_target == 'arduino'",
+        "message": " For Arduino development in Rust, you might want to check out avr-hal: https://github.com/Rahix/avr-hal"
+      }
+    ]
+  }
 }

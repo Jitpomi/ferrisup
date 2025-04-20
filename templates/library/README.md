@@ -1,4 +1,4 @@
-# Rust Library Template
+# {{project_name}}
 
 This template provides a foundation for creating a Rust library crate with a well-structured `lib.rs` file and testing infrastructure.
 
@@ -16,7 +16,7 @@ After generating your project with FerrisUp, follow these steps:
 
 1. Navigate to your project directory:
    ```bash
-   cd your-project-name
+   cd {{project_name}}
    ```
 
 2. Run the tests:
@@ -64,7 +64,7 @@ The template includes doc comments. Expand them to document your API:
 /// # Examples
 ///
 /// ```
-/// let result = my_library::calculate(42);
+/// let result = {{project_name}}::calculate(42);
 /// assert_eq!(result, 84);
 /// ```
 ///
@@ -83,12 +83,12 @@ Prepare your library for publishing:
 1. Update `Cargo.toml` with metadata:
    ```toml
    [package]
-   name = "your-library"
+   name = "{{project_name}}"
    version = "0.1.0"
    authors = ["Your Name <your.email@example.com>"]
    edition = "2021"
    description = "A brief description of your library"
-   repository = "https://github.com/yourusername/your-library"
+   repository = "https://github.com/yourusername/{{project_name}}"
    license = "MIT OR Apache-2.0"
    keywords = ["keyword1", "keyword2"]
    categories = ["category1", "category2"]
