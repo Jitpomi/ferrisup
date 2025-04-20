@@ -127,25 +127,21 @@ pub fn execute(
         let framework_selected = framework_options[selection];
         println!("Using {} as the server_framework", framework_selected);
         
-        // Handle server template creation manually instead of using the template system
-        let framework_template_dir_path = PathBuf::from(format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected));
+        // We completely bypass the normal template processing for server templates
+        // to ensure only the selected framework is included
         
-        if !framework_template_dir_path.exists() {
+        // Create the framework-specific paths
+        let template_root = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
+        let framework_dir = PathBuf::from(format!("{}/server/{}", template_root, framework_selected));
+        
+        if !framework_dir.exists() {
             return Err(anyhow::anyhow!("Could not find template directory for {} framework", framework_selected));
         }
         
-        // Copy src directory
-        let src_dir = framework_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
-        }
-        
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = framework_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
+        // Process the framework-specific Cargo.toml
+        let cargo_toml_path = framework_dir.join("Cargo.toml.template");
+        if cargo_toml_path.exists() {
+            let content = fs::read_to_string(&cargo_toml_path)?;
             
             // Create handlebars instance for templating
             let mut handlebars = Handlebars::new();
@@ -167,11 +163,56 @@ pub fn execute(
             return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} framework", framework_selected));
         }
         
-        // Copy README.md from the framework-specific template
-        let readme_src = framework_template_dir_path.join("README.md");
+        // Process src directory
+        let src_dir = framework_dir.join("src");
+        if src_dir.exists() {
+            // Create the target src directory
+            fs::create_dir_all(app_path.join("src"))?;
+            
+            // Copy all files from the source src directory
+            for entry in fs::read_dir(&src_dir)? {
+                let entry = entry?;
+                let file_name = entry.file_name();
+                let source_path = entry.path();
+                let target_path = app_path.join("src").join(&file_name);
+                
+                if source_path.is_dir() {
+                    copy_dir_all(&source_path, &target_path)?;
+                } else {
+                    // Read file content
+                    let content = fs::read_to_string(&source_path)?;
+                    
+                    // Create handlebars instance for templating
+                    let mut handlebars = Handlebars::new();
+                    handlebars.register_escape_fn(handlebars::no_escape);
+                    
+                    // Create template vars
+                    let template_vars = json!({
+                        "project_name": name,
+                        "project_name_pascal_case": to_pascal_case(&name)
+                    });
+                    
+                    // Apply templating
+                    let rendered = match handlebars.render_template(&content, &template_vars) {
+                        Ok(result) => result,
+                        Err(e) => {
+                            println!("Warning: Template parsing error in {}: {}", file_name.to_string_lossy(), e);
+                            content
+                        }
+                    };
+                    
+                    // Write to target file
+                    fs::write(target_path, rendered)?;
+                }
+            }
+        } else {
+            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
+        }
         
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
+        // Process README.md
+        let readme_path = framework_dir.join("README.md");
+        if readme_path.exists() {
+            let content = fs::read_to_string(&readme_path)?;
             
             // Create handlebars instance for templating
             let mut handlebars = Handlebars::new();
@@ -180,20 +221,26 @@ pub fn execute(
             // Create template vars
             let template_vars = json!({
                 "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
+                "project_name_pascal_case": to_pascal_case(&name),
+                "server_framework": framework_selected
             });
             
             // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
+            let rendered = match handlebars.render_template(&content, &template_vars) {
+                Ok(result) => result,
+                Err(e) => {
+                    println!("Warning: Template parsing error in README.md: {}", e);
+                    content
+                }
+            };
+            
             // Write to target file
             fs::write(app_path.join("README.md"), rendered)?;
         } else {
-            // Fallback to the main server README if framework-specific one doesn't exist
-            let main_readme_src = PathBuf::from(format!("{}/templates/server/README.md", env!("CARGO_MANIFEST_DIR")));
-            if main_readme_src.exists() {
-                let content = fs::read_to_string(&main_readme_src)?;
+            // Try to use the common README.md
+            let common_readme_path = PathBuf::from(format!("{}/server/README.md", template_root));
+            if common_readme_path.exists() {
+                let content = fs::read_to_string(&common_readme_path)?;
                 
                 // Create handlebars instance for templating
                 let mut handlebars = Handlebars::new();
@@ -220,13 +267,99 @@ pub fn execute(
                 });
                 
                 // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
+                let rendered = match handlebars.render_template(&content, &template_vars) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        println!("Warning: Template parsing error in README.md: {}", e);
+                        content
+                    }
+                };
+                
                 // Write to target file
                 fs::write(app_path.join("README.md"), rendered)?;
             }
         }
+        
+        // Copy any other framework-specific files (excluding the directories we already processed)
+        for entry in fs::read_dir(&framework_dir)? {
+            let entry = entry?;
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            
+            // Skip directories and files we've already processed
+            if file_name_str == "src" || file_name_str == "Cargo.toml.template" || 
+               file_name_str == "README.md" || file_name_str == "template.json" {
+                continue;
+            }
+            
+            let source_path = entry.path();
+            let target_path = app_path.join(&file_name);
+            
+            if source_path.is_dir() {
+                copy_dir_all(&source_path, &target_path)?;
+            } else {
+                // Read file content
+                let content = fs::read_to_string(&source_path)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Create template vars
+                let template_vars = json!({
+                    "project_name": name,
+                    "project_name_pascal_case": to_pascal_case(&name),
+                    "server_framework": framework_selected
+                });
+                
+                // Apply templating
+                let rendered = match handlebars.render_template(&content, &template_vars) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        println!("Warning: Template parsing error in {}: {}", file_name_str, e);
+                        content
+                    }
+                };
+                
+                // Write to target file
+                fs::write(target_path, rendered)?;
+            }
+        }
+        
+        // Display success message and next steps
+        println!("\n✅ {} project created successfully!", name);
+        
+        // Get next steps for the selected framework
+        let template_json_path = PathBuf::from(format!("{}/server/template.json", template_root));
+        if template_json_path.exists() {
+            let template_json = fs::read_to_string(&template_json_path)?;
+            let template_config: Value = serde_json::from_str(&template_json)?;
+            let next_steps_key = format!("next_steps_{}", framework_selected);
+            
+            println!("\n🚀 Next steps:");
+            if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
+                for step in next_steps {
+                    if let Some(step_str) = step.as_str() {
+                        let processed_step = step_str.replace("{{project_name}}", &name);
+                        println!("  {}", processed_step);
+                    }
+                }
+            } else {
+                // Generic next steps if framework-specific ones aren't found
+                println!("  1. cd {}", name);
+                println!("  2. cargo run");
+                println!("  3. Visit http://localhost:3000 in your browser");
+            }
+        } else {
+            // Generic next steps if template.json isn't found
+            println!("\n🚀 Next steps:");
+            println!("  1. cd {}", name);
+            println!("  2. cargo run");
+            println!("  3. Visit http://localhost:3000 in your browser");
+        }
+        
+        // Skip the rest of the template handling code
+        return Ok(());
     } else if template == "serverless" {
         // Serverless template handling
         let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
@@ -1465,18 +1598,37 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
         let mut handlebars = Handlebars::new();
         // Important: Disable escaping to preserve raw string literals and SVG content
         handlebars.register_escape_fn(handlebars::no_escape);
+        // Disable strict mode to handle more complex templates
+        handlebars.set_strict_mode(false);
         
         // Create template vars
-        let template_vars = json!({
+        let mut template_vars = json!({
             "project_name": name,
             "crate_name": name.replace("-", "_"),
             "project_name_pascal_case": to_pascal_case(&name),
             "authors": "Your Name <your.email@example.com>"
         });
         
-        // Apply templating
-        let rendered = handlebars.render_template(&content, &template_vars)
-            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+        // Merge additional variables if provided
+        if let Some(add_vars) = additional_vars.as_ref() {
+            if let Some(obj) = add_vars.as_object() {
+                if let Some(obj_mut) = template_vars.as_object_mut() {
+                    for (key, value) in obj {
+                        obj_mut.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+        }
+        
+        // Apply templating with better error handling
+        let rendered = match handlebars.render_template(&content, &template_vars) {
+            Ok(result) => result,
+            Err(e) => {
+                println!("Warning: Template parsing error in lib.rs: {}", e);
+                println!("Proceeding with unmodified template content");
+                content
+            }
+        };
             
         // Write to src/lib.rs in the target directory
         fs::write(app_path.join("src").join("lib.rs"), rendered)?;
@@ -1501,18 +1653,37 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
     let mut handlebars = Handlebars::new();
     // Important: Disable escaping to preserve raw string literals and SVG content
     handlebars.register_escape_fn(handlebars::no_escape);
+    // Disable strict mode to handle more complex templates
+    handlebars.set_strict_mode(false);
     
     // Create template vars
-    let template_vars = json!({
+    let mut template_vars = json!({
         "project_name": name,
         "crate_name": name.replace("-", "_"),
         "project_name_pascal_case": to_pascal_case(&name),
         "authors": "Your Name <your.email@example.com>"
     });
     
-    // Apply templating
-    let rendered = handlebars.render_template(&content, &template_vars)
-        .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+    // Merge additional variables if provided
+    if let Some(add_vars) = additional_vars.as_ref() {
+        if let Some(obj) = add_vars.as_object() {
+            if let Some(obj_mut) = template_vars.as_object_mut() {
+                for (key, value) in obj {
+                    obj_mut.insert(key.clone(), value.clone());
+                }
+            }
+        }
+    }
+    
+    // Apply templating with better error handling
+    let rendered = match handlebars.render_template(&content, &template_vars) {
+        Ok(result) => result,
+        Err(e) => {
+            println!("Warning: Template parsing error in Cargo.toml: {}", e);
+            println!("Proceeding with unmodified template content");
+            content
+        }
+    };
         
     // Write to target file
     fs::write(app_path.join("Cargo.toml"), rendered)?;
@@ -1527,18 +1698,37 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
         let mut handlebars = Handlebars::new();
         // Important: Disable escaping to preserve raw string literals and SVG content
         handlebars.register_escape_fn(handlebars::no_escape);
+        // Disable strict mode to handle more complex templates
+        handlebars.set_strict_mode(false);
         
         // Create template vars
-        let template_vars = json!({
+        let mut template_vars = json!({
             "project_name": name,
             "crate_name": name.replace("-", "_"),
             "project_name_pascal_case": to_pascal_case(&name),
             "authors": "Your Name <your.email@example.com>"
         });
         
-        // Apply templating
-        let rendered = handlebars.render_template(&content, &template_vars)
-            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+        // Merge additional variables if provided
+        if let Some(add_vars) = additional_vars.as_ref() {
+            if let Some(obj) = add_vars.as_object() {
+                if let Some(obj_mut) = template_vars.as_object_mut() {
+                    for (key, value) in obj {
+                        obj_mut.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+        }
+        
+        // Apply templating with better error handling
+        let rendered = match handlebars.render_template(&content, &template_vars) {
+            Ok(result) => result,
+            Err(e) => {
+                println!("Warning: Template parsing error in README.md: {}", e);
+                println!("Proceeding with unmodified template content");
+                content
+            }
+        };
             
         // Write to target file
         fs::write(app_path.join("README.md"), rendered)?;
@@ -1569,18 +1759,37 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
             let mut handlebars = Handlebars::new();
             // Important: Disable escaping to preserve raw string literals and SVG content
             handlebars.register_escape_fn(handlebars::no_escape);
+            // Disable strict mode to handle more complex templates
+            handlebars.set_strict_mode(false);
             
             // Create template vars
-            let template_vars = json!({
+            let mut template_vars = json!({
                 "project_name": name,
                 "crate_name": name.replace("-", "_"),
                 "project_name_pascal_case": to_pascal_case(&name),
                 "authors": "Your Name <your.email@example.com>"
             });
             
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+            // Merge additional variables if provided
+            if let Some(add_vars) = additional_vars.as_ref() {
+                if let Some(obj) = add_vars.as_object() {
+                    if let Some(obj_mut) = template_vars.as_object_mut() {
+                        for (key, value) in obj {
+                            obj_mut.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
+            
+            // Apply templating with better error handling
+            let rendered = match handlebars.render_template(&content, &template_vars) {
+                Ok(result) => result,
+                Err(e) => {
+                    println!("Warning: Template parsing error in {}: {}", file_name_str, e);
+                    println!("Proceeding with unmodified template content");
+                    content
+                }
+            };
                 
             // Write to target file
             fs::write(target_path, rendered)?;
