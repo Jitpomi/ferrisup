@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{project_name}} | Rust + WebAssembly Static Site</title>
+    <style>
+        :root {
+            --primary-color: #FF9500;
+            --secondary-color: #0075C9;
+            --dark-color: #333333;
+            --light-color: #F5F5F5;
+            --success-color: #28A745;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: var(--light-color);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        header {
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+        }
+
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .logo span {
+            margin-left: 0.5rem;
+        }
+
+        nav a {
+            margin-left: 1rem;
+            color: var(--dark-color);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+
+        #app {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            margin: 1.5rem 0 1rem 0;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        .action-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            margin-top: 1rem;
+        }
+
+        .action-button:hover {
+            background-color: #E08600;
+        }
+
+        .result-area {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--light-color);
+            border-radius: 4px;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .content-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #eaeaea;
+        }
+
+        ul {
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 2rem;
+            background-color: white;
+            border-top: 1px solid #eaeaea;
+        }
+
+        @media (max-width: 768px) {
+            header .container {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            nav {
+                margin-top: 1rem;
+            }
+
+            nav a {
+                margin: 0 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                🦀 <span>{{project_name}}</span>
+            </div>
+            <nav>
+                <a href="#">Home</a>
+                <a href="https://rustwasm.github.io/docs/book/" target="_blank">Docs</a>
+                <a href="https://github.com/cloudflare/workers-rs" target="_blank">GitHub</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="app">
+            <!-- WebAssembly content will be loaded here -->
+            <p>Loading WebAssembly...</p>
+        </div>
+
+        <footer>
+            <p>Built with ❤️ using Rust, WebAssembly, and Cloudflare Pages</p>
+            <p>Created with <a href="https://github.com/Jitpomi/ferrisup" target="_blank">FerrisUp</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import init from './pkg/{{project_name}}.js';
+
+        async function run() {
+            try {
+                await init();
+            } catch (e) {
+                console.error("Error initializing WebAssembly:", e);
+                document.getElementById('app').innerHTML = `
+                    <h1>⚠️ Error Loading WebAssembly</h1>
+                    <p>There was an error loading the WebAssembly module. Please check the console for details.</p>
+                    <pre>${e}</pre>
+                `;
+            }
+        }
+
+        run();
+    </script>
+</body>
+</html>

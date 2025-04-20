@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "functions": {
+    "api/*.js": {
+      "runtime": "edge"
+    }
+  },
+  "buildCommand": "wasm-pack build --target web && mkdir -p api && cp pkg/{{project_name}}_bg.wasm api/ && cp api-handler.js api/index.js",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ]
+}

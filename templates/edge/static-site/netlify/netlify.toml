@@ -1,0 +1,21 @@
+[build]
+  publish = "."
+  command = "wasm-pack build --target web --release"
+
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  command = "python -m http.server"
+  publish = "."
+  port = 8888
+  targetPort = 8000
+  framework = "#custom"

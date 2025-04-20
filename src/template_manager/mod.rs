@@ -563,14 +563,91 @@ This project was generated using FerrisUp.
         process_dependencies(dependencies, target_dir, "dependencies")?;
     }
     
-    // Display next steps if available
+    // Copy remaining files from the template directory
+    // We need to handle template variables in all files
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
+    
+    // Add template dir to variable set for use in templates
+    if let Some(template_vars_obj) = template_vars.as_object_mut() {
+        template_vars_obj.insert("template_dir".to_string(), json!(template_dir.to_string_lossy().to_string()));
+    }
+    
+    // Process template files with variables
+    process_template_directory(&template_dir, &target_dir, &template_vars, &mut handlebars)?;
+    
+    println!("\n✅ {} project created successfully!", project_name.green());
+    
     if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
+        println!("\n{}", "Next steps:".bold().green());
         for step in next_steps {
-            println!("  {}", step);
+            println!("- {}", step);
         }
     }
     
-    println!("✅ Successfully applied template: {}", template_name);
+    Ok(())
+}
+
+/// Process template files with variable substitution in a directory
+fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, handlebars: &mut Handlebars) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_file() {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            
+            // Determine target path - remove .template extension if present
+            let target_file_name = if file_name_str.ends_with(".template") {
+                file_name_str.replace(".template", "")
+            } else {
+                file_name_str.to_string()
+            };
+            
+            let target_path = dst.join(&target_file_name);
+            
+            // Process files that need template variable substitution
+            if path.extension().map_or(false, |ext| 
+                ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
+                ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
+            ) {
+                // Read template content
+                let template_content = fs::read_to_string(&path)?;
+                
+                // Process conditional blocks
+                let processed_content = process_conditional_blocks(&template_content, template_vars)?;
+                
+                // Render with handlebars
+                let rendered = handlebars.render_template(&processed_content, template_vars)?;
+                
+                // Write rendered content
+                let mut file = File::create(&target_path)?;
+                file.write_all(rendered.as_bytes())?;
+            } else {
+                // Just copy other files without processing
+                fs::copy(&path, &target_path)?;
+            }
+            
+            // Set executable bit for .sh files
+            if target_path.extension().map_or(false, |ext| ext == "sh") {
+                let mut perms = fs::metadata(&target_path)?.permissions();
+                perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                fs::set_permissions(&target_path, perms)?;
+            }
+        } else if path.is_dir() {
+            // Skip .git directory, .github directory, etc.
+            if entry.file_name() == ".git" || entry.file_name() == ".github" || 
+               entry.file_name() == "target" || entry.file_name() == "node_modules" {
+                continue;
+            }
+            
+            // Process subdirectory recursively
+            process_template_directory(&path, &dst.join(entry.file_name()), template_vars, handlebars)?;
+        }
+    }
     
     Ok(())
 }
@@ -613,7 +690,17 @@ fn process_file(
         }
         
         let source_path = template_dir.join(source);
-        let target_path = target_dir.join(target);
+        let mut target_path = target_dir.join(target);
+        
+        // Remove .template extension from the target path if present
+        if let Some(filename) = target_path.file_name() {
+            let filename_str = filename.to_string_lossy();
+            if filename_str.ends_with(".template") {
+                let new_filename = filename_str.replace(".template", "");
+                target_path.pop(); // Remove the old filename
+                target_path.push(new_filename); // Add the new filename without .template
+            }
+        }
         
         // Create parent directories if they don't exist
         if let Some(parent) = target_path.parent() {
@@ -1127,8 +1214,8 @@ fn prompt(question: &str) -> Result<String> {
 fn prompt_with_options(question: &str, options: &[&str]) -> Result<String> {
     let selection = Select::new()
         .with_prompt(question)
-        .items(options)
         .default(0)
+        .items(options)
         .interact()?;
     
     Ok(options[selection].to_string())
@@ -1180,7 +1267,39 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
         let path = entry.path();
         
         if path.is_file() {
-            fs::copy(&path, dst.join(entry.file_name()))?;
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            
+            // Remove .template extension if present
+            if file_name_str.ends_with(".template") {
+                let new_file_name = file_name_str.replace(".template", "");
+                let target_path = dst.join(new_file_name);
+                
+                // Read the template file and process variables if needed
+                let content = fs::read_to_string(&path)?;
+                fs::write(&target_path, content)?;
+                
+                // Set executable bit for .sh files
+                if let Some(ext) = target_path.extension() {
+                    if ext == "sh" {
+                        let mut perms = fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                        fs::set_permissions(&target_path, perms)?;
+                    }
+                }
+            } else {
+                let target_path = dst.join(file_name);
+                fs::copy(&path, &target_path)?;
+                
+                // Set executable bit for .sh files
+                if let Some(ext) = target_path.extension() {
+                    if ext == "sh" {
+                        let mut perms = fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                        fs::set_permissions(&target_path, perms)?;
+                    }
+                }
+            }
         } else if path.is_dir() {
             copy_dir_all(&path, &dst.join(entry.file_name()))?;
         }

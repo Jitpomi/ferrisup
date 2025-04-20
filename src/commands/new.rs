@@ -67,11 +67,39 @@ pub fn execute(
             }
             
             let templates_with_desc = template_manager::list_templates()?;
-            let templates: Vec<&str> = templates_with_desc.iter().map(|(name, _)| name.as_str()).collect();
+            let mut templates: Vec<&str> = templates_with_desc.iter().map(|(name, _)| name.as_str()).collect();
+            
+            // Add edge template if not present
+            if !templates.contains(&"edge") {
+                templates.push("edge");
+            }
+            
+            // Create a vector of template descriptions
+            let descriptions: Vec<String> = templates.iter().map(|&name| {
+                if name == "edge" {
+                    return "Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)".to_string();
+                }
+                
+                // Find the description for this template
+                for (template_name, desc) in &templates_with_desc {
+                    if template_name == name {
+                        return desc.clone();
+                    }
+                }
+                
+                // Default description if not found
+                "".to_string()
+            }).collect();
+            
+            // Format the items for display
+            let template_items: Vec<String> = templates.iter()
+                .zip(descriptions.iter())
+                .map(|(&name, desc)| format!("{} - {}", name, desc))
+                .collect();
             
             let selection = Select::new()
                 .with_prompt("Select a template")
-                .items(&templates)
+                .items(&template_items)
                 .default(0)
                 .interact()?;
                 
@@ -85,74 +113,550 @@ pub fn execute(
     // Get template configuration to check for options
     let template_config = template_manager::get_template_config(&template)?;
     
-    // Skip options handling for templates we're handling manually
-    if template != "server" && template != "serverless" {
-        // Check if the template has options that need user input
-        if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
-            let mut vars = serde_json::Map::new();
+    // Handle special templates
+    if template == "server" {
+        // Server template handling
+        let framework_options = ["axum", "actix", "poem"];
+        
+        let selection = Select::new()
+            .with_prompt("Which web framework would you like to use?")
+            .items(&framework_options)
+            .default(0)
+            .interact()?;
             
-            for option in options {
-                if let (Some(name), Some(desc), Some(option_type)) = (
-                    option.get("name").and_then(|n| n.as_str()),
-                    option.get("description").and_then(|d| d.as_str()),
-                    option.get("type").and_then(|t| t.as_str())
+        let framework_selected = framework_options[selection];
+        println!("Using {} as the server_framework", framework_selected);
+        
+        // Handle server template creation manually instead of using the template system
+        let framework_template_dir_path = PathBuf::from(format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected));
+        
+        if !framework_template_dir_path.exists() {
+            return Err(anyhow::anyhow!("Could not find template directory for {} framework", framework_selected));
+        }
+        
+        // Copy src directory
+        let src_dir = framework_template_dir_path.join("src");
+        if src_dir.exists() {
+            copy_dir_all(&src_dir, &app_path.join("src"))?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
+        }
+        
+        // Copy Cargo.toml.template and process it
+        let cargo_toml_template = framework_template_dir_path.join("Cargo.toml.template");
+        if cargo_toml_template.exists() {
+            let content = fs::read_to_string(&cargo_toml_template)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("Cargo.toml"), rendered)?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} framework", framework_selected));
+        }
+        
+        // Copy README.md from the framework-specific template
+        let readme_src = framework_template_dir_path.join("README.md");
+        
+        if readme_src.exists() {
+            let content = fs::read_to_string(&readme_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("README.md"), rendered)?;
+        } else {
+            // Fallback to the main server README if framework-specific one doesn't exist
+            let main_readme_src = PathBuf::from(format!("{}/templates/server/README.md", env!("CARGO_MANIFEST_DIR")));
+            if main_readme_src.exists() {
+                let content = fs::read_to_string(&main_readme_src)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Register helpers
+                handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
+                    _: &handlebars::Handlebars<'_>, 
+                    _: &handlebars::Context, 
+                    _: &mut handlebars::RenderContext<'_, '_>, 
+                    out: &mut dyn handlebars::Output| 
+                -> handlebars::HelperResult {
+                    let param1 = h.param(0).unwrap().value();
+                    let param2 = h.param(1).unwrap().value();
+                    out.write(&(param1 == param2).to_string())?;
+                    Ok(())
+                }));
+                
+                // Create template vars
+                let template_vars = json!({
+                    "project_name": name,
+                    "project_name_pascal_case": to_pascal_case(&name),
+                    "server_framework": framework_selected
+                });
+                
+                // Apply templating
+                let rendered = handlebars.render_template(&content, &template_vars)
+                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                    
+                // Write to target file
+                fs::write(app_path.join("README.md"), rendered)?;
+            }
+        }
+    } else if template == "serverless" {
+        // Serverless template handling
+        let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
+        
+        let selection = Select::new()
+            .with_prompt("Which cloud provider would you like to target for your serverless function?")
+            .items(&provider_options)
+            .default(0)
+            .interact()?;
+            
+        let provider_selected = provider_options[selection];
+        
+        // Display appropriate help message based on selected provider
+        let help_messages = json!({
+            "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
+            "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
+            "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
+            "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
+            "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
+        });
+        
+        if let Some(help_message) = help_messages.get(provider_selected).and_then(|v| v.as_str()) {
+            println!("ℹ️  {}", help_message);
+        }
+        
+        println!("Using {} as the cloud_provider", provider_selected);
+        
+        // Handle serverless template creation manually
+        let provider_template_dir_path = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
+        
+        if !provider_template_dir_path.exists() {
+            return Err(anyhow::anyhow!("Could not find template directory for {} provider", provider_selected));
+        }
+        
+        // Copy src directory
+        let src_dir = provider_template_dir_path.join("src");
+        if src_dir.exists() {
+            copy_dir_all(&src_dir, &app_path.join("src"))?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find src directory for {} provider", provider_selected));
+        }
+        
+        // Copy Cargo.toml.template and process it
+        let cargo_toml_template = provider_template_dir_path.join("Cargo.toml.template");
+        if cargo_toml_template.exists() {
+            let content = fs::read_to_string(&cargo_toml_template)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("Cargo.toml"), rendered)?;
+        } else {
+            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} provider", provider_selected));
+        }
+        
+        // Copy README.md from the provider-specific template
+        let readme_src = provider_template_dir_path.join("README.md.template");
+        
+        if readme_src.exists() {
+            let content = fs::read_to_string(&readme_src)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "project_name_pascal_case": to_pascal_case(&name)
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(app_path.join("README.md"), rendered)?;
+        }
+        
+        // Copy provider-specific configuration files
+        let template_json_path = provider_template_dir_path.join("template.json");
+        let template_config = if template_json_path.exists() {
+            let content = fs::read_to_string(&template_json_path)?;
+            serde_json::from_str(&content).unwrap_or_else(|_| json!({}))
+        } else {
+            json!({})
+        };
+        
+        if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
+            for file_entry in files {
+                if let (Some(source), Some(target)) = (
+                    file_entry.get("source").and_then(|s| s.as_str()),
+                    file_entry.get("target").and_then(|t| t.as_str())
                 ) {
-                    if option_type == "select" && option.get("options").is_some() {
-                        let option_values: Vec<&str> = option.get("options")
-                            .and_then(|o| o.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
-                            .unwrap_or_default();
-                        
-                        if !option_values.is_empty() {
-                            let default_idx = option.get("default")
-                                .and_then(|d| d.as_str())
-                                .and_then(|d| option_values.iter().position(|&v| v == d))
-                                .unwrap_or(0);
+                    let source_path = provider_template_dir_path.join(source);
+                    if source_path.exists() {
+                        if source_path.is_dir() {
+                            copy_dir_all(&source_path, &app_path.join(target))?;
+                        } else {
+                            // Read the source file
+                            let content = fs::read_to_string(&source_path)?;
                             
-                            let selection = Select::new()
-                                .with_prompt(desc)
-                                .items(&option_values)
-                                .default(default_idx)
-                                .interact()?;
+                            // Create handlebars instance for templating
+                            let mut handlebars = Handlebars::new();
+                            handlebars.register_escape_fn(handlebars::no_escape);
                             
-                            let selected_value = option_values[selection];
-                            vars.insert(name.to_string(), json!(selected_value));
+                            // Create template vars
+                            let template_vars = json!({
+                                "project_name": name,
+                                "project_name_pascal_case": to_pascal_case(&name)
+                            });
                             
-                            // If there's a help message for this option, display it
-                            if let Some(help_messages) = template_config.get("help") {
-                                if let Some(help_message) = help_messages.get(selected_value).and_then(|m| m.as_str()) {
-                                    println!("ℹ️  {}", help_message);
-                                }
+                            // Apply templating
+                            let rendered = handlebars.render_template(&content, &template_vars)
+                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                                
+                            // Write to target file
+                            let target_path = app_path.join(target);
+                            if let Some(parent) = target_path.parent() {
+                                fs::create_dir_all(parent)?;
                             }
-                            
-                            // If we're selecting a static server, and it's not "none", display guidance
-                            if name == "static_server" && selected_value != "none" {
-                                println!("📝 Using {} as static file server. Run `{} . --port 8080` to start.", 
-                                    selected_value, selected_value);
-                            }
-                            
-                            // Echo selection
-                            println!("Using {} as the {}", selected_value, name);
+                            fs::write(target_path, rendered)?;
                         }
-                    } else if option_type == "input" {
-                        let default = option.get("default").and_then(|d| d.as_str()).unwrap_or("");
-                        
-                        let input = Input::<String>::new()
-                            .with_prompt(desc)
-                            .default(default.to_string())
-                            .interact()?;
-                        
-                        vars.insert(name.to_string(), json!(input));
-                        
-                        // Echo input
-                        println!("Using {} as the {}", input, name);
                     }
                 }
             }
+        }
+        
+        // Copy any provider-specific files directly from the provider directory
+        for entry in fs::read_dir(&provider_template_dir_path)? {
+            let entry = entry?;
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
             
-            // Set additional_vars if we have any
-            if !vars.is_empty() {
-                additional_vars = Some(json!(vars));
+            // Skip src, template.json, Cargo.toml.template, and README.md.template
+            if file_name_str == "src" || file_name_str == "template.json" || 
+               file_name_str == "Cargo.toml.template" || file_name_str == "README.md.template" {
+                continue;
+            }
+            
+            let source_path = entry.path();
+            let target_path = app_path.join(&file_name);
+            
+            if source_path.is_dir() {
+                copy_dir_all(&source_path, &target_path)?;
+            } else {
+                // Read the source file
+                let content = fs::read_to_string(&source_path)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Create template vars
+                let template_vars = json!({
+                    "project_name": name,
+                    "project_name_pascal_case": to_pascal_case(&name)
+                });
+                
+                // Apply templating
+                let rendered = handlebars.render_template(&content, &template_vars)
+                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                    
+                // Write to target file
+                fs::write(target_path, rendered)?;
+            }
+        }
+        
+        // Show provider-specific next steps
+        let template_json = fs::read_to_string(PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR"))))?;
+        let template_config: Value = serde_json::from_str(&template_json)?;
+        let next_steps_key = format!("next_steps_{}", provider_selected);
+        
+        println!("\nNext steps:");
+        if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
+            for step in next_steps {
+                if let Some(step_str) = step.as_str() {
+                    let processed_step = step_str.replace("{{project_name}}", &name);
+                    println!("  {}", processed_step);
+                }
+            }
+        }
+    } else if template == "edge" {
+        // Handle edge template specifically to support the hierarchical structure
+        // Get the edge template configuration
+        let edge_template_path = format!("{}/templates/edge", env!("CARGO_MANIFEST_DIR"));
+        let edge_template_json_path = Path::new(&edge_template_path).join("template.json");
+        
+        if edge_template_json_path.exists() {
+            // Read the edge template configuration
+            let edge_config = fs::read_to_string(&edge_template_json_path)
+                .map_err(|_| anyhow!("Failed to read edge template configuration"))?;
+                
+            let edge_template_json: Value = serde_json::from_str(&edge_config)
+                .map_err(|_| anyhow!("Failed to parse edge template configuration"))?;
+            
+            // First level: Get application type options
+            if let Some(options) = edge_template_json.get("options") {
+                // Get the edge_type options
+                if let Some(edge_type) = options.get("edge_type") {
+                    if let Some(values) = edge_type.get("values").and_then(|v| v.as_array()) {
+                        let app_type_options: Vec<&str> = values.iter()
+                            .filter_map(|v| v.as_str())
+                            .collect();
+                            
+                        if app_type_options.is_empty() {
+                            return Err(anyhow!("No edge application types found"));
+                        }
+                        
+                        // Get the descriptions/help text if available
+                        let empty_map = serde_json::Map::new();
+                        let app_type_help = edge_type.get("help")
+                            .and_then(|h| h.as_object())
+                            .unwrap_or(&empty_map);
+                            
+                        // Create formatted options with descriptions
+                        let app_type_display: Vec<String> = app_type_options.iter()
+                            .map(|&opt| {
+                                if let Some(help) = app_type_help.get(opt).and_then(|h| h.as_str()) {
+                                    format!("{} - {}", opt, help)
+                                } else {
+                                    opt.to_string()
+                                }
+                            })
+                            .collect();
+                        
+                        println!("Edge computing applications allow you to run Rust code close to your users.");
+                            
+                        // Let user select application type
+                        let app_type_selection = Select::new()
+                            .with_prompt("Select edge application type")
+                            .items(&app_type_display)
+                            .default(0)
+                            .interact()?;
+                            
+                        let selected_app_type = app_type_options[app_type_selection];
+                        println!("Selected application type: {}", selected_app_type);
+                        
+                        // Second level: Get provider options for the selected type
+                        let provider_field = match selected_app_type {
+                            "static-site" => "static_site_provider",
+                            "api-function" => "api_function_provider",
+                            "web-component" => "web_component_type",
+                            _ => return Err(anyhow!("Unsupported application type")),
+                        };
+                        
+                        if let Some(provider_option) = options.get(provider_field) {
+                            if let Some(provider_values) = provider_option.get("values").and_then(|v| v.as_array()) {
+                                let provider_options: Vec<&str> = provider_values.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect();
+                                    
+                                if provider_options.is_empty() {
+                                    return Err(anyhow!("No providers found for the selected application type"));
+                                }
+                                
+                                // Get the descriptions/help text if available
+                                let empty_map = serde_json::Map::new();
+                                let provider_help = provider_option.get("help")
+                                    .and_then(|h| h.as_object())
+                                    .unwrap_or(&empty_map);
+                                    
+                                // Create formatted options with descriptions
+                                let provider_display: Vec<String> = provider_options.iter()
+                                    .map(|&opt| {
+                                        if let Some(help) = provider_help.get(opt).and_then(|h| h.as_str()) {
+                                            format!("{} - {}", opt, help)
+                                        } else {
+                                            opt.to_string()
+                                        }
+                                    })
+                                    .collect();
+                                
+                                // Let user select provider
+                                let provider_selection = Select::new()
+                                    .with_prompt("Select provider")
+                                    .items(&provider_display)
+                                    .default(0)
+                                    .interact()?;
+                                    
+                                let selected_provider = provider_options[provider_selection];
+                                println!("Selected provider: {}", selected_provider);
+                                
+                                // Create variables for template
+                                let mut vars_map = serde_json::Map::new();
+                                vars_map.insert("edge_type".to_string(), json!(selected_app_type));
+                                vars_map.insert(provider_field.to_string(), json!(selected_provider));
+                                
+                                // Check if there's a redirect in the template config
+                                if let Some(redirect) = edge_template_json.get("redirect") {
+                                    if let Some(app_redirect) = redirect.get(selected_app_type) {
+                                        if let Some(_provider_redirect) = app_redirect.get(selected_provider) {
+                                            // We found a redirect configuration, use it to determine the template
+                                            template = format!("edge/{}/{}", selected_app_type, selected_provider);
+                                            additional_vars = Some(json!(vars_map));
+                                            
+                                            // Debug log the actual path we're trying to use
+                                            let full_template_path = format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template);
+                                            println!("Using template: {}", template);
+                                            println!("Full template path: {}", full_template_path);
+                                            
+                                            // Check if the directory exists
+                                            if !Path::new(&full_template_path).exists() {
+                                                println!("⚠️ Warning: Template directory does not exist at {}", full_template_path);
+                                                return Err(anyhow!("Template directory not found"));
+                                            } else {
+                                                println!("✅ Template directory exists");
+                                                // List files in the directory for debugging
+                                                if let Ok(entries) = fs::read_dir(&full_template_path) {
+                                                    println!("Files in template directory:");
+                                                    for entry in entries {
+                                                        if let Ok(entry) = entry {
+                                                            println!("  - {}", entry.file_name().to_string_lossy());
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Handle the edge template explicitly
+                                            handle_edge_template(&template, app_path, &name, additional_vars.clone())?;
+                                            return Ok(());
+                                        } else {
+                                            return Err(anyhow!("No template configuration found for provider: {}", selected_provider));
+                                        }
+                                    } else {
+                                        return Err(anyhow!("No template configuration found for application type: {}", selected_app_type));
+                                    }
+                                } else {
+                                    return Err(anyhow!("No redirect configuration found in the template"));
+                                }
+                            } else {
+                                return Err(anyhow!("No provider values found"));
+                            }
+                        } else {
+                            return Err(anyhow!("No provider options found for the selected application type"));
+                        }
+                    } else {
+                        return Err(anyhow!("No edge_type values found"));
+                    }
+                } else {
+                    return Err(anyhow!("No edge_type configuration found"));
+                }
+            } else {
+                return Err(anyhow!("No options found in edge template configuration"));
+            }
+        } else {
+            return Err(anyhow!("Edge template configuration not found"));
+        }
+    } else {
+        // Skip options handling for templates we're handling manually
+        if template != "server" && template != "serverless" {
+            // Check if the template has options that need user input
+            if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
+                let mut vars = serde_json::Map::new();
+                
+                for option in options {
+                    if let (Some(name), Some(desc), Some(option_type)) = (
+                        option.get("name").and_then(|n| n.as_str()),
+                        option.get("description").and_then(|d| d.as_str()),
+                        option.get("type").and_then(|t| t.as_str())
+                    ) {
+                        if option_type == "select" && option.get("options").is_some() {
+                            let option_values: Vec<&str> = option.get("options")
+                                .and_then(|o| o.as_array())
+                                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+                                .unwrap_or_default();
+                            
+                            if !option_values.is_empty() {
+                                let default_idx = option.get("default")
+                                    .and_then(|d| d.as_str())
+                                    .and_then(|d| option_values.iter().position(|&v| v == d))
+                                    .unwrap_or(0);
+                                
+                                let selection = Select::new()
+                                    .with_prompt(desc)
+                                    .items(&option_values)
+                                    .default(default_idx)
+                                    .interact()?;
+                                
+                                let selected_value = option_values[selection];
+                                vars.insert(name.to_string(), json!(selected_value));
+                                
+                                // If there's a help message for this option, display it
+                                if let Some(help_messages) = template_config.get("help") {
+                                    if let Some(help_message) = help_messages.get(selected_value).and_then(|m| m.as_str()) {
+                                        println!("ℹ️  {}", help_message);
+                                    }
+                                }
+                                
+                                // If we're selecting a static server, and it's not "none", display guidance
+                                if name == "static_server" && selected_value != "none" {
+                                    println!("📝 Using {} as static file server. Run `{} . --port 8080` to start.", 
+                                        selected_value, selected_value);
+                                }
+                                
+                                // Echo selection
+                                println!("Using {} as the {}", selected_value, name);
+                            }
+                        } else if option_type == "input" {
+                            let default = option.get("default").and_then(|d| d.as_str()).unwrap_or("");
+                            
+                            let input = Input::<String>::new()
+                                .with_prompt(desc)
+                                .default(default.to_string())
+                                .interact()?;
+                            
+                            vars.insert(name.to_string(), json!(input));
+                            
+                            // Echo input
+                            println!("Using {} as the {}", input, name);
+                        }
+                    }
+                }
+                
+                // Set additional_vars if we have any
+                if !vars.is_empty() {
+                    additional_vars = Some(json!(vars));
+                }
             }
         }
     }
@@ -276,7 +780,7 @@ pub fn execute(
                 let install_status = Command::new("cargo")
                     .args(["install", "dioxus-cli"])
                     .status()?;
-                    
+                
                 if !install_status.success() {
                     return Err(anyhow!("Failed to install dioxus-cli"));
                 }
@@ -537,315 +1041,17 @@ npx create-tauri-app {}
     // Check for required dependencies based on template
     check_dependencies(&template)?;
 
-    // Handle special cases for server and serverless templates
-    if template == "server" {
-        // Server template handling
-        let framework_options = ["axum", "actix", "poem"];
-        
-        let selection = Select::new()
-            .with_prompt("Which web framework would you like to use?")
-            .items(&framework_options)
-            .default(0)
-            .interact()?;
-            
-        let framework_selected = framework_options[selection];
-        println!("Using {} as the server_framework", framework_selected);
-        
-        // Handle server template creation manually instead of using the template system
-        let framework_template_dir_path = PathBuf::from(format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected));
-        
-        if !framework_template_dir_path.exists() {
-            return Err(anyhow::anyhow!("Could not find template directory for {} framework", framework_selected));
-        }
-        
-        // Copy src directory
-        let src_dir = framework_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
-        }
-        
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = framework_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("Cargo.toml"), rendered)?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} framework", framework_selected));
-        }
-        
-        // Copy README.md from the framework-specific template
-        let readme_src = framework_template_dir_path.join("README.md");
-        
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("README.md"), rendered)?;
-        } else {
-            // Fallback to the main server README if framework-specific one doesn't exist
-            let main_readme_src = PathBuf::from(format!("{}/templates/server/README.md", env!("CARGO_MANIFEST_DIR")));
-            if main_readme_src.exists() {
-                let content = fs::read_to_string(&main_readme_src)?;
-                
-                // Create handlebars instance for templating
-                let mut handlebars = Handlebars::new();
-                handlebars.register_escape_fn(handlebars::no_escape);
-                
-                // Register helpers
-                handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
-                    _: &handlebars::Handlebars<'_>, 
-                    _: &handlebars::Context, 
-                    _: &mut handlebars::RenderContext<'_, '_>, 
-                    out: &mut dyn handlebars::Output| 
-                -> handlebars::HelperResult {
-                    let param1 = h.param(0).unwrap().value();
-                    let param2 = h.param(1).unwrap().value();
-                    out.write(&(param1 == param2).to_string())?;
-                    Ok(())
-                }));
-                
-                // Create template vars
-                let template_vars = json!({
-                    "project_name": name,
-                    "project_name_pascal_case": to_pascal_case(&name),
-                    "server_framework": framework_selected
-                });
-                
-                // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
-                // Write to target file
-                fs::write(app_path.join("README.md"), rendered)?;
-            }
-        }
-    } else if template == "serverless" {
-        // Serverless template handling
-        let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
-        
-        let selection = Select::new()
-            .with_prompt("Which cloud provider would you like to target for your serverless function?")
-            .items(&provider_options)
-            .default(0)
-            .interact()?;
-            
-        let provider_selected = provider_options[selection];
-        
-        // Display appropriate help message based on selected provider
-        let help_messages = json!({
-            "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
-            "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
-            "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
-            "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
-            "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
-        });
-        
-        if let Some(help_message) = help_messages.get(provider_selected).and_then(|v| v.as_str()) {
-            println!("ℹ️  {}", help_message);
-        }
-        
-        println!("Using {} as the cloud_provider", provider_selected);
-        
-        // Handle serverless template creation manually
-        let provider_template_dir_path = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
-        
-        if !provider_template_dir_path.exists() {
-            return Err(anyhow::anyhow!("Could not find template directory for {} provider", provider_selected));
-        }
-        
-        // Copy src directory
-        let src_dir = provider_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} provider", provider_selected));
-        }
-        
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = provider_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("Cargo.toml"), rendered)?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} provider", provider_selected));
-        }
-        
-        // Copy README.md from the provider-specific template
-        let readme_src = provider_template_dir_path.join("README.md.template");
-        
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("README.md"), rendered)?;
-        }
-        
-        // Copy provider-specific configuration files
-        let template_json_path = provider_template_dir_path.join("template.json");
-        let template_config = if template_json_path.exists() {
-            let content = fs::read_to_string(&template_json_path)?;
-            serde_json::from_str::<Value>(&content).unwrap_or_else(|_| json!({}))
-        } else {
-            json!({})
-        };
-        
-        if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-            for file_entry in files {
-                if let (Some(source), Some(target)) = (
-                    file_entry.get("source").and_then(|s| s.as_str()),
-                    file_entry.get("target").and_then(|t| t.as_str())
-                ) {
-                    let source_path = provider_template_dir_path.join(source);
-                    if source_path.exists() {
-                        if source_path.is_dir() {
-                            copy_dir_all(&source_path, &app_path.join(target))?;
-                        } else {
-                            // Read the source file
-                            let content = fs::read_to_string(&source_path)?;
-                            
-                            // Create handlebars instance for templating
-                            let mut handlebars = Handlebars::new();
-                            handlebars.register_escape_fn(handlebars::no_escape);
-                            
-                            // Create template vars
-                            let template_vars = json!({
-                                "project_name": name,
-                                "project_name_pascal_case": to_pascal_case(&name)
-                            });
-                            
-                            // Apply templating
-                            let rendered = handlebars.render_template(&content, &template_vars)
-                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                                
-                            // Write to target file
-                            let target_path = app_path.join(target);
-                            if let Some(parent) = target_path.parent() {
-                                fs::create_dir_all(parent)?;
-                            }
-                            fs::write(target_path, rendered)?;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Copy any provider-specific files directly from the provider directory
-        for entry in fs::read_dir(&provider_template_dir_path)? {
-            let entry = entry?;
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
-            
-            // Skip src, template.json, Cargo.toml.template, and README.md.template
-            if file_name_str == "src" || file_name_str == "template.json" || 
-               file_name_str == "Cargo.toml.template" || file_name_str == "README.md.template" {
-                continue;
-            }
-            
-            let source_path = entry.path();
-            let target_path = app_path.join(&file_name);
-            
-            if source_path.is_dir() {
-                copy_dir_all(&source_path, &target_path)?;
-            } else {
-                // Read the source file
-                let content = fs::read_to_string(&source_path)?;
-                
-                // Create handlebars instance for templating
-                let mut handlebars = Handlebars::new();
-                handlebars.register_escape_fn(handlebars::no_escape);
-                
-                // Create template vars
-                let template_vars = json!({
-                    "project_name": name,
-                    "project_name_pascal_case": to_pascal_case(&name)
-                });
-                
-                // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
-                // Write to target file
-                fs::write(target_path, rendered)?;
-            }
-        }
-        
-        // Show provider-specific next steps
-        let template_json = fs::read_to_string(PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR"))))?;
-        let template_config: Value = serde_json::from_str(&template_json)?;
-        let next_steps_key = format!("next_steps_{}", provider_selected);
-        
-        println!("\nNext steps:");
-        if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
-            for step in next_steps {
-                if let Some(step_str) = step.as_str() {
-                    let processed_step = step_str.replace("{{project_name}}", &name);
-                    println!("  {}", processed_step);
-                }
-            }
-        }
-    } else if template == "embedded" {
+    // Handle special cases for 
+    // 
+    // 
+    // 
+    // 
+    // 
+    // 
+    
+    
+    // embedded templates
+    if template == "embedded" {
         println!("📦 Creating embedded project for microcontrollers");
         
         // Check if the user selected Embassy framework from the options
@@ -1024,8 +1230,6 @@ npx create-tauri-app {}
         // For Leptos templates, prepend "client/leptos/"
         let template_path = format!("client/leptos/{}", template);
         template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
-    } else if template == "edge" {
-        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
     } else {
         // For other templates, use as is
         template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
@@ -1099,6 +1303,98 @@ fn check_dependencies(template: &str) -> Result<()> {
         println!("✅ wasm32-unknown-unknown target is already installed");
     }
     
+    // Check if we're using an edge template that needs wasm-pack
+    if template.starts_with("edge/") {
+        println!("🔍 Checking for wasm-pack...");
+        let wasm_pack_check = Command::new("wasm-pack")
+            .arg("--version")
+            .output();
+        
+        match wasm_pack_check {
+            Ok(_) => println!("✅ wasm-pack is already installed"),
+            Err(_) => {
+                println!("⚠️ wasm-pack not found. Installing...");
+                let status = Command::new("cargo")
+                    .args(["install", "wasm-pack"])
+                    .status()?;
+                
+                if !status.success() {
+                    println!("❌ Failed to install wasm-pack.");
+                    println!("Please install it manually with: cargo install wasm-pack");
+                } else {
+                    println!("✅ wasm-pack installed successfully");
+                }
+            }
+        }
+        
+        // For Cloudflare Workers templates, check for Wrangler CLI
+        if template.contains("cloudflare-workers") || template.contains("cloudflare-pages") {
+            println!("🔍 Checking for Cloudflare Wrangler CLI...");
+            let wrangler_check = Command::new("wrangler")
+                .arg("--version")
+                .output();
+            
+            match wrangler_check {
+                Ok(_) => println!("✅ Wrangler CLI is already installed"),
+                Err(_) => {
+                    println!("ℹ️ Wrangler CLI not found.");
+                    println!("You may need to install it with: npm install -g wrangler");
+                    println!("Learn more at: https://developers.cloudflare.com/workers/wrangler/install-and-update/");
+                }
+            }
+        }
+        
+        // For Vercel templates, check for Vercel CLI
+        if template.contains("vercel") {
+            println!("🔍 Checking for Vercel CLI...");
+            let vercel_check = Command::new("vercel")
+                .arg("--version")
+                .output();
+            
+            match vercel_check {
+                Ok(_) => println!("✅ Vercel CLI is already installed"),
+                Err(_) => {
+                    println!("ℹ️ Vercel CLI not found.");
+                    println!("You may need to install it with: npm install -g vercel");
+                    println!("Learn more at: https://vercel.com/docs/cli");
+                }
+            }
+        }
+        
+        // For Netlify templates, check for Netlify CLI
+        if template.contains("netlify") {
+            println!("🔍 Checking for Netlify CLI...");
+            let netlify_check = Command::new("netlify")
+                .arg("--version")
+                .output();
+            
+            match netlify_check {
+                Ok(_) => println!("✅ Netlify CLI is already installed"),
+                Err(_) => {
+                    println!("ℹ️ Netlify CLI not found.");
+                    println!("You may need to install it with: npm install -g netlify-cli");
+                    println!("Learn more at: https://docs.netlify.com/cli/get-started/");
+                }
+            }
+        }
+        
+        // For Fastly templates, check for Fastly CLI
+        if template.contains("fastly") {
+            println!("🔍 Checking for Fastly CLI...");
+            let fastly_check = Command::new("fastly")
+                .arg("--version")
+                .output();
+            
+            match fastly_check {
+                Ok(_) => println!("✅ Fastly CLI is already installed"),
+                Err(_) => {
+                    println!("ℹ️ Fastly CLI not found.");
+                    println!("You may need to install it from: https://developer.fastly.com/learning/tools/cli/");
+                }
+            }
+        }
+    }
+    
     // Check for trunk (needed for counter, router, todo templates)
     if template == "counter" || template == "router" || template == "todo" {
         println!("🔍 Checking for Trunk...");
@@ -1146,4 +1442,150 @@ fn to_pascal_case(s: &str) -> String {
     }
     
     result
+}
+
+// Helper function to handle edge templates
+fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_vars: Option<serde_json::Value>) -> Result<()> {
+    // Handle edge template creation manually
+    let template_dir_path = PathBuf::from(format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template));
+    
+    if !template_dir_path.exists() {
+        return Err(anyhow::anyhow!("Could not find template directory for {} template", template));
+    }
+    
+    // Create src directory if needed
+    fs::create_dir_all(app_path.join("src"))?;
+    
+    // Check if the template has lib.rs in the root, which is common for edge templates
+    let lib_rs = template_dir_path.join("lib.rs");
+    if lib_rs.exists() {
+        let content = fs::read_to_string(&lib_rs)?;
+        
+        // Create handlebars instance for templating
+        let mut handlebars = Handlebars::new();
+        // Important: Disable escaping to preserve raw string literals and SVG content
+        handlebars.register_escape_fn(handlebars::no_escape);
+        
+        // Create template vars
+        let template_vars = json!({
+            "project_name": name,
+            "crate_name": name.replace("-", "_"),
+            "project_name_pascal_case": to_pascal_case(&name),
+            "authors": "Your Name <your.email@example.com>"
+        });
+        
+        // Apply templating
+        let rendered = handlebars.render_template(&content, &template_vars)
+            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+            
+        // Write to src/lib.rs in the target directory
+        fs::write(app_path.join("src").join("lib.rs"), rendered)?;
+    }
+    
+    // Copy Cargo.toml.template and process it
+    let cargo_toml_template = template_dir_path.join("Cargo.toml.template");
+    let cargo_toml = template_dir_path.join("Cargo.toml");
+    
+    // Check for either Cargo.toml.template or Cargo.toml
+    let cargo_toml_path = if cargo_toml_template.exists() {
+        cargo_toml_template
+    } else if cargo_toml.exists() {
+        cargo_toml
+    } else {
+        return Err(anyhow::anyhow!("Could not find Cargo.toml or Cargo.toml.template for {} template", template));
+    };
+    
+    let content = fs::read_to_string(&cargo_toml_path)?;
+    
+    // Create handlebars instance for templating
+    let mut handlebars = Handlebars::new();
+    // Important: Disable escaping to preserve raw string literals and SVG content
+    handlebars.register_escape_fn(handlebars::no_escape);
+    
+    // Create template vars
+    let template_vars = json!({
+        "project_name": name,
+        "crate_name": name.replace("-", "_"),
+        "project_name_pascal_case": to_pascal_case(&name),
+        "authors": "Your Name <your.email@example.com>"
+    });
+    
+    // Apply templating
+    let rendered = handlebars.render_template(&content, &template_vars)
+        .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+        
+    // Write to target file
+    fs::write(app_path.join("Cargo.toml"), rendered)?;
+    
+    // Copy README.md from the template
+    let readme_src = template_dir_path.join("README.md");
+    
+    if readme_src.exists() {
+        let content = fs::read_to_string(&readme_src)?;
+        
+        // Create handlebars instance for templating
+        let mut handlebars = Handlebars::new();
+        // Important: Disable escaping to preserve raw string literals and SVG content
+        handlebars.register_escape_fn(handlebars::no_escape);
+        
+        // Create template vars
+        let template_vars = json!({
+            "project_name": name,
+            "crate_name": name.replace("-", "_"),
+            "project_name_pascal_case": to_pascal_case(&name),
+            "authors": "Your Name <your.email@example.com>"
+        });
+        
+        // Apply templating
+        let rendered = handlebars.render_template(&content, &template_vars)
+            .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+            
+        // Write to target file
+        fs::write(app_path.join("README.md"), rendered)?;
+    }
+    
+    // Copy any template-specific files directly from the template directory
+    for entry in fs::read_dir(&template_dir_path)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_string_lossy();
+        
+        // Skip already processed files
+        if file_name_str == "lib.rs" || file_name_str == "template.json" || 
+           file_name_str == "Cargo.toml.template" || file_name_str == "Cargo.toml" || file_name_str == "README.md" {
+            continue;
+        }
+        
+        let source_path = entry.path();
+        let target_path = app_path.join(&file_name);
+        
+        if source_path.is_dir() {
+            copy_dir_all(&source_path, &target_path)?;
+        } else {
+            // Read the source file
+            let content = fs::read_to_string(&source_path)?;
+            
+            // Create handlebars instance for templating
+            let mut handlebars = Handlebars::new();
+            // Important: Disable escaping to preserve raw string literals and SVG content
+            handlebars.register_escape_fn(handlebars::no_escape);
+            
+            // Create template vars
+            let template_vars = json!({
+                "project_name": name,
+                "crate_name": name.replace("-", "_"),
+                "project_name_pascal_case": to_pascal_case(&name),
+                "authors": "Your Name <your.email@example.com>"
+            });
+            
+            // Apply templating
+            let rendered = handlebars.render_template(&content, &template_vars)
+                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                
+            // Write to target file
+            fs::write(target_path, rendered)?;
+        }
+    }
+    
+    Ok(())
 }

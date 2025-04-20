@@ -1,0 +1,464 @@
+{
+  "name": "edge-computing",
+  "description": "Edge computing applications with WebAssembly",
+  "type": "library",
+  "options": {
+    "edge_type": {
+      "type": "select",
+      "prompt": "What type of edge application would you like to build?",
+      "default": "static-site",
+      "values": ["static-site", "api-function", "web-component"],
+      "help": {
+        "static-site": "Static website with client-side WebAssembly",
+        "api-function": "Serverless API or function at the edge",
+        "web-component": "Reusable WebAssembly component"
+      }
+    },
+    "static_site_provider": {
+      "type": "select",
+      "prompt": "Which provider would you like to target for your static site?",
+      "default": "cloudflare",
+      "condition": "edge_type == 'static-site'",
+      "values": ["cloudflare", "vercel", "netlify"],
+      "help": {
+        "cloudflare": "Deploy to Cloudflare Pages with Wasm",
+        "vercel": "Deploy to Vercel with Edge Runtime",
+        "netlify": "Deploy to Netlify with Edge Functions"
+      }
+    },
+    "api_function_provider": {
+      "type": "select",
+      "prompt": "Which provider would you like to target for your API/Function?",
+      "default": "cloudflare-workers",
+      "condition": "edge_type == 'api-function'",
+      "values": ["cloudflare-workers", "fastly", "vercel-edge", "aws-lambda-edge"],
+      "help": {
+        "cloudflare-workers": "Deploy to Cloudflare Workers",
+        "fastly": "Deploy to Fastly Compute@Edge",
+        "vercel-edge": "Deploy to Vercel Edge Functions",
+        "aws-lambda-edge": "Deploy to AWS Lambda@Edge"
+      }
+    },
+    "web_component_type": {
+      "type": "select",
+      "prompt": "What type of WebAssembly component would you like to build?",
+      "default": "browser",
+      "condition": "edge_type == 'web-component'",
+      "values": ["browser", "nodejs", "framework-specific"],
+      "help": {
+        "browser": "Browser-compatible WebAssembly component",
+        "nodejs": "Node.js-compatible WebAssembly component",
+        "framework-specific": "Framework-specific WebAssembly component (React, Vue, etc.)"
+      }
+    },
+    "testing_approach": {
+      "type": "select",
+      "prompt": "How would you like to test your WebAssembly code?",
+      "default": "browser_example",
+      "values": ["browser_example", "headless_tests", "both"],
+      "help": {
+        "browser_example": "Create an example HTML page to load and test your WebAssembly in a browser",
+        "headless_tests": "Set up headless browser testing with wasm-pack test",
+        "both": "Set up both browser example and headless tests"
+      }
+    }
+  },
+  "files": {
+    "static-site": {
+      "cloudflare": [
+        {
+          "source": "static-site/cloudflare/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "static-site/cloudflare/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "static-site/cloudflare/index.html.template",
+          "target": "index.html"
+        },
+        {
+          "source": "static-site/cloudflare/wrangler.toml.template",
+          "target": "wrangler.toml"
+        },
+        {
+          "source": "static-site/cloudflare/README.md",
+          "target": "README.md"
+        }
+      ],
+      "vercel": [
+        {
+          "source": "static-site/vercel/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "static-site/vercel/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "static-site/vercel/index.html.template",
+          "target": "index.html"
+        },
+        {
+          "source": "static-site/vercel/vercel.json",
+          "target": "vercel.json"
+        },
+        {
+          "source": "static-site/vercel/README.md",
+          "target": "README.md"
+        }
+      ],
+      "netlify": [
+        {
+          "source": "static-site/netlify/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "static-site/netlify/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "static-site/netlify/index.html.template",
+          "target": "index.html"
+        },
+        {
+          "source": "static-site/netlify/netlify.toml",
+          "target": "netlify.toml"
+        },
+        {
+          "source": "static-site/netlify/README.md",
+          "target": "README.md"
+        }
+      ]
+    },
+    "api-function": {
+      "cloudflare-workers": [
+        {
+          "source": "api-function/cloudflare-workers/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "api-function/cloudflare-workers/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "api-function/cloudflare-workers/wrangler.toml.template",
+          "target": "wrangler.toml"
+        },
+        {
+          "source": "api-function/cloudflare-workers/README.md",
+          "target": "README.md"
+        }
+      ],
+      "fastly": [
+        {
+          "source": "api-function/fastly/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "api-function/fastly/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "api-function/fastly/fastly.toml.template",
+          "target": "fastly.toml"
+        },
+        {
+          "source": "api-function/fastly/README.md",
+          "target": "README.md"
+        }
+      ],
+      "vercel-edge": [
+        {
+          "source": "api-function/vercel-edge/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "api-function/vercel-edge/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "api-function/vercel-edge/vercel.json",
+          "target": "vercel.json"
+        },
+        {
+          "source": "api-function/vercel-edge/README.md",
+          "target": "README.md"
+        }
+      ],
+      "aws-lambda-edge": [
+        {
+          "source": "api-function/aws-lambda-edge/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "api-function/aws-lambda-edge/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "api-function/aws-lambda-edge/template.yaml",
+          "target": "template.yaml"
+        },
+        {
+          "source": "api-function/aws-lambda-edge/README.md",
+          "target": "README.md"
+        }
+      ]
+    },
+    "web-component": {
+      "browser": [
+        {
+          "source": "web-component/browser/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "web-component/browser/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "web-component/browser/index.html.template",
+          "target": "index.html"
+        },
+        {
+          "source": "web-component/browser/README.md",
+          "target": "README.md"
+        }
+      ],
+      "nodejs": [
+        {
+          "source": "web-component/nodejs/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "web-component/nodejs/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "web-component/nodejs/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "web-component/nodejs/README.md",
+          "target": "README.md"
+        }
+      ],
+      "framework-specific": [
+        {
+          "source": "web-component/framework-specific/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "web-component/framework-specific/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "web-component/framework-specific/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "web-component/framework-specific/README.md",
+          "target": "README.md"
+        }
+      ]
+    }
+  },
+  "next_steps": {
+    "static-site": {
+      "cloudflare": [
+        "cd {{project_name}}",
+        "# Install wrangler if not already installed",
+        "# npm install -g wrangler",
+        "# Build the WebAssembly binary",
+        "wasm-pack build --target web",
+        "# Preview your site locally",
+        "npx wrangler pages dev .",
+        "# Deploy to Cloudflare Pages",
+        "npx wrangler pages publish ."
+      ],
+      "vercel": [
+        "cd {{project_name}}",
+        "# Install Vercel CLI if not already installed",
+        "# npm install -g vercel",
+        "# Build the WebAssembly binary",
+        "wasm-pack build --target web",
+        "# Deploy to Vercel",
+        "vercel"
+      ],
+      "netlify": [
+        "cd {{project_name}}",
+        "# Install Netlify CLI if not already installed",
+        "# npm install -g netlify-cli",
+        "# Build the WebAssembly binary",
+        "wasm-pack build --target web",
+        "# Preview your site locally",
+        "netlify dev",
+        "# Deploy to Netlify",
+        "netlify deploy"
+      ]
+    },
+    "api-function": {
+      "cloudflare-workers": [
+        "cd {{project_name}}",
+        "# Install wrangler if not already installed",
+        "# npm install -g wrangler",
+        "# Build the WebAssembly binary",
+        "wasm-pack build --target bundler",
+        "# Preview your worker locally",
+        "wrangler dev",
+        "# Deploy to Cloudflare Workers",
+        "wrangler publish"
+      ],
+      "fastly": [
+        "cd {{project_name}}",
+        "# Install Fastly CLI if not already installed",
+        "# brew install fastly/tap/fastly",
+        "# Build the WebAssembly binary",
+        "fastly compute build",
+        "# Test locally",
+        "fastly compute serve",
+        "# Deploy to Fastly Compute@Edge",
+        "fastly compute deploy"
+      ],
+      "vercel-edge": [
+        "cd {{project_name}}",
+        "# Install Vercel CLI if not already installed",
+        "# npm install -g vercel",
+        "# Build the WebAssembly binary",
+        "wasm-pack build --target bundler",
+        "# Deploy to Vercel Edge Functions",
+        "vercel"
+      ],
+      "aws-lambda-edge": [
+        "cd {{project_name}}",
+        "# Install AWS SAM CLI if not already installed",
+        "# brew install aws/tap/aws-sam-cli",
+        "# Build the application",
+        "sam build",
+        "# Test locally",
+        "sam local start-api",
+        "# Deploy to AWS Lambda@Edge",
+        "sam deploy --guided"
+      ]
+    },
+    "web-component": {
+      "browser": [
+        "cd {{project_name}}",
+        "# Build the WebAssembly component",
+        "wasm-pack build --target web",
+        "# Test in browser",
+        "# Open index.html in your browser or use a static file server"
+      ],
+      "nodejs": [
+        "cd {{project_name}}",
+        "# Build the WebAssembly component",
+        "wasm-pack build --target nodejs",
+        "# Test with Node.js",
+        "node -e \"require('./pkg/{{project_name}}.js')\""
+      ],
+      "framework-specific": [
+        "cd {{project_name}}",
+        "# Build the WebAssembly component",
+        "wasm-pack build --target bundler",
+        "# Install npm dependencies",
+        "npm install",
+        "# Run the development server",
+        "npm start"
+      ]
+    }
+  },
+  "dependencies": {
+    "static-site": {
+      "cloudflare": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "vercel": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "netlify": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ]
+    },
+    "api-function": {
+      "cloudflare-workers": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "worker = \"0.0.18\"",
+        "worker-macros = \"0.0.9\"",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "fastly": [
+        "fastly = \"0.9\"",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde_json = \"1.0\"",
+        "anyhow = \"1.0\""
+      ],
+      "vercel-edge": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Headers\", \"Request\", \"Response\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "aws-lambda-edge": [
+        "lambda_http = \"0.8\"",
+        "lambda_runtime = \"0.8\"",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde_json = \"1.0\"",
+        "tokio = { version = \"1\", features = [\"macros\"] }",
+        "tracing = { version = \"0.1\", features = [\"log\"] }",
+        "tracing-subscriber = { version = \"0.3\", default-features = false, features = [\"fmt\"] }"
+      ]
+    },
+    "web-component": {
+      "browser": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "nodejs": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ],
+      "framework-specific": [
+        "wasm-bindgen = \"0.2\"",
+        "js-sys = \"0.3\"",
+        "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\"] }",
+        "serde = { version = \"1.0\", features = [\"derive\"] }",
+        "serde-wasm-bindgen = \"0.6\"",
+        "wasm-bindgen-futures = \"0.4\""
+      ]
+    }
+  },
+  "dev-dependencies": {
+    "default": [
+      "wasm-bindgen-test = \"0.3\"",
+      "console_error_panic_hook = \"0.1\"",
+      "wee_alloc = \"0.4\""
+    ]
+  }
+}

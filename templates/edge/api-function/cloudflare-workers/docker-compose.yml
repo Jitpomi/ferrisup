@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+      # Mount user's Cloudflare credentials if they exist
+      - ${HOME}/.wrangler:/root/.wrangler
+    ports:
+      - "8787:8787"  # Expose port for wrangler dev
+    environment:
+      - RUST_BACKTRACE=1
+    command: bash -c "sleep infinity"  # Keep container running

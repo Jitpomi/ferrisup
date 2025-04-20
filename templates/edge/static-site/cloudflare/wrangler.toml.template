@@ -1,0 +1,11 @@
+name = "{{project_name}}"
+compatibility_date = "2023-10-25"
+
+[site]
+bucket = "./"
+
+[build]
+command = "wasm-pack build --target web && cp -r pkg ."
+
+[build.upload]
+format = "service-worker"

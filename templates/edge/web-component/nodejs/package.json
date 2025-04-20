@@ -1,0 +1,27 @@
+{
+  "name": "{{project_name}}",
+  "version": "0.1.0",
+  "description": "A Rust WebAssembly component for Node.js",
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --target nodejs",
+    "test": "node test.js",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "rust",
+    "nodejs"
+  ],
+  "author": "FerrisUp User",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "files": [
+    "pkg",
+    "index.js"
+  ]
+}
