@@ -2,6 +2,7 @@
   "name": "serverless",
   "description": "A Rust serverless function template for cloud deployment with support for AWS Lambda, Google Cloud Functions, Azure Functions, Vercel, and Netlify",
   "type": "binary",
+  "files": [],
   "options": [
     {
       "name": "cloud_provider",
@@ -22,42 +23,171 @@
     "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
     "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
     "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
-    "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
+    "netlify": "Netlify Functions let you deploy server-side code that works alongside your static website or application."
   },
-  "redirect": {
-    "cloud_provider": {
-      "aws": "serverless/aws",
-      "gcp": "serverless/gcp",
-      "azure": "serverless/azure",
-      "vercel": "serverless/vercel",
-      "netlify": "serverless/netlify"
+  "conditional_files": [
+    {
+      "when": "cloud_provider == 'aws'",
+      "files": [
+        {
+          "source": "aws/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "aws/Cargo.toml",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "aws/README.md",
+          "target": "README.md"
+        },
+        {
+          "source": "aws/template.yml",
+          "target": "template.yml"
+        },
+        {
+          "source": "aws/Makefile",
+          "target": "Makefile"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == 'gcp'",
+      "files": [
+        {
+          "source": "gcp/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "gcp/Cargo.toml",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "gcp/README.md",
+          "target": "README.md"
+        },
+        {
+          "source": "gcp/Dockerfile",
+          "target": "Dockerfile"
+        },
+        {
+          "source": "gcp/cloudbuild.yaml",
+          "target": "cloudbuild.yaml"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == 'azure'",
+      "files": [
+        {
+          "source": "azure/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "azure/Cargo.toml",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "azure/README.md",
+          "target": "README.md"
+        },
+        {
+          "source": "azure/function.json",
+          "target": "function.json"
+        },
+        {
+          "source": "azure/host.json",
+          "target": "host.json"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == 'vercel'",
+      "files": [
+        {
+          "source": "vercel/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "vercel/Cargo.toml",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "vercel/README.md",
+          "target": "README.md"
+        },
+        {
+          "source": "vercel/vercel.json",
+          "target": "vercel.json"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == 'netlify'",
+      "files": [
+        {
+          "source": "netlify/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "netlify/Cargo.toml",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "netlify/README.md",
+          "target": "README.md"
+        },
+        {
+          "source": "netlify/netlify.toml",
+          "target": "netlify.toml"
+        }
+      ]
     }
-  },
-  "next_steps_aws": [
-    "cd {{project_name}}",
-    "# Install cargo-lambda: cargo install cargo-lambda",
-    "# Test locally: cargo lambda watch",
-    "# Deploy: cargo lambda deploy"
   ],
-  "next_steps_gcp": [
-    "cd {{project_name}}",
-    "# Build: docker build -t gcr.io/your-project/function .",
-    "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http"
-  ],
-  "next_steps_azure": [
-    "cd {{project_name}}",
-    "# Install Azure Functions Core Tools",
-    "# Test locally: func start",
-    "# Deploy: func azure functionapp publish your-function-app"
-  ],
-  "next_steps_vercel": [
-    "cd {{project_name}}",
-    "# Install Vercel CLI: npm i -g vercel",
-    "# Deploy: vercel"
-  ],
-  "next_steps_netlify": [
-    "cd {{project_name}}",
-    "# Install Netlify CLI: npm i -g netlify-cli",
-    "# Deploy: netlify deploy"
-  ]
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "cargo build",
+      "cargo run"
+    ],
+    "conditional": [
+      {
+        "when": "cloud_provider == 'aws'",
+        "steps": [
+          "# Install cargo-lambda: cargo install cargo-lambda",
+          "# Test locally: cargo lambda watch",
+          "# Deploy: cargo lambda deploy"
+        ]
+      },
+      {
+        "when": "cloud_provider == 'gcp'",
+        "steps": [
+          "# Build: docker build -t gcr.io/your-project/function .",
+          "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http"
+        ]
+      },
+      {
+        "when": "cloud_provider == 'azure'",
+        "steps": [
+          "# Install Azure Functions Core Tools",
+          "# Test locally: func start",
+          "# Deploy: func azure functionapp publish your-function-app"
+        ]
+      },
+      {
+        "when": "cloud_provider == 'vercel'",
+        "steps": [
+          "# Install Vercel CLI: npm i -g vercel",
+          "# Deploy: vercel"
+        ]
+      },
+      {
+        "when": "cloud_provider == 'netlify'",
+        "steps": [
+          "# Install Netlify CLI: npm i -g netlify-cli",
+          "# Deploy: netlify deploy"
+        ]
+      }
+    ]
+  }
 }

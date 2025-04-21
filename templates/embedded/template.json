@@ -4,20 +4,12 @@
   "type": "binary",
   "files": [
     {
-      "source": "main.rs",
-      "target": "src/main.rs"
-    },
-    {
-      "source": "memory.x",
-      "target": "memory.x"
-    },
-    {
-      "source": ".cargo/config.toml",
+      "source": "common/.cargo/config.toml",
       "target": ".cargo/config.toml"
     },
     {
-      "source": "Cargo.toml.template",
-      "target": "Cargo.toml"
+      "source": "common/memory.x",
+      "target": "memory.x"
     },
     {
       "source": "README.md",
@@ -40,15 +32,58 @@
       "default": "rp2040"
     }
   ],
-  "transformations": [
+  "conditional_files": [
     {
-      "pattern": "src/main.rs",
-      "replacement": {
-        "rp2040": "main.rs.rp2040",
-        "stm32": "main.rs.stm32",
-        "esp32": "main.rs.esp32",
-        "arduino": "main.rs.arduino"
-      }
+      "when": "mcu_target == 'rp2040'",
+      "files": [
+        {
+          "source": "mcu/rp2040/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/rp2040/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == 'esp32'",
+      "files": [
+        {
+          "source": "mcu/esp32/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/esp32/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == 'stm32'",
+      "files": [
+        {
+          "source": "mcu/stm32/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/stm32/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == 'arduino'",
+      "files": [
+        {
+          "source": "mcu/arduino/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/arduino/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
     }
   ],
   "dependencies": {
