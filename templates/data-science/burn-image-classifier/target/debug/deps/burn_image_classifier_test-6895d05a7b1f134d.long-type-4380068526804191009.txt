@@ -1,1 +1,0 @@
-DataLoaderBuilder<(DynamicImage, usize), (Tensor<NdArray, 4>, Tensor<NdArray, 2>)>

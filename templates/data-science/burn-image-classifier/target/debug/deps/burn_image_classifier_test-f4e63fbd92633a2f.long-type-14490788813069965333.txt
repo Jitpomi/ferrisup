@@ -1,1 +1,0 @@
-DrawingAreaErrorKind<plotters_bitmap::error::BitMapBackendError>
