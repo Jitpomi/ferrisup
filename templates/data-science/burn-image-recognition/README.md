@@ -28,25 +28,38 @@ git clone https://github.com/your-org/your-repo.git
 cd your-repo
 ```
 
-### 2. Build
+### 2. Download MNIST Dataset
+
+The template includes a script to download the MNIST dataset:
+
+```sh
+# Navigate to the data directory
+cd data/mnist
+# Run the download script
+./download_mnist.sh
+```
+
+This will download and extract the MNIST dataset files required for training and testing.
+
+### 3. Build
 
 ```sh
 cargo build --release
 ```
 
-### 3. Train a Model
+### 4. Train a Model
 
 ```sh
 cargo run --bin {{ project_name }} -- train --epochs 10 --batch-size 64 --learning-rate 0.001 --model-path ./model.json
 ```
 
-### 4. Evaluate
+### 5. Evaluate
 
 ```sh
 cargo run --bin {{ project_name }} -- evaluate --model-path ./model.json --batch-size 64
 ```
 
-### 5. Predict
+### 6. Predict
 
 ```sh
 cargo run --bin {{ project_name }} -- predict --model-path ./model.json --image-path ./some_digit.png
