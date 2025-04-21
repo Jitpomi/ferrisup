@@ -21,6 +21,7 @@ pub mod utils;
 
 // Project management modules
 pub mod project;
+pub mod template_manager;
 
 // CLI command modules
 pub mod commands;
