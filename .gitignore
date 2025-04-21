@@ -1,6 +1,8 @@
 # Ignore Cargo build artifacts
 /target/
 /Cargo.lock
+/parquet_generator/target/
+/*/target/
 
 # Ignore Rust backup files
 *.rs.bk
