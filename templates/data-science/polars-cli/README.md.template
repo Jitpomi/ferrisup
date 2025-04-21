@@ -9,9 +9,6 @@ A data analysis CLI application using Polars (similar to pandas in Python)
 {{#if (eq data_source "CSV files")}}
 - Support for CSV files
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-- Support for Parquet files
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 - Support for JSON data
 {{/if}}
@@ -38,9 +35,6 @@ The binary will be available at `target/release/{{project_name}}`.
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json
 {{/if}}
@@ -48,9 +42,6 @@ cargo run -- analyze -f data/example_data.json
 # Filtering data
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -c department -v Engineering
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -c department -v Engineering
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -c department -v Engineering
@@ -60,9 +51,6 @@ cargo run -- analyze -f data/example_data.json -c department -v Engineering
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -g department -a salary -u mean
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -g department -a salary -u mean
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
 {{/if}}
@@ -70,9 +58,6 @@ cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
 # Statistical analysis
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -s
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -s
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -s
@@ -86,9 +71,6 @@ cargo run -- analyze -f data/example_data.json -s
 {{#if (eq data_source "CSV files")}}
 cargo run -- generate -r 100 -o data/my_data.csv
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- generate -r 100 -o data/my_data.parquet
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- generate -r 100 -o data/my_data.json
 {{/if}}
@@ -99,7 +81,7 @@ cargo run -- generate -r 100 -o data/my_data.json
 ### Analyze Command
 
 - `-f, --file <FILE>`: Path to the data file
-- `-t, --format <FORMAT>`: File format (csv, json, parquet) [default: {{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}]
+- `-t, --format <FORMAT>`: File format (csv, json) [default: {{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}]
 - `-c, --filter-column <FILTER_COLUMN>`: Optional column to filter on
 - `-v, --filter-value <FILTER_VALUE>`: Optional value to filter for
 - `-g, --group-by <GROUP_BY>`: Optional column to group by
@@ -115,7 +97,7 @@ cargo run -- generate -r 100 -o data/my_data.json
 
 - `-r, --rows <ROWS>`: Number of rows to generate [default: 100]
 - `-o, --output <o>`: Output file path
-- `-t, --format <FORMAT>`: Output format (csv, json, parquet) [default: {{#if (eq data_source "Parquet files")}}parquet{{else}}{{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}{{/if}}]
+- `-t, --format <FORMAT>`: Output format (csv, json) [default: {{#if (eq data_source "JSON data")}}json{{else}}csv{{/if}}]
 
 ## Examples
 
@@ -125,10 +107,6 @@ cargo run -- generate -r 100 -o data/my_data.json
 {{#if (eq data_source "CSV files")}}
 # Analyze the example CSV file
 cargo run -- analyze -f data/example_data.csv
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-# Analyze the example Parquet file
-cargo run -- analyze -f data/example_data.parquet
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 # Analyze the example JSON file
@@ -143,9 +121,6 @@ cargo run -- analyze -f data/example_data.json
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -c department -v Engineering
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -c department -v Engineering
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -c department -v Engineering
 {{/if}}
@@ -153,9 +128,6 @@ cargo run -- analyze -f data/example_data.json -c department -v Engineering
 # Group by department and calculate mean salary
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -g department -a salary -u mean
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -g department -a salary -u mean
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
@@ -169,9 +141,6 @@ cargo run -- analyze -f data/example_data.json -g department -a salary -u mean
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -s
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -s
-{{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -s
 {{/if}}
@@ -179,9 +148,6 @@ cargo run -- analyze -f data/example_data.json -s
 # Perform statistical analysis with 99% confidence level
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -s --confidence 0.99
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -s --confidence 0.99
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -s --confidence 0.99
@@ -197,9 +163,6 @@ The application automatically generates histograms for numeric columns when usin
 # Generate histograms for all numeric columns
 {{#if (eq data_source "CSV files")}}
 cargo run -- analyze -f data/example_data.csv -s
-{{/if}}
-{{#if (eq data_source "Parquet files")}}
-cargo run -- analyze -f data/example_data.parquet -s
 {{/if}}
 {{#if (eq data_source "JSON data")}}
 cargo run -- analyze -f data/example_data.json -s

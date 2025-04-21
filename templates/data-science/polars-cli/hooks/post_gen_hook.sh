@@ -41,3 +41,26 @@ echo "Next steps:"
 for step in "${NEXT_STEPS[@]}"; do
     echo "  $step"
 done
+
+# Write the next steps to the .ferrisup_next_steps.json file
+echo "{" > .ferrisup_next_steps.json
+echo "  \"next_steps\": [" >> .ferrisup_next_steps.json
+
+# Add each step with proper JSON escaping and the correct project name
+for i in "${!NEXT_STEPS[@]}"; do
+    # Replace {{project_name}} with the actual project name
+    STEP="${NEXT_STEPS[$i]}"
+    STEP="${STEP//{{project_name}}/${project_name}}"
+    
+    # Add comma for all but the last item
+    if [ $i -lt $(( ${#NEXT_STEPS[@]} - 1 )) ]; then
+        echo "    \"$STEP\"," >> .ferrisup_next_steps.json
+    else
+        echo "    \"$STEP\"" >> .ferrisup_next_steps.json
+    fi
+done
+
+echo "  ]" >> .ferrisup_next_steps.json
+echo "}" >> .ferrisup_next_steps.json
+
+echo "✅ Updated next steps with correct file extensions"

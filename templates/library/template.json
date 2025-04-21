@@ -4,33 +4,136 @@
   "type": "library",
   "files": [
     {
-      "source": "lib.rs",
-      "target": "src/lib.rs"
+      "source": "README.md",
+      "target": "README.md"
     },
     {
       "source": "Cargo.toml.template",
       "target": "Cargo.toml"
+    }
+  ],
+  "options": [
+    {
+      "name": "library_type",
+      "description": "What type of library are you creating?",
+      "type": "select",
+      "options": ["general", "data_processing", "algorithms"],
+      "default": "general"
     },
     {
-      "source": "README.md",
-      "target": "README.md"
+      "name": "include_benchmarks",
+      "description": "Do you want to include benchmarking support?",
+      "type": "select",
+      "options": ["yes", "no"],
+      "default": "no"
+    }
+  ],
+  "conditional_files": [
+    {
+      "when": "library_type == 'general'",
+      "files": [
+        {
+          "source": "general/lib.rs",
+          "target": "src/lib.rs"
+        }
+      ]
+    },
+    {
+      "when": "library_type == 'data_processing'",
+      "files": [
+        {
+          "source": "data_processing/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "data_processing/processor.rs",
+          "target": "src/processor.rs"
+        }
+      ]
+    },
+    {
+      "when": "library_type == 'algorithms'",
+      "files": [
+        {
+          "source": "algorithms/lib.rs",
+          "target": "src/lib.rs"
+        },
+        {
+          "source": "algorithms/sorting.rs",
+          "target": "src/sorting.rs"
+        },
+        {
+          "source": "algorithms/search.rs",
+          "target": "src/search.rs"
+        }
+      ]
+    },
+    {
+      "when": "include_benchmarks == 'yes'",
+      "files": [
+        {
+          "source": "benches/benchmark.rs",
+          "target": "benches/benchmark.rs"
+        }
+      ]
     }
   ],
   "dependencies": {
-    "default": []
+    "default": [],
+    "data_processing": [
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ],
+    "algorithms": [
+      "num-traits = \"0.2\"",
+      "rayon = \"1.9\""
+    ]
   },
   "dev-dependencies": {
     "default": [
-      "anyhow = \"1.0\"",
-      "criterion = \"0.5\""
+      "anyhow = \"1.0\""
+    ],
+    "yes": [
+      "criterion = { version = \"0.5\", features = [\"html_reports\"] }"
     ]
   },
-  "next_steps": [
-    "cd {{project_name}}",
-    "cargo test",
-    "cargo doc --open",
-    "# Add your library functionality to src/lib.rs",
-    "# Run benchmarks with: cargo bench",
-    "# Update Cargo.toml with your library metadata before publishing"
-  ]
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "cargo test",
+      "cargo doc --open",
+      "# Add your library functionality to src/lib.rs"
+    ],
+    "conditional": [
+      {
+        "when": "library_type == 'general'",
+        "steps": [
+          "# This is a general-purpose Rust library",
+          "# Consider adding module structure as your library grows"
+        ]
+      },
+      {
+        "when": "library_type == 'data_processing'",
+        "steps": [
+          "# This library includes data processing capabilities",
+          "# You can implement custom data processors in src/processor.rs"
+        ]
+      },
+      {
+        "when": "library_type == 'algorithms'",
+        "steps": [
+          "# This library includes algorithm implementations",
+          "# Add sorting algorithms to src/sorting.rs",
+          "# Add search algorithms to src/search.rs"
+        ]
+      },
+      {
+        "when": "include_benchmarks == 'yes'",
+        "steps": [
+          "# Run benchmarks with: cargo bench",
+          "# Edit benchmarks in benches/benchmark.rs"
+        ]
+      }
+    ]
+  }
 }

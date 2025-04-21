@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 # {{project_name}}
 
 This template provides a foundation for creating a Rust library crate with a well-structured `lib.rs` file and testing infrastructure.
