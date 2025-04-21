@@ -1,10 +1,11 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use colored::*;
 
-mod commands;
-mod config;
-pub mod template_manager;
+// Use the library modules instead of local definitions
+use ferrisup::commands;
+
+// Keep utils for any necessary utility functions
 mod utils;
 
 #[derive(Parser)]
@@ -17,109 +18,7 @@ mod utils;
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Commands>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Create a new Rust project with interactive configuration
-    New {
-        /// Project name (optional, will prompt if not provided)
-        #[arg(required = false)]
-        name: Option<String>,
-
-        /// Template to use (optional, will prompt if not provided)
-        #[arg(short, long)]
-        template: Option<String>,
-
-        /// Project type for framework-specific options (e.g., desktop, web, mobile for Dioxus)
-        #[arg(short, long)]
-        project_type: Option<String>,
-
-        /// Initialize a git repository
-        #[arg(short, long)]
-        git: bool,
-
-        /// Run cargo build after project creation
-        #[arg(short, long)]
-        build: bool,
-
-        /// Skip interactive prompts (for automated testing)
-        #[arg(long)]
-        no_interactive: bool,
-    },
-
-    /// Transform an existing project with interactive configuration
-    Transform {
-        /// Path to the project to transform (optional, will prompt if not provided)
-        #[arg(short, long)]
-        project: Option<String>,
-
-        /// Template to transform to (optional, will prompt if not provided)
-        #[arg(short, long)]
-        template: Option<String>,
-    },
-
-    /// List available templates
-    List,
-
-    /// Interactively scale a project with custom components
-    Scale,
-
-    /// Preview a template without actually creating files
-    #[cfg(not(feature = "workspace_test"))]
-    Preview {
-        /// Template to preview (optional, will prompt if not provided)
-        #[arg(short, long)]
-        template: Option<String>,
-    },
-
-    /// Manage project components (add/remove)
-    #[cfg(not(feature = "workspace_test"))]
-    Component {
-        /// Action to perform: add, remove, or list
-        #[arg(short, long)]
-        action: Option<String>,
-
-        /// Component type: client, server, database, ai, edge, embedded, etc.
-        #[arg(short, long)]
-        component_type: Option<String>,
-
-        /// Path to the project (optional, will use current directory if not provided)
-        #[arg(short, long)]
-        project: Option<String>,
-    },
-
-    /// Manage configurations (export/import)
-    #[cfg(not(feature = "workspace_test"))]
-    Config {
-        /// Export the current configuration to a file
-        #[arg(short, long)]
-        export: bool,
-
-        /// Import a configuration from a file
-        #[arg(short, long)]
-        import: Option<String>,
-
-        /// Path to export/import configuration (optional)
-        #[arg(short, long)]
-        path: Option<String>,
-    },
-
-    /// Manage Cargo workspaces
-    Workspace {
-        /// Action to perform: init, add, remove, list, or optimize
-        #[arg(short, long)]
-        action: Option<String>,
-
-        /// Path to the workspace (optional, will use current directory if not provided)
-        #[arg(short, long)]
-        path: Option<String>,
-    },
-    
-    /// Manage project dependencies
-    #[cfg(not(feature = "workspace_test"))]
-    Dependency(commands::dependency::DependencyArgs),
+    command: Option<commands::Commands>,
 }
 
 fn main() -> Result<()> {
@@ -140,7 +39,7 @@ fn main() -> Result<()> {
 
     // Match the CLI command and execute
     match cli.command {
-        Some(Commands::New { name, template, project_type, git, build, no_interactive }) => {
+        Some(commands::Commands::New { name, template, project_type, git, build, no_interactive }) => {
             match &name {
                 Some(n) => println!(
                     "{} {} {} {}",
@@ -158,7 +57,7 @@ fn main() -> Result<()> {
             }
             commands::new::execute(name.as_deref(), template.as_deref(), git, build, no_interactive, project_type.as_deref())
         }
-        Some(Commands::Transform { project, template }) => {
+        Some(commands::Commands::Transform { project, template }) => {
             match &project {
                 Some(p) => println!(
                     "{} {}",
@@ -172,35 +71,35 @@ fn main() -> Result<()> {
             }
             commands::transform::execute(project.as_deref(), template.as_deref())
         }
-        Some(Commands::List) => {
+        Some(commands::Commands::List) => {
             println!("{}", "Listing available templates".blue().bold());
             commands::list::execute()
         }
-        Some(Commands::Scale) => {
+        Some(commands::Commands::Scale) => {
             println!("{}", "Scaling project".green().bold());
             commands::scale::execute()
         }
         #[cfg(not(feature = "workspace_test"))]
-        Some(Commands::Preview { template }) => {
+        Some(commands::Commands::Preview { template }) => {
             println!("{}", "Previewing template".green().bold());
             commands::preview::execute(template.as_deref())
         }
         #[cfg(not(feature = "workspace_test"))]
-        Some(Commands::Component { action, component_type, project }) => {
+        Some(commands::Commands::Component { action, component_type, project }) => {
             println!("{}", "Managing components".green().bold());
             commands::component::execute(action.as_deref(), component_type.as_deref(), project.as_deref())
         }
         #[cfg(not(feature = "workspace_test"))]
-        Some(Commands::Config { export, import, path }) => {
+        Some(commands::Commands::Config { export, import, path }) => {
             println!("{}", "Managing configuration".green().bold());
             commands::config::execute(export, import.as_deref(), path.as_deref())
         }
-        Some(Commands::Workspace { action, path }) => {
+        Some(commands::Commands::Workspace { action, path }) => {
             println!("{}", "Managing Cargo workspace".green().bold());
             commands::workspace::execute(action.as_deref(), path.as_deref())
         }
         #[cfg(not(feature = "workspace_test"))]
-        Some(Commands::Dependency(args)) => {
+        Some(commands::Commands::Dependency(args)) => {
             println!("{}", "Managing dependencies".green().bold());
             commands::dependency::execute(args)
         }

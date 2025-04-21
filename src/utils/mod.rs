@@ -3,18 +3,18 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use colored::*;
 use walkdir::WalkDir;
+use toml;
 
 pub fn create_directory(path: &Path) -> Result<()> {
     if !path.exists() {
-        fs::create_dir_all(path)
-            .context(format!("Failed to create directory: {}", path.display()))?;
+        fs::create_dir_all(path)?;
+        println!("Created directory: {}", path.display());
     }
     Ok(())
 }
 
-// Currently unused but kept for future use
 #[allow(dead_code)]
-pub fn write_cargo_toml(project_dir: &Path, config: &crate::config::Config) -> Result<()> {
+pub fn write_cargo_toml(project_dir: &Path) -> Result<()> {
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -23,7 +23,8 @@ edition = "2021"
 
 [dependencies]
 "#,
-        config.project_name
+        // Using a default project name 
+        "rust_project"
     );
     
     fs::write(project_dir.join("Cargo.toml"), cargo_toml)
@@ -32,7 +33,6 @@ edition = "2021"
     Ok(())
 }
 
-// Currently unused but kept for future use
 #[allow(dead_code)]
 pub fn write_env_file(project_dir: &Path) -> Result<()> {
     let env_sample = r#"# Database connection
@@ -61,7 +61,7 @@ MODEL_PATH=./ai/models/model.onnx
     Ok(())
 }
 
-/// Read the contents of a Cargo.toml file
+#[allow(dead_code)]
 pub fn read_cargo_toml(project_dir: &Path) -> Result<String> {
     let cargo_path = project_dir.join("Cargo.toml");
     if !cargo_path.exists() {
@@ -72,7 +72,7 @@ pub fn read_cargo_toml(project_dir: &Path) -> Result<String> {
         .context(format!("Failed to read {}", cargo_path.display()))
 }
 
-/// Write content to a Cargo.toml file
+#[allow(dead_code)]
 pub fn write_cargo_toml_content(project_dir: &Path, content: &str) -> Result<()> {
     let cargo_path = project_dir.join("Cargo.toml");
     
@@ -84,7 +84,7 @@ pub fn write_cargo_toml_content(project_dir: &Path, content: &str) -> Result<()>
     Ok(())
 }
 
-/// Update workspace members by scanning for crates and updating Cargo.toml
+#[allow(dead_code)]
 pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
     let cargo_content = read_cargo_toml(project_dir)?;
     
@@ -188,7 +188,6 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
     Ok(updated)
 }
 
-/// Recursively copy a directory and all its contents
 #[allow(dead_code)]
 pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
     // Create the destination directory if it doesn't exist

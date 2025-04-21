@@ -15,7 +15,16 @@
 /// # Preview a template
 /// ferrisup preview --template full-stack
 /// ```
+// Core modules
+pub mod core;
 pub mod utils;
-pub mod config;
+
+// Project management modules
+pub mod project;
+
+// CLI command modules
 pub mod commands;
-pub mod template_manager;
+
+// Re-exports of frequently used components
+pub use core::{Config, Result, Error};
+pub use project::{find_handler, get_handlers, ProjectHandler};

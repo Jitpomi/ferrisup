@@ -1,10 +1,9 @@
-use std::fs;
+use anyhow::{Result, Context};
+use colored::Colorize;
 use std::path::{Path, PathBuf};
-use anyhow::{Context, Result};
-use colored::*;
+use std::fs;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
-
-use crate::template_manager::{get_template, list_templates};
+use crate::project::templates::{get_template, list_templates};
 use crate::utils::{create_directory, read_cargo_toml, update_workspace_members};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {

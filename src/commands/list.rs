@@ -1,64 +1,30 @@
 use anyhow::Result;
-use colored::*;
-
-use crate::template_manager::get_all_templates;
+use colored::Colorize;
+use crate::project::templates::list_templates;
 
 pub fn execute() -> Result<()> {
-    let templates = get_all_templates()?;
+    let templates = list_templates()?;
     
     println!("\n{}", "Available templates:".green().bold());
     
-    for template in templates {
-        match template.as_str() {
-            "minimal" => {
-                println!("  {} - Simple binary with a single main.rs file", 
-                    "minimal".cyan());
-            },
-            "library" => {
-                println!("  {} - Rust library crate with a lib.rs file", 
-                    "library".cyan());
-            },
-            "full-stack" => {
-                println!("  {} - Complete application with client, server, and shared libraries", 
-                    "full-stack".cyan());
-            },
-            "gen-ai" => {
-                println!("  {} - AI-focused project with inference and model components", 
-                    "gen-ai".cyan());
-            },
-            "edge-app" => {
-                println!("  {} - WebAssembly-based application for edge computing", 
-                    "edge-app".cyan());
-            },
-            "embedded" => {
-                println!("  {} - Embedded systems firmware for microcontrollers", 
-                    "embedded".cyan());
-            },
-            "serverless" => {
-                println!("  {} - Serverless functions for cloud deployment", 
-                    "serverless".cyan());
-            },
-            "iot-device" => {
-                println!("  {} - IoT device firmware with connectivity features", 
-                    "iot-device".cyan());
-            },
-            "ml-pipeline" => {
-                println!("  {} - Machine learning data processing pipeline", 
-                    "ml-pipeline".cyan());
-            },
-            "data-science" => {
-                println!("  {} - Data science project with analysis tools", 
-                    "data-science".cyan());
-            },
-            _ => {
-                println!("  {} - Custom template", 
-                    template.cyan());
-            }
+    for (template_name, template_description) in templates {
+        match template_name.as_str() {
+            "minimal" => println!("  • {} - {}", template_name.cyan().bold(), template_description),
+            "full-stack" => println!("  • {} - {}", template_name.magenta().bold(), template_description),
+            "data-science" => println!("  • {} - {}", template_name.blue().bold(), template_description),
+            "library" => println!("  • {} - {}", template_name.yellow().bold(), template_description),
+            "web-server" => println!("  • {} - {}", template_name.green().bold(), template_description),
+            "cli" => println!("  • {} - {}", template_name.red().bold(), template_description),
+            "embedded-embassy" => println!("  • {} - {}", template_name.cyan().bold(), template_description),
+            "desktop-dioxus" => println!("  • {} - {}", template_name.magenta().bold(), template_description),
+            "wasm" => println!("  • {} - {}", template_name.yellow().bold(), template_description),
+            "tauri" => println!("  • {} - {}", template_name.green().bold(), template_description),
+            _ => println!("  • {} - {}", template_name.white().bold(), template_description)
         }
     }
     
-    println!("\n{} ferrisup new <PROJECT_NAME> --template=<TEMPLATE>\n", 
-        "Usage:".yellow().bold());
+    println!("\n{}", "For more information about a template, use:".blue());
+    println!("  {}", "ferrisup preview <template-name>".cyan());
     
     Ok(())
 }

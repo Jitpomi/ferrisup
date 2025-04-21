@@ -168,114 +168,250 @@ pub fn apply_template(
 ) -> Result<()> {
     println!("Applying template {} to {}", template_name, target_dir.display());
     
-    // Get template directory
-    let template_dir = find_template_directory(template_name)?;
-    
-    // Get template configuration
-    let template_config = get_template_config(template_name)?;
-    
-    // Create variables map
-    let mut template_vars = json!({
-        "project_name": project_name,
-        "project_name_pascal_case": to_pascal_case(project_name),
-    });
-    
-    // Add custom variables
-    if let Some(vars) = variables {
-        if let Some(obj) = vars.as_object() {
-            if let Some(obj_mut) = template_vars.as_object_mut() {
-                for (key, value) in obj {
-                    obj_mut.insert(key.clone(), value.clone());
-                }
-            }
-        }
+    // Check if the template exists
+    if !template_exists(template_name) {
+        return Err(anyhow::anyhow!("Template '{}' not found", template_name));
     }
-    
-    // Create Handlebars instance
+
+    // Read the template configuration
+    let template_config = get_template_config(template_name)?;
+
+    // Get the template files to copy
+    let files = match template_config.get("files") {
+        Some(Value::Array(files)) => files,
+        _ => return Err(anyhow::anyhow!("No files specified in template")),
+    };
+
+    // Get the template directory
+    let template_dir = get_template_dir(template_name)?;
+
+    // Create a Handlebars instance for rendering templates
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
-    
-    // Process template files
-    if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-        for file_entry in files {
-            if let Some(file_obj) = file_entry.as_object() {
-                let source = file_obj.get("source").and_then(|s| s.as_str());
-                let target = file_obj.get("target").and_then(|t| t.as_str());
-                let condition = file_obj.get("condition").and_then(|c| c.as_str());
-                
-                // Skip if condition not met
-                if let Some(cond) = condition {
-                    if !evaluate_condition(cond, &template_vars) {
-                        continue;
-                    }
+
+    // Create template variables with project_name
+    let mut template_vars = json!({
+        "project_name": project_name,
+    });
+
+    // Add additional variables if provided
+    if let Some(vars) = variables {
+        if let Some(obj) = template_vars.as_object_mut() {
+            if let Some(additional_vars) = vars.as_object() {
+                for (key, value) in additional_vars {
+                    obj.insert(key.clone(), value.clone());
                 }
-                
-                if let (Some(src), Some(tgt)) = (source, target) {
-                    let src_path = template_dir.join(src);
-                    let tgt_path = target_dir.join(tgt);
-                    
-                    // Create parent directories
-                    if let Some(parent) = tgt_path.parent() {
-                        fs::create_dir_all(parent)?;
-                    }
-                    
-                    if src_path.is_dir() {
-                        // Copy directory
-                        copy_dir_all(&src_path, &tgt_path)?;
-                    } else if src_path.exists() {
-                        // Process template file
-                        let content = fs::read_to_string(&src_path)?;
-                        let processed = handlebars.render_template(&content, &template_vars)?;
-                        fs::write(&tgt_path, processed)?;
-                        
-                        // Set executable permission for scripts
-                        if src_path.extension().map_or(false, |ext| ext == "sh") {
-                            #[cfg(unix)]
-                            {
-                                use std::os::unix::fs::PermissionsExt;
-                                let mut perms = fs::metadata(&tgt_path)?.permissions();
-                                perms.set_mode(0o755);
-                                fs::set_permissions(&tgt_path, perms)?;
+            }
+        }
+    }
+
+    // Process each file in the template
+    for file in files {
+        let source = match file.get("source") {
+            Some(Value::String(source)) => source,
+            _ => continue,
+        };
+
+        let target = match file.get("target") {
+            Some(Value::String(target)) => target,
+            _ => continue,
+        };
+
+        // Check if this file should be transformed based on a variable (old transformation system)
+        let source_path = if let Some(transformations) = template_config.get("transformations") {
+            if let Some(transformations) = transformations.as_array() {
+                // Check each transformation rule
+                let mut transformed_source = None;
+                for rule in transformations {
+                    if let Some(pattern) = rule.get("pattern").and_then(|p| p.as_str()) {
+                        if pattern == target {
+                            // Find the replacement based on the variables
+                            if let Some(replacements) = rule.get("replacement").and_then(|r| r.as_object()) {
+                                if let Some(vars) = &variables {
+                                    if let Some(var_obj) = vars.as_object() {
+                                        // Try to match each variable name with each replacement key
+                                        for (key, value) in replacements {
+                                            if let Some(value_str) = value.as_str() {
+                                                for (var_name, var_value) in var_obj {
+                                                    if let Some(var_value_str) = var_value.as_str() {
+                                                        if key == var_value_str {
+                                                            transformed_source = Some(value_str.to_string());
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                if transformed_source.is_some() {
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        return Err(anyhow::anyhow!("Source file not found: {}", src_path.display()));
+                    }
+                }
+                
+                transformed_source.unwrap_or_else(|| source.clone())
+            } else {
+                source.clone()
+            }
+        } else {
+            source.clone()
+        };
+
+        // Apply variables to the file source and target paths
+        let source_rendered = handlebars.render_template(&source_path, &template_vars)
+            .unwrap_or_else(|_| source_path.clone());
+        let target_rendered = handlebars.render_template(target, &template_vars)
+            .unwrap_or_else(|_| target.clone());
+
+        // Calculate the absolute paths
+        let source_abs_path = template_dir.join(&source_rendered);
+        let target_abs_path = target_dir.join(&target_rendered);
+
+        // Create parent directory if needed
+        if let Some(parent) = target_abs_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        // Check if the file has a .template extension - if so, apply variable substitution
+        if source_abs_path.extension().map_or(false, |ext| ext == "template") {
+            // Read the template content
+            let template_content = match fs::read_to_string(&source_abs_path) {
+                Ok(content) => content,
+                Err(e) => {
+                    println!("Error reading template file {}: {}", source_abs_path.display(), e);
+                    continue;
+                }
+            };
+
+            // Render the template with variables
+            let rendered = match handlebars.render_template(&template_content, &template_vars) {
+                Ok(rendered) => rendered,
+                Err(e) => {
+                    println!("Error rendering template {}: {}", source_abs_path.display(), e);
+                    continue;
+                }
+            };
+
+            // Write the rendered template to the target file
+            match fs::write(&target_abs_path, rendered) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error writing file {}: {}", target_abs_path.display(), e);
+                    continue;
+                }
+            }
+        } else {
+            // Copy the file without modification
+            if let Err(e) = fs::copy(&source_abs_path, &target_abs_path) {
+                println!("Error copying file from {} to {}: {}", source_abs_path.display(), target_abs_path.display(), e);
+                continue;
+            }
+        }
+    }
+
+    // Process conditional files if present
+    if let Some(conditional_files) = template_config.get("conditional_files") {
+        if let Some(conditional_files_array) = conditional_files.as_array() {
+            // For each conditional group
+            for condition_group in conditional_files_array {
+                if let Some(condition_obj) = condition_group.as_object() {
+                    // Check if the condition is met
+                    if let Some(when_expr) = condition_obj.get("when").and_then(|w| w.as_str()) {
+                        if let Some((var_name, expected_value)) = parse_condition(when_expr) {
+                            // Check if the variable exists and matches the expected value
+                            if let Some(actual_value) = template_vars.get(var_name).and_then(|v| v.as_str()) {
+                                if actual_value == expected_value {
+                                    // Apply the files for this condition
+                                    if let Some(files_array) = condition_obj.get("files").and_then(|f| f.as_array()) {
+                                        for file in files_array {
+                                            let source = match file.get("source") {
+                                                Some(Value::String(source)) => source,
+                                                _ => continue,
+                                            };
+
+                                            let target = match file.get("target") {
+                                                Some(Value::String(target)) => target,
+                                                _ => continue,
+                                            };
+
+                                            // Apply variables to the file source and target paths
+                                            let source_rendered = handlebars.render_template(source, &template_vars)
+                                                .unwrap_or_else(|_| source.clone());
+                                            let target_rendered = handlebars.render_template(target, &template_vars)
+                                                .unwrap_or_else(|_| target.clone());
+
+                                            // Calculate the absolute paths
+                                            let source_abs_path = template_dir.join(&source_rendered);
+                                            let target_abs_path = target_dir.join(&target_rendered);
+
+                                            // Create parent directory if needed
+                                            if let Some(parent) = target_abs_path.parent() {
+                                                fs::create_dir_all(parent)?;
+                                            }
+
+                                            // Check if the file has a .template extension - if so, apply variable substitution
+                                            if source_abs_path.extension().map_or(false, |ext| ext == "template") {
+                                                // Read the template content
+                                                let template_content = match fs::read_to_string(&source_abs_path) {
+                                                    Ok(content) => content,
+                                                    Err(e) => {
+                                                        println!("Error reading template file {}: {}", source_abs_path.display(), e);
+                                                        continue;
+                                                    }
+                                                };
+
+                                                // Render the template with variables
+                                                let rendered = match handlebars.render_template(&template_content, &template_vars) {
+                                                    Ok(rendered) => rendered,
+                                                    Err(e) => {
+                                                        println!("Error rendering template {}: {}", source_abs_path.display(), e);
+                                                        continue;
+                                                    }
+                                                };
+
+                                                // Write the rendered template to the target file
+                                                match fs::write(&target_abs_path, rendered) {
+                                                    Ok(_) => (),
+                                                    Err(e) => {
+                                                        println!("Error writing file {}: {}", target_abs_path.display(), e);
+                                                        continue;
+                                                    }
+                                                }
+                                            } else {
+                                                // Copy the file without modification
+                                                if let Err(e) = fs::copy(&source_abs_path, &target_abs_path) {
+                                                    println!("Error copying file from {} to {}: {}", source_abs_path.display(), target_abs_path.display(), e);
+                                                    continue;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-    } else {
-        // Just copy all files from the template directory
-        copy_dir_all(&template_dir, target_dir)?;
     }
-    
-    // Run post-generation hooks
-    if let Some(hooks) = template_config.get("hooks").and_then(|h| h.as_object()) {
-        if let Some(post_gen) = hooks.get("post_gen").and_then(|p| p.as_str()) {
-            let hook_path = target_dir.join(post_gen);
-            if hook_path.exists() {
-                println!("Running post-generation hook: {}", post_gen);
-                
-                // Create a temporary variables file
-                let vars_file = target_dir.join(".variables.json");
-                fs::write(&vars_file, template_vars.to_string())?;
-                
-                // Run the hook
-                let status = std::process::Command::new(&hook_path)
-                    .current_dir(target_dir)
-                    .status()?;
-                
-                if !status.success() {
-                    println!("⚠️ Post-generation hook failed with status: {}", status);
-                }
-                
-                // Clean up
-                let _ = fs::remove_file(vars_file);
-            }
+
+    // Copy dependencies to the Cargo.toml file if needed
+    if let Some(deps) = get_template_dependencies(template_name, &template_vars) {
+        update_cargo_toml(target_dir, &deps)?;
+    }
+
+    // Display next steps if available
+    if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
+        println!("\n{}", "Next steps:".bold().green());
+        for step in next_steps {
+            println!("- {}", step);
         }
     }
-    
-    println!("✅ Template applied successfully!");
+
+    // Success
     Ok(())
 }
 
@@ -481,19 +617,33 @@ pub fn get_template_next_steps(template_name: &str, project_name: &str, variable
     ])
 }
 
-/// Parse a simple condition string in the format "variable_name == 'value'"
+/// Parse a simple condition string like "variable == 'value'" into a tuple (variable_name, expected_value)
+/// This function supports both single and double quotes around the value.
 fn parse_condition(condition: &str) -> Option<(&str, &str)> {
-    // Split the condition by the equality operator
-    let parts: Vec<&str> = condition.split("==").collect();
-    if parts.len() != 2 {
-        return None;
+    // Simple parsing for "variable == 'value'" or 'variable == "value"'
+    if let Some(equals_pos) = condition.find("==") {
+        let var_name = condition[..equals_pos].trim();
+        let value_part = condition[equals_pos + 2..].trim();
+        
+        // Extract the value inside quotes or treat as raw value if no quotes
+        let value = if (value_part.starts_with('\'') && value_part.ends_with('\'')) ||
+                      (value_part.starts_with('"') && value_part.ends_with('"')) {
+            value_part
+                .trim_start_matches('\'')
+                .trim_start_matches('"')
+                .trim_end_matches('\'')
+                .trim_end_matches('"')
+        } else {
+            // Handle case when quotes might be missing or mismatched
+            value_part
+        };
+        
+        if !var_name.is_empty() && !value.is_empty() {
+            return Some((var_name, value));
+        }
     }
     
-    // Trim whitespace and quotes from the variable name and value
-    let var_name = parts[0].trim();
-    let value = parts[1].trim().trim_matches('\'').trim_matches('"');
-    
-    Some((var_name, value))
+    None
 }
 
 /// Convert a string to PascalCase
@@ -557,4 +707,107 @@ fn evaluate_condition(condition: &str, variables: &Value) -> bool {
     } else {
         false
     }
+}
+
+/// Get the template directory for a given template name
+pub fn get_template_dir(template_name: &str) -> Result<PathBuf> {
+    let templates_dir = get_templates_dir()?;
+    
+    // Handle template names with subdirectories (like client/leptos/counter)
+    let template_dir = templates_dir.join(template_name);
+    if template_dir.exists() && template_dir.is_dir() {
+        return Ok(template_dir);
+    }
+    
+    Err(anyhow::anyhow!("Template directory not found: {}", template_name))
+}
+
+/// Check if a template exists
+pub fn template_exists(template_name: &str) -> bool {
+    if let Ok(template_dir) = get_template_dir(template_name) {
+        return template_dir.exists() && template_dir.is_dir();
+    }
+    false
+}
+
+/// Get the base templates directory
+pub fn get_templates_dir() -> Result<PathBuf> {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .or_else(|_| {
+            // Fall back to current directory if CARGO_MANIFEST_DIR is not set
+            std::env::current_dir()
+        })?;
+    
+    Ok(manifest_dir.join("templates"))
+}
+
+/// Update Cargo.toml with template dependencies
+fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> {
+    let cargo_path = project_dir.join("Cargo.toml");
+    if !cargo_path.exists() {
+        return Ok(());  // Nothing to update
+    }
+    
+    let mut content = fs::read_to_string(&cargo_path)?;
+    
+    // Find the [dependencies] section
+    if let Some(deps_idx) = content.find("[dependencies]") {
+        // Find the end of the section (next section or end of file)
+        let section_end = content[deps_idx..].find("\n[").map_or(content.len(), |i| deps_idx + i);
+        
+        // Insert dependencies at the end of the section
+        let mut new_content = content[..section_end].to_string();
+        for dep in dependencies {
+            new_content.push_str("\n");
+            new_content.push_str(dep);
+        }
+        new_content.push_str(&content[section_end..]);
+        
+        // Write back to Cargo.toml
+        fs::write(&cargo_path, new_content)?;
+    }
+    
+    Ok(())
+}
+
+/// Get dependencies for a template based on variables
+fn get_template_dependencies(template_name: &str, variables: &Value) -> Option<Vec<String>> {
+    if let Ok(template_config) = get_template_config(template_name) {
+        if let Some(deps) = template_config.get("dependencies") {
+            let mut result = Vec::new();
+            
+            // Add default dependencies
+            if let Some(default_deps) = deps.get("default").and_then(|d| d.as_array()) {
+                for dep in default_deps {
+                    if let Some(dep_str) = dep.as_str() {
+                        result.push(dep_str.to_string());
+                    }
+                }
+            }
+            
+            // Add conditional dependencies
+            if let Some(deps_obj) = deps.as_object() {
+                if let Some(var_obj) = variables.as_object() {
+                    for (var_name, var_val) in var_obj {
+                        if let Some(var_val_str) = var_val.as_str() {
+                            if let Some(cond_deps) = deps_obj.get(var_val_str).and_then(|d| d.as_array()) {
+                                for dep in cond_deps {
+                                    if let Some(dep_str) = dep.as_str() {
+                                        result.push(dep_str.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if !result.is_empty() {
+                return Some(result);
+            }
+        }
+    }
+    
+    None
 }

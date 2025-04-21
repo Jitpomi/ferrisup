@@ -1,10 +1,9 @@
 use anyhow::Result;
-use colored::*;
+use colored::Colorize;
+use crate::project::templates::list_templates;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
 use std::path::PathBuf;
 use std::fs;
-
-use crate::template_manager::list_templates;
 
 pub fn execute() -> Result<()> {
     println!("{}", "FerrisUp Interactive Project Builder".bold().green());

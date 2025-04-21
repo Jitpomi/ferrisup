@@ -1,10 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::{Result, Context};
 use colored::Colorize;
-use dialoguer::{Confirm, Input, Select};
 use std::fs;
 use std::path::Path;
-
-use crate::config::{self, Config, read_config, write_config};
+use serde_json;
+use crate::core::Config;
 
 /// Execute the config command for managing configurations
 pub fn execute(export: bool, import: Option<&str>, path: Option<&str>) -> Result<()> {
@@ -27,7 +26,7 @@ fn run_interactive() -> Result<()> {
     
     let options = vec!["Export current config", "Import config", "View current config", "Cancel"];
     
-    let selection = Select::new()
+    let selection = dialoguer::Select::new()
         .with_prompt("Select an operation")
         .items(&options)
         .default(0)
@@ -35,7 +34,7 @@ fn run_interactive() -> Result<()> {
     
     match selection {
         0 => {
-            let path = Input::<String>::new()
+            let path = dialoguer::Input::<String>::new()
                 .with_prompt("Export config to file")
                 .default("ferrisup-config.json".to_string())
                 .interact()?;
@@ -43,7 +42,7 @@ fn run_interactive() -> Result<()> {
             export_config(Some(&path))?;
         },
         1 => {
-            let import_path = Input::<String>::new()
+            let import_path = dialoguer::Input::<String>::new()
                 .with_prompt("Import config from file")
                 .interact()?;
             
@@ -52,7 +51,7 @@ fn run_interactive() -> Result<()> {
                 return Ok(());
             }
             
-            let export_path = Input::<String>::new()
+            let export_path = dialoguer::Input::<String>::new()
                 .with_prompt("Save imported config to (leave empty to apply directly)")
                 .allow_empty(true)
                 .interact()?;
@@ -86,7 +85,7 @@ fn export_config(path: Option<&str>) -> Result<()> {
         Ok(cfg) => cfg,
         Err(_) => {
             println!("{} No existing config found, using default", "Warning:".yellow().bold());
-            config::get_default_config()
+            Config::get_default_config()
         }
     };
     
@@ -128,7 +127,7 @@ fn view_current_config() -> Result<()> {
         Ok(cfg) => cfg,
         Err(_) => {
             println!("{} No existing config found, showing default", "Warning:".yellow().bold());
-            config::get_default_config()
+            Config::get_default_config()
         }
     };
     
@@ -140,12 +139,12 @@ fn view_current_config() -> Result<()> {
     println!("{}", json);
     
     // Ask if user wants to export this config
-    if Confirm::new()
+    if dialoguer::Confirm::new()
         .with_prompt("Export this configuration?")
         .default(false)
         .interact()?
     {
-        let path = Input::<String>::new()
+        let path = dialoguer::Input::<String>::new()
             .with_prompt("Export config to file")
             .default("ferrisup-config.json".to_string())
             .interact()?;
@@ -155,4 +154,15 @@ fn view_current_config() -> Result<()> {
     }
     
     Ok(())
+}
+
+// Add helper functions for reading and writing config
+fn read_config() -> Result<Config> {
+    Config::load(&Config::get_config_path())
+        .context("Failed to read config file")
+}
+
+fn write_config(config: &Config, path: &Path) -> Result<()> {
+    fs::write(path, serde_json::to_string_pretty(config)?)
+        .context("Failed to write config file")
 }

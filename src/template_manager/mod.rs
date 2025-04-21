@@ -178,10 +178,10 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
         if let Some(redirect_obj) = redirect.as_object() {
             // If we have variables, check for redirects
             if let Some(vars) = variables.as_ref() {
-                for (key, value) in redirect_obj {
+                for (_key, value) in redirect_obj {
                     // For each redirect key, check if we have a matching variable
-                    for (var_name, var_value) in vars.as_object().unwrap_or(&Map::new()) {
-                        if var_name == key && var_value.is_string() {
+                    for (_var_name, var_value) in vars.as_object().unwrap_or(&Map::new()) {
+                        if var_value.is_string() {
                             if let Some(redirect_path) = value.as_str().filter(|p| !p.is_empty()) {
                                 // Apply the redirected template instead
                                 return apply_template(redirect_path, target_dir, project_name, variables);
@@ -242,7 +242,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
             
             let data_source = prompt_with_options(
                 "What type of data will you be working with?",
-                &["CSV files", "JSON data"]
+                &["CSV files", "Parquet files", "JSON data"]
             )?;
             additional_vars.insert("data_source".to_string(), json!(data_source));
             
@@ -436,8 +436,8 @@ This project was generated using FerrisUp.
         
         // Add the additional variables to the template variables
         if let Some(obj_mut) = template_vars.as_object_mut() {
-            for (key, value) in additional_vars {
-                obj_mut.insert(key, value);
+            for (_key, value) in additional_vars {
+                obj_mut.insert(_key, value);
             }
         }
     }
@@ -563,19 +563,32 @@ This project was generated using FerrisUp.
         process_dependencies(dependencies, target_dir, "dependencies")?;
     }
     
-    // Copy remaining files from the template directory
-    // We need to handle template variables in all files
-    let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(handlebars::no_escape);
+    // For data science templates, we only want to copy the files explicitly listed in the files section
+    // to avoid copying files from other data formats (CSV, JSON, Parquet)
+    let skip_dir_copying = template_name.starts_with("data-science/");
     
-    // Add template dir to variable set for use in templates
-    if let Some(template_vars_obj) = template_vars.as_object_mut() {
-        template_vars_obj.insert("template_dir".to_string(), json!(template_dir.to_string_lossy().to_string()));
+    // Only copy directory contents for non-data-science templates
+    if !skip_dir_copying {
+        // Copy remaining files from the template directory
+        // We need to handle template variables in all files
+        let mut handlebars = Handlebars::new();
+        handlebars.register_escape_fn(handlebars::no_escape);
+        
+        // Add template dir to variable set for use in templates
+        if let Some(template_vars_obj) = template_vars.as_object_mut() {
+            template_vars_obj.insert("template_dir".to_string(), json!(template_dir.to_string_lossy().to_string()));
+        }
+        
+        // Process template files with variables
+        process_template_directory(&template_dir, &target_dir, &template_vars, &mut handlebars)?;
     }
     
-    // Process template files with variables
-    process_template_directory(&template_dir, &target_dir, &template_vars, &mut handlebars)?;
+    // Apply fixes for burn templates if needed
+    if template_name.starts_with("data-science/burn-") {
+        apply_burn_compatibility_fixes(target_dir)?;
+    }
     
+    // Print successful message
     println!("\n✅ {} project created successfully!", project_name.green());
     
     if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
@@ -621,7 +634,8 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
                 let processed_content = process_conditional_blocks(&template_content, template_vars)?;
                 
                 // Render with handlebars
-                let rendered = handlebars.render_template(&processed_content, template_vars)?;
+                let rendered = handlebars.render_template(&processed_content, template_vars)
+                    .map_err(|e| anyhow!("Failed to render template: {}", e))?;
                 
                 // Write rendered content
                 let mut file = File::create(&target_path)?;
@@ -819,8 +833,8 @@ fn apply_transformations(content: &str, transformations: &[Value], variables: &V
                 if let Some(replacement_obj) = replacement_value.as_object() {
                     // Check for variable matches in the replacement object
                     if let Some(vars) = variables.as_object() {
-                        for (var_name, _var_value) in vars {
-                            if let Some(replacement) = replacement_obj.get(var_name) {
+                        for (_var_name, _var_value) in vars {
+                            if let Some(replacement) = replacement_obj.get(_var_name) {
                                 if let Some(replacement_str) = replacement.as_str() {
                                     result = result.replace(pattern, replacement_str);
                                 }
@@ -907,8 +921,8 @@ fn replace_variables(content: &str, variables: &Value) -> String {
     let mut result = content.to_string();
     
     if let Some(obj) = variables.as_object() {
-        for (key, value) in obj {
-            let placeholder = format!("{{{{{}}}}}",key);
+        for (_key, value) in obj {
+            let placeholder = format!("{{{{{}}}}}",_key);
             let replacement = match value {
                 Value::String(s) => s.clone(),
                 _ => value.to_string(),
@@ -991,210 +1005,178 @@ fn get_template_dir(template_name: &str) -> Result<PathBuf> {
 
 /// Get the template's custom next steps if available
 pub fn get_template_next_steps(template_name: &str, project_name: &str, variables: Option<Value>) -> Option<Vec<String>> {
-    // First, check if there's a .ferrisup_next_steps.json file in the project directory
-    let project_dir = PathBuf::from(project_name);
+    // Check if there's a .ferrisup_next_steps.json file in the project directory
+    let project_dir = Path::new(project_name);
     let next_steps_file = project_dir.join(".ferrisup_next_steps.json");
     
     if next_steps_file.exists() {
-        // Read the next_steps from the .ferrisup_next_steps.json file
-        let next_steps_json = match fs::read_to_string(&next_steps_file) {
-            Ok(content) => content,
-            Err(_) => return None,
-        };
-        
-        let next_steps_config: Value = match serde_json::from_str(&next_steps_json) {
-            Ok(config) => config,
-            Err(_) => return None,
-        };
-        
-        if let Some(next_steps) = next_steps_config.get("next_steps") {
-            if let Some(steps_array) = next_steps.as_array() {
+        // Load and parse the next steps from the JSON file
+        match fs::read_to_string(&next_steps_file) {
+            Ok(content) => {
+                match serde_json::from_str::<Value>(&content) {
+                    Ok(json) => {
+                        if let Some(steps) = json.get("next_steps").and_then(|s| s.as_array()) {
+                            let next_steps: Vec<String> = steps
+                                .iter()
+                                .filter_map(|s| s.as_str().map(|s| s.to_string()))
+                                .collect();
+                            
+                            // Delete the file after reading
+                            let _ = fs::remove_file(&next_steps_file);
+                            
+                            if !next_steps.is_empty() {
+                                return Some(next_steps);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to parse next steps JSON: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to read next steps file: {}", e);
+            }
+        }
+    }
+    
+    // If no next_steps.json file or it's invalid, try to get from template.json
+    if let Ok(template_config) = get_template_config(template_name) {
+        if let Some(next_steps) = template_config.get("next_steps") {
+            // Check if next_steps is an array
+            if let Some(steps) = next_steps.as_array() {
                 let mut result = Vec::new();
                 
-                // Get the variables for substitution
-                let current_vars = match variables {
-                    Some(vars) => {
-                        if let Some(obj) = vars.as_object() {
-                            obj.clone()
-                        } else {
-                            Map::new()
-                        }
-                    },
-                    None => Map::new(),
-                };
-                
-                // Process each step
-                for step in steps_array {
+                for step in steps {
                     if let Some(step_str) = step.as_str() {
-                        let mut processed_step = step_str.to_string();
+                        let mut step_text = step_str.to_string();
+                        
+                        // Replace variables in the step text
+                        if let Some(vars) = &variables {
+                            // Create a Handlebars instance for rendering
+                            let mut handlebars = Handlebars::new();
+                            handlebars.register_escape_fn(handlebars::no_escape);
+                            
+                            // Replace variables in the step text
+                            if let Ok(rendered) = handlebars.render_template(&step_text, vars) {
+                                step_text = rendered;
+                            }
+                        }
                         
                         // Replace {{project_name}} with the actual project name
-                        if processed_step.contains("{{project_name}}") {
-                            processed_step = processed_step.replace("{{project_name}}", project_name);
-                        }
+                        step_text = step_text.replace("{{project_name}}", project_name);
                         
-                        // Replace {{static_server_command}} with the actual command if applicable
-                        if processed_step.contains("{{static_server_command}}") {
-                            if let Some(static_server) = current_vars.get("static_server") {
-                                if let Some(server) = static_server.as_str() {
-                                    if server != "none" {
-                                        processed_step = processed_step.replace(
-                                            "{{static_server_command}}", 
-                                            &format!("{} . --port 8080", server)
-                                        );
-                                    } else {
-                                        // Skip this step if no static server was selected
-                                        continue;
+                        result.push(step_text);
+                    }
+                }
+                
+                if !result.is_empty() {
+                    return Some(result);
+                }
+            }
+            
+            // Check if next_steps is an object with conditional steps
+            if let Some(steps_obj) = next_steps.as_object() {
+                // If we have variables, try to find the matching steps
+                if let Some(vars) = &variables {
+                    // Try to match based on data_format variable
+                    if let Some(data_format) = vars.get("data_format").and_then(|f| f.as_str()) {
+                        if let Some(format_steps) = steps_obj.get(data_format).and_then(|s| s.as_array()) {
+                            let mut result = Vec::new();
+                            
+                            for step in format_steps {
+                                if let Some(step_str) = step.as_str() {
+                                    // Replace {{project_name}} with the actual project name
+                                    let step_text = step_str.replace("{{project_name}}", project_name);
+                                    result.push(step_text);
+                                }
+                            }
+                            
+                            if !result.is_empty() {
+                                return Some(result);
+                            }
+                        }
+                    }
+                    
+                    // Try to match based on platform variable
+                    if let Some(platform) = vars.get("platform").and_then(|p| p.as_str()) {
+                        if let Some(platform_steps) = steps_obj.get(platform).and_then(|s| s.as_array()) {
+                            let mut result = Vec::new();
+                            
+                            for step in platform_steps {
+                                if let Some(step_str) = step.as_str() {
+                                    // Replace {{project_name}} with the actual project name
+                                    let step_text = step_str.replace("{{project_name}}", project_name);
+                                    result.push(step_text);
+                                }
+                            }
+                            
+                            if !result.is_empty() {
+                                return Some(result);
+                            }
+                        }
+                    }
+                    
+                    // Try to match based on other variables
+                    for (_var_name, var_value) in vars.as_object().unwrap() {
+                        if let Some(var_str) = var_value.as_str() {
+                            if let Some(var_steps) = steps_obj.get(var_str).and_then(|s| s.as_array()) {
+                                let mut result = Vec::new();
+                                
+                                for step in var_steps {
+                                    if let Some(step_str) = step.as_str() {
+                                        // Replace {{project_name}} with the actual project name
+                                        let step_text = step_str.replace("{{project_name}}", project_name);
+                                        result.push(step_text);
                                     }
-                                } else {
-                                    continue;
                                 }
-                            } else {
-                                // Skip this step if static_server is not in variables
-                                continue;
+                                
+                                if !result.is_empty() {
+                                    return Some(result);
+                                }
                             }
                         }
-                        
-                        result.push(processed_step);
                     }
                 }
                 
-                // Remove the .ferrisup_next_steps.json file after reading it
-                let _ = fs::remove_file(next_steps_file);
-                
-                return Some(result);
+                // If no specific match found, try to use default steps
+                if let Some(default_steps) = steps_obj.get("default").and_then(|s| s.as_array()) {
+                    let mut result = Vec::new();
+                    
+                    for step in default_steps {
+                        if let Some(step_str) = step.as_str() {
+                            // Replace {{project_name}} with the actual project name
+                            let step_text = step_str.replace("{{project_name}}", project_name);
+                            result.push(step_text);
+                        }
+                    }
+                    
+                    if !result.is_empty() {
+                        return Some(result);
+                    }
+                }
             }
         }
     }
     
-    // If no .ferrisup_next_steps.json file exists, fall back to the template.json file
-    let template_dir = match get_template_dir(template_name) {
-        Ok(dir) => dir,
-        Err(_) => return None,
-    };
-    let template_json_path = template_dir.join("template.json");
-    
-    if !template_json_path.exists() {
-        return None;
-    }
-    
-    let template_json = match fs::read_to_string(&template_json_path) {
-        Ok(content) => content,
-        Err(_) => return None,
-    };
-    
-    let template_config: Value = match serde_json::from_str(&template_json) {
-        Ok(config) => config,
-        Err(_) => return None,
-    };
-    
-    // Get the next_steps from the template.json
-    if let Some(next_steps) = template_config.get("next_steps") {
-        if let Some(steps_array) = next_steps.as_array() {
-            let mut result = Vec::new();
-            
-            // Get the variables for substitution
-            let current_vars = match variables {
-                Some(vars) => {
-                    if let Some(obj) = vars.as_object() {
-                        obj.clone()
-                    } else {
-                        Map::new()
-                    }
-                },
-                None => Map::new(),
-            };
-            
-            // Process each step
-            for step in steps_array {
-                if let Some(step_str) = step.as_str() {
-                    let mut processed_step = step_str.to_string();
-                    
-                    // Replace {{project_name}} with the actual project name
-                    if processed_step.contains("{{project_name}}") {
-                        processed_step = processed_step.replace("{{project_name}}", project_name);
-                    }
-                    
-                    // Replace {{static_server_command}} with the actual command if applicable
-                    if processed_step.contains("{{static_server_command}}") {
-                        if let Some(static_server) = current_vars.get("static_server") {
-                            if let Some(server) = static_server.as_str() {
-                                if server != "none" {
-                                    processed_step = processed_step.replace(
-                                        "{{static_server_command}}", 
-                                        &format!("{} . --port 8080", server)
-                                    );
-                                } else {
-                                    // Skip this step if no static server was selected
-                                    continue;
-                                }
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            // Skip this step if static_server is not in variables
-                            continue;
-                        }
-                    }
-                    
-                    result.push(processed_step);
-                }
-            }
-            
-            return Some(result);
-        }
-    }
-    
-    // Check for provider-specific next steps
-    let provider_specific_next_steps = if template_name == "serverless" || template_name.starts_with("serverless/") {
-        let current_vars = match variables {
-            Some(vars) => {
-                if let Some(obj) = vars.as_object() {
-                    obj.clone()
-                } else {
-                    Map::new()
-                }
-            },
-            None => Map::new(),
+    // Special case for Burn examples
+    if template_name.starts_with("burn-") || (template_name == "burn" && variables.as_ref().and_then(|v| v.get("example")).is_some()) {
+        let example = if let Some(vars) = &variables {
+            vars.get("example").and_then(|e| e.as_str()).unwrap_or("mnist")
+        } else {
+            "mnist"
         };
         
-        if let Some(cloud_provider) = current_vars.get("cloud_provider") {
-            if let Some(provider) = cloud_provider.as_str() {
-                let next_steps_key = format!("next_steps_{}", provider);
-                template_config.get(&next_steps_key)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-    
-    if let Some(steps) = provider_specific_next_steps {
-        if let Some(steps_array) = steps.as_array() {
-            let mut result = Vec::new();
-            
-            // Process each step
-            for step in steps_array {
-                if let Some(step_str) = step.as_str() {
-                    let mut processed_step = step_str.to_string();
-                    
-                    // Replace {{project_name}} with the actual project name
-                    if processed_step.contains("{{project_name}}") {
-                        processed_step = processed_step.replace("{{project_name}}", project_name);
-                    }
-                    
-                    result.push(processed_step);
-                }
-            }
-            
-            return Some(result);
-        }
+        return Some(get_burn_example_next_steps(example, project_name));
     }
     
-    None
+    // Default steps if no specific steps found
+    Some(vec![
+        format!("🚀 Navigate to your project: cd {}", project_name),
+        "📝 Review the generated code".to_string(),
+        "🔧 Build the project: cargo build".to_string(),
+        "▶️ Run the project: cargo run".to_string(),
+    ])
 }
 
 /// Prompt the user with a question and return their answer
@@ -1271,13 +1253,24 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
             let file_name_str = file_name.to_string_lossy();
             
             // Remove .template extension if present
-            if file_name_str.ends_with(".template") {
-                let new_file_name = file_name_str.replace(".template", "");
-                let target_path = dst.join(new_file_name);
+            let target_file_name = if file_name_str.ends_with(".template") {
+                file_name_str.replace(".template", "")
+            } else {
+                file_name_str.to_string()
+            };
+            
+            let target_path = dst.join(&target_file_name);
+            
+            if path.extension().map_or(false, |ext| 
+                ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
+                ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
+            ) {
+                // Process template variables
+                let template_content = fs::read_to_string(&path)?;
                 
-                // Read the template file and process variables if needed
-                let content = fs::read_to_string(&path)?;
-                fs::write(&target_path, content)?;
+                // Write rendered content
+                let mut file = File::create(&target_path)?;
+                file.write_all(template_content.as_bytes())?;
                 
                 // Set executable bit for .sh files
                 if let Some(ext) = target_path.extension() {
@@ -1290,15 +1283,6 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
             } else {
                 let target_path = dst.join(file_name);
                 fs::copy(&path, &target_path)?;
-                
-                // Set executable bit for .sh files
-                if let Some(ext) = target_path.extension() {
-                    if ext == "sh" {
-                        let mut perms = fs::metadata(&target_path)?.permissions();
-                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
-                        fs::set_permissions(&target_path, perms)?;
-                    }
-                }
             }
         } else if path.is_dir() {
             copy_dir_all(&path, &dst.join(entry.file_name()))?;
