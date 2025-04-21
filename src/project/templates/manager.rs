@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io;
+use std::collections::HashSet;
 
 /// Get all available templates
 pub fn get_all_templates() -> Result<Vec<String>> {
@@ -189,21 +190,22 @@ pub fn apply_template(
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
 
-    // Create template variables with project_name
+    // Prepare the template variables
     let mut template_vars = json!({
         "project_name": project_name,
     });
 
-    // Add additional variables if provided
+    // Add any additional variables
     if let Some(vars) = variables {
-        if let Some(obj) = template_vars.as_object_mut() {
-            if let Some(additional_vars) = vars.as_object() {
-                for (key, value) in additional_vars {
-                    obj.insert(key.clone(), value.clone());
-                }
+        if let Some(obj) = vars.as_object() {
+            for (k, v) in obj {
+                template_vars[k] = v.clone();
             }
         }
     }
+
+    // Create a set to track which files we've processed
+    let mut processed_files = HashSet::new();
 
     // Process each file in the template
     for file in files {
@@ -217,58 +219,36 @@ pub fn apply_template(
             _ => continue,
         };
 
-        // Check if this file should be transformed based on a variable (old transformation system)
-        let source_path = if let Some(transformations) = template_config.get("transformations") {
-            if let Some(transformations) = transformations.as_array() {
-                // Check each transformation rule
-                let mut transformed_source = None;
-                for rule in transformations {
-                    if let Some(pattern) = rule.get("pattern").and_then(|p| p.as_str()) {
-                        if pattern == target {
-                            // Find the replacement based on the variables
-                            if let Some(replacements) = rule.get("replacement").and_then(|r| r.as_object()) {
-                                if let Some(vars) = &variables {
-                                    if let Some(var_obj) = vars.as_object() {
-                                        // Try to match each variable name with each replacement key
-                                        for (key, value) in replacements {
-                                            if let Some(value_str) = value.as_str() {
-                                                for (var_name, var_value) in var_obj {
-                                                    if let Some(var_value_str) = var_value.as_str() {
-                                                        if key == var_value_str {
-                                                            transformed_source = Some(value_str.to_string());
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                if transformed_source.is_some() {
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                transformed_source.unwrap_or_else(|| source.clone())
-            } else {
-                source.clone()
+        // Skip template.json file
+        if source == "template.json" || target == "template.json" {
+            continue;
+        }
+
+        // Skip mcu directories that don't match the selected target
+        if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+            if source.starts_with("mcu/") && !source.starts_with(&format!("mcu/{}", mcu_target)) {
+                continue;
             }
-        } else {
-            source.clone()
-        };
+        }
 
         // Apply variables to the file source and target paths
-        let source_rendered = handlebars.render_template(&source_path, &template_vars)
-            .unwrap_or_else(|_| source_path.clone());
+        let source_rendered = handlebars.render_template(source, &template_vars)
+            .unwrap_or_else(|_| source.clone());
         let target_rendered = handlebars.render_template(target, &template_vars)
             .unwrap_or_else(|_| target.clone());
 
         // Calculate the absolute paths
         let source_abs_path = template_dir.join(&source_rendered);
         let target_abs_path = target_dir.join(&target_rendered);
+
+        // Add this file to the processed set
+        processed_files.insert(target_abs_path.to_string_lossy().to_string());
+
+        // Skip if the source file doesn't exist
+        if !source_abs_path.exists() {
+            println!("Warning: Source file does not exist: {}", source_abs_path.display());
+            continue;
+        }
 
         // Create parent directory if needed
         if let Some(parent) = target_abs_path.parent() {
@@ -337,6 +317,18 @@ pub fn apply_template(
                                                 _ => continue,
                                             };
 
+                                            // Skip template.json file
+                                            if source == "template.json" || target == "template.json" {
+                                                continue;
+                                            }
+
+                                            // Skip mcu directories that don't match the selected target
+                                            if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+                                                if source.starts_with("mcu/") && !source.starts_with(&format!("mcu/{}", mcu_target)) {
+                                                    continue;
+                                                }
+                                            }
+
                                             // Apply variables to the file source and target paths
                                             let source_rendered = handlebars.render_template(source, &template_vars)
                                                 .unwrap_or_else(|_| source.clone());
@@ -350,6 +342,15 @@ pub fn apply_template(
                                             // Create parent directory if needed
                                             if let Some(parent) = target_abs_path.parent() {
                                                 fs::create_dir_all(parent)?;
+                                            }
+
+                                            // Add this file to the processed set
+                                            processed_files.insert(target_abs_path.to_string_lossy().to_string());
+
+                                            // Skip if the source file doesn't exist
+                                            if !source_abs_path.exists() {
+                                                println!("Warning: Source file does not exist: {}", source_abs_path.display());
+                                                continue;
                                             }
 
                                             // Check if the file has a .template extension - if so, apply variable substitution
@@ -395,6 +396,40 @@ pub fn apply_template(
                     }
                 }
             }
+        }
+    }
+
+    // After processing all files, clean up any files that shouldn't be in the target directory
+    if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+        // Clean up mcu directories that don't match the selected target
+        for mcu in &["rp2040", "stm32", "esp32", "arduino"] {
+            if *mcu != mcu_target {
+                let mcu_dir = target_dir.join("mcu").join(mcu);
+                if mcu_dir.exists() {
+                    println!("Removing directory: {}", mcu_dir.display());
+                    if let Err(e) = fs::remove_dir_all(&mcu_dir) {
+                        println!("Error removing directory {}: {}", mcu_dir.display(), e);
+                    }
+                }
+
+                // Also remove any main.rs.* files that don't match the selected target
+                let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
+                if main_rs_file.exists() {
+                    println!("Removing file: {}", main_rs_file.display());
+                    if let Err(e) = fs::remove_file(&main_rs_file) {
+                        println!("Error removing file {}: {}", main_rs_file.display(), e);
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove template.json if it was copied
+    let template_json_file = target_dir.join("template.json");
+    if template_json_file.exists() {
+        println!("Removing file: {}", template_json_file.display());
+        if let Err(e) = fs::remove_file(&template_json_file) {
+            println!("Error removing file {}: {}", template_json_file.display(), e);
         }
     }
 

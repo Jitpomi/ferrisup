@@ -507,6 +507,70 @@ This project was generated using FerrisUp.
         }
     }
     
+    // Process conditional files if present
+    if let Some(conditional_files) = template_config.get("conditional_files") {
+        if let Some(conditional_files_array) = conditional_files.as_array() {
+            for condition_group in conditional_files_array {
+                if let Some(condition_obj) = condition_group.as_object() {
+                    // Check if the condition is met
+                    if let Some(when_expr) = condition_obj.get("when").and_then(|w| w.as_str()) {
+                        // Simple condition evaluation for now - just check equality
+                        // Format: "variable_name == 'value'"
+                        let parts: Vec<&str> = when_expr.split("==").collect();
+                        if parts.len() == 2 {
+                            let var_name = parts[0].trim();
+                            let expected_value = parts[1].trim().trim_matches('\'').trim_matches('"');
+                            
+                            if let Some(var_value) = template_vars.get(var_name).and_then(|v| v.as_str()) {
+                                if var_value == expected_value {
+                                    // Condition is met, process these files
+                                    if let Some(files_array) = condition_obj.get("files").and_then(|f| f.as_array()) {
+                                        for file in files_array {
+                                            if let Some(file_obj) = file.as_object() {
+                                                let source = file_obj.get("source").and_then(|s| s.as_str());
+                                                let target = file_obj.get("target").and_then(|t| t.as_str());
+                                                
+                                                if let (Some(source_path), Some(target_path)) = (source, target) {
+                                                    // Skip template.json file
+                                                    if source_path == "template.json" || target_path == "template.json" {
+                                                        continue;
+                                                    }
+                                                    
+                                                    // Create parent directories for the target
+                                                    let target_file = target_dir.join(target_path);
+                                                    if let Some(parent) = target_file.parent() {
+                                                        fs::create_dir_all(parent)?;
+                                                    }
+                                                    
+                                                    // Get content from template
+                                                    let source_file = template_dir.join(source_path);
+                                                    
+                                                    if !source_file.exists() {
+                                                        return Err(anyhow!("Source file does not exist: {}", source_file.display()));
+                                                    }
+                                                    
+                                                    let content = fs::read_to_string(&source_file)
+                                                        .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
+                                                    
+                                                    // Apply template variables
+                                                    let rendered = handlebars.render_template(&content, &template_vars)
+                                                        .map_err(|e| anyhow!("Failed to render template: {}", e))?;
+                                                    
+                                                    // Write to target
+                                                    fs::write(&target_file, rendered)?;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Process files specified in the template.json
     if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
         for file in files {
@@ -515,6 +579,18 @@ This project was generated using FerrisUp.
                 let target = file_obj.get("target").and_then(|t| t.as_str());
                 
                 if let (Some(source_path), Some(target_path)) = (source, target) {
+                    // Skip template.json file
+                    if source_path == "template.json" || target_path == "template.json" {
+                        continue;
+                    }
+
+                    // Skip mcu directories that don't match the selected target
+                    if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+                        if source_path.starts_with("mcu/") && !source_path.starts_with(&format!("mcu/{}", mcu_target)) {
+                            continue;
+                        }
+                    }
+
                     // Create parent directories for the target
                     let target_file = target_dir.join(target_path);
                     if let Some(parent) = target_file.parent() {
@@ -581,6 +657,40 @@ This project was generated using FerrisUp.
         
         // Process template files with variables
         process_template_directory(&template_dir, &target_dir, &template_vars, &mut handlebars)?;
+    }
+    
+    // After processing all files, clean up any files that shouldn't be in the target directory
+    if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+        // Clean up mcu directories that don't match the selected target
+        for mcu in &["rp2040", "stm32", "esp32", "arduino"] {
+            if *mcu != mcu_target {
+                let mcu_dir = target_dir.join("mcu").join(mcu);
+                if mcu_dir.exists() {
+                    println!("Removing directory: {}", mcu_dir.display());
+                    if let Err(e) = fs::remove_dir_all(&mcu_dir) {
+                        println!("Error removing directory {}: {}", mcu_dir.display(), e);
+                    }
+                }
+
+                // Also remove any main.rs.* files that don't match the selected target
+                let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
+                if main_rs_file.exists() {
+                    println!("Removing file: {}", main_rs_file.display());
+                    if let Err(e) = fs::remove_file(&main_rs_file) {
+                        println!("Error removing file {}: {}", main_rs_file.display(), e);
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove template.json if it was copied
+    let template_json_file = target_dir.join("template.json");
+    if template_json_file.exists() {
+        println!("Removing file: {}", template_json_file.display());
+        if let Err(e) = fs::remove_file(&template_json_file) {
+            println!("Error removing file {}: {}", template_json_file.display(), e);
+        }
     }
     
     // Apply fixes for burn templates if needed
