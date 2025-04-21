@@ -1,1 +1,0 @@
-{"rustc":5357548097637079788,"features":"[\"default\"]","declared_features":"[\"default\", \"serde\"]","target":1293958884150045679,"profile":5347358027863023418,"path":12145347790515219917,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"debug/.fingerprint/bytesize-8cf9e77429fb6e9f/dep-lib-bytesize","checksum":false}}],"rustflags":[],"config":2069994364910194474,"compile_kind":0}

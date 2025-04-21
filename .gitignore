@@ -3,9 +3,13 @@
 /Cargo.lock
 /parquet_generator/target/
 /*/target/
+# More comprehensive target exclusion
+**/target/
+templates/**/target/
 
 # Ignore Rust backup files
 *.rs.bk
+*.rs.bak
 
 # Ignore IDE/editor directories
 /.idea/
@@ -105,8 +109,12 @@ desktop.ini
 /test_leptos_app/
 /app/
 
-# Temporary files
-*.tmp
+# Ignore temporary and backup files
+*.rs.bak
 *.bak
+*.tmp
 *.swp
 *~
+.DS_Store
+Thumbs.db
+desktop.ini
