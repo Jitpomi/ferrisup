@@ -128,110 +128,24 @@ pub fn execute(
             .interact()?;
             
         let framework_selected = framework_options[selection];
-        println!("Using {} as the server_framework", framework_selected);
+        println!("Using {} as the framework", framework_selected);
         
-        // Handle server template creation manually instead of using the template system
-        let framework_template_dir_path = PathBuf::from(format!("{}/templates/server/{}", env!("CARGO_MANIFEST_DIR"), framework_selected));
+        // Check for wasm32-unknown-unknown target
+        check_dependencies("wasm32-unknown-unknown")?;
         
-        if !framework_template_dir_path.exists() {
-            return Err(anyhow::anyhow!("Could not find template directory for {} framework", framework_selected));
-        }
+        // Create additional vars to use our template system's conditional files
+        _additional_vars = Some(json!({
+            "framework": framework_selected
+        }));
         
-        // Copy src directory
-        let src_dir = framework_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} framework", framework_selected));
-        }
+        // Let the template system handle all the conditional file selection
+        templates::apply_template("server", app_path, &name, _additional_vars.clone())?;
         
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = framework_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("Cargo.toml"), rendered)?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} framework", framework_selected));
-        }
-        
-        // Copy README.md from the framework-specific template
-        let readme_src = framework_template_dir_path.join("README.md");
-        
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("README.md"), rendered)?;
-        } else {
-            // Fallback to the main server README if framework-specific one doesn't exist
-            let main_readme_src = PathBuf::from(format!("{}/templates/server/README.md", env!("CARGO_MANIFEST_DIR")));
-            if main_readme_src.exists() {
-                let content = fs::read_to_string(&main_readme_src)?;
-                
-                // Create handlebars instance for templating
-                let mut handlebars = Handlebars::new();
-                handlebars.register_escape_fn(handlebars::no_escape);
-                
-                // Register helpers
-                handlebars.register_helper("eq", Box::new(|h: &handlebars::Helper<'_, '_>, 
-                    _: &handlebars::Handlebars<'_>, 
-                    _: &handlebars::Context, 
-                    _: &mut handlebars::RenderContext<'_, '_>, 
-                    out: &mut dyn handlebars::Output| 
-                -> handlebars::HelperResult {
-                    let param1 = h.param(0).unwrap().value();
-                    let param2 = h.param(1).unwrap().value();
-                    out.write(&(param1 == param2).to_string())?;
-                    Ok(())
-                }));
-                
-                // Create template vars
-                let template_vars = json!({
-                    "project_name": name,
-                    "project_name_pascal_case": to_pascal_case(&name),
-                    "server_framework": framework_selected
-                });
-                
-                // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
-                // Write to target file
-                fs::write(app_path.join("README.md"), rendered)?;
-            }
-        }
+        // Print success message and return
+        println!("\n🎉 Project {} created successfully!", name);
+        return Ok(());
     } else if template == "serverless" {
-        // Serverless template handling
+        // Handle serverless template options
         let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
         
         let selection = Select::new()
@@ -242,151 +156,52 @@ pub fn execute(
             
         let provider_selected = provider_options[selection];
         
-        // Display appropriate help message based on selected provider
-        let help_messages = json!({
-            "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
-            "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
-            "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
-            "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
-            "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
-        });
+        // Display info about the selected provider
+        let provider_info = match provider_selected {
+            "aws" => "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
+            "gcp" => "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
+            "azure" => "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
+            "vercel" => "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
+            "netlify" => "Netlify Functions let you deploy server-side code that works alongside your static website or application.",
+            _ => ""
+        };
         
-        if let Some(help_message) = help_messages.get(provider_selected).and_then(|v| v.as_str()) {
-            println!("ℹ️  {}", help_message);
+        if !provider_info.is_empty() {
+            println!("ℹ️  {}", provider_info);
         }
         
         println!("Using {} as the cloud_provider", provider_selected);
         
-        // Handle serverless template creation manually
-        let provider_template_dir_path = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
+        // For serverless, we need to handle the provider-specific files manually
+        // because the conditional_files feature is not working properly with subdirectories
+        let provider_dir = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
         
-        if !provider_template_dir_path.exists() {
-            return Err(anyhow::anyhow!("Could not find template directory for {} provider", provider_selected));
+        if !provider_dir.exists() {
+            return Err(anyhow::anyhow!("Provider directory not found: {}", provider_selected));
         }
         
-        // Copy src directory
-        let src_dir = provider_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} provider", provider_selected));
-        }
-        
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = provider_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("Cargo.toml"), rendered)?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} provider", provider_selected));
-        }
-        
-        // Copy README.md from the provider-specific template
-        let readme_src = provider_template_dir_path.join("README.md.template");
-        
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("README.md"), rendered)?;
-        }
-        
-        // Copy provider-specific configuration files
-        let template_json_path = provider_template_dir_path.join("template.json");
-        let template_config = if template_json_path.exists() {
-            let content = fs::read_to_string(&template_json_path)?;
-            serde_json::from_str(&content).unwrap_or_else(|_| json!({}))
-        } else {
-            json!({})
-        };
-        
-        if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-            for file_entry in files {
-                if let (Some(source), Some(target)) = (
-                    file_entry.get("source").and_then(|s| s.as_str()),
-                    file_entry.get("target").and_then(|t| t.as_str())
-                ) {
-                    let source_path = provider_template_dir_path.join(source);
-                    if source_path.exists() {
-                        if source_path.is_dir() {
-                            copy_dir_all(&source_path, &app_path.join(target))?;
-                        } else {
-                            // Read the source file
-                            let content = fs::read_to_string(&source_path)?;
-                            
-                            // Create handlebars instance for templating
-                            let mut handlebars = Handlebars::new();
-                            handlebars.register_escape_fn(handlebars::no_escape);
-                            
-                            // Create template vars
-                            let template_vars = json!({
-                                "project_name": name,
-                                "project_name_pascal_case": to_pascal_case(&name)
-                            });
-                            
-                            // Apply templating
-                            let rendered = handlebars.render_template(&content, &template_vars)
-                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                                
-                            // Write to target file
-                            let target_path = app_path.join(target);
-                            if let Some(parent) = target_path.parent() {
-                                fs::create_dir_all(parent)?;
-                            }
-                            fs::write(target_path, rendered)?;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Copy any provider-specific files directly from the provider directory
-        for entry in fs::read_dir(&provider_template_dir_path)? {
+        // Copy provider-specific files directly to the target directory
+        for entry in fs::read_dir(&provider_dir)? {
             let entry = entry?;
             let file_name = entry.file_name();
             let file_name_str = file_name.to_string_lossy();
             
-            // Skip src, template.json, Cargo.toml.template, and README.md.template
-            if file_name_str == "src" || file_name_str == "template.json" || 
-               file_name_str == "Cargo.toml.template" || file_name_str == "README.md.template" {
+            // Skip template.json and other specific files that shouldn't be copied
+            if file_name_str == "template.json" {
                 continue;
             }
             
             let source_path = entry.path();
-            let target_path = app_path.join(&file_name);
             
             if source_path.is_dir() {
-                copy_dir_all(&source_path, &target_path)?;
+                let target_path = app_path.join(&file_name);
+                if source_path.file_name().unwrap() == "src" {
+                    // Handle src directory specially to ensure it copies to the right place
+                    fs::create_dir_all(app_path.join("src"))?;
+                    copy_dir_all(&source_path, &app_path.join("src"))?;
+                } else {
+                    copy_dir_all(&source_path, &target_path)?;
+                }
             } else {
                 // Read the source file
                 let content = fs::read_to_string(&source_path)?;
@@ -398,32 +213,60 @@ pub fn execute(
                 // Create template vars
                 let template_vars = json!({
                     "project_name": name,
-                    "project_name_pascal_case": to_pascal_case(&name)
+                    "crate_name": name.replace("-", "_"),
+                    "project_name_pascal_case": to_pascal_case(&name),
+                    "authors": "Your Name <your.email@example.com>"
                 });
                 
                 // Apply templating
                 let rendered = handlebars.render_template(&content, &template_vars)
                     .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
                     
-                // Write to target file
+                // Determine the target file name (remove .template extension if present)
+                let mut target_file_name = file_name_str.to_string();
+                if target_file_name.ends_with(".template") {
+                    target_file_name = target_file_name.trim_end_matches(".template").to_string();
+                }
+                
+                // Write to target file with corrected name
+                let target_path = app_path.join(target_file_name);
                 fs::write(target_path, rendered)?;
             }
         }
         
-        // Show provider-specific next steps
-        let template_json = fs::read_to_string(PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR"))))?;
-        let template_config: Value = serde_json::from_str(&template_json)?;
-        let next_steps_key = format!("next_steps_{}", provider_selected);
+        // Show serverless next steps for the selected provider
+        println!("\n🎉 Project {} created successfully!", name);
         
         println!("\nNext steps:");
-        if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
-            for step in next_steps {
-                if let Some(step_str) = step.as_str() {
-                    let processed_step = step_str.replace("{{project_name}}", &name);
-                    println!("  {}", processed_step);
-                }
-            }
+        println!("- cd {}", name);
+        
+        match provider_selected {
+            "aws" => {
+                println!("- # Install cargo-lambda: cargo install cargo-lambda");
+                println!("- # Test locally: cargo lambda watch");
+                println!("- # Deploy: cargo lambda deploy");
+            },
+            "gcp" => {
+                println!("- # Build: docker build -t gcr.io/your-project/function .");
+                println!("- # Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http");
+            },
+            "azure" => {
+                println!("- # Install Azure Functions Core Tools");
+                println!("- # Test locally: func start");
+                println!("- # Deploy: func azure functionapp publish your-function-app");
+            },
+            "vercel" => {
+                println!("- # Install Vercel CLI: npm i -g vercel");
+                println!("- # Deploy: vercel");
+            },
+            "netlify" => {
+                println!("- # Install Netlify CLI: npm i -g netlify-cli");
+                println!("- # Deploy: netlify deploy");
+            },
+            _ => {}
         }
+        
+        return Ok(());
     } else if template == "edge" {
         // Handle edge template specifically to support the hierarchical structure
         // Get the edge template configuration
@@ -549,15 +392,6 @@ pub fn execute(
                                                 return Err(anyhow!("Template directory not found"));
                                             } else {
                                                 println!("✅ Template directory exists");
-                                                // List files in the directory for debugging
-                                                if let Ok(entries) = fs::read_dir(&full_template_path) {
-                                                    println!("Files in template directory:");
-                                                    for entry in entries {
-                                                        if let Ok(entry) = entry {
-                                                            println!("  - {}", entry.file_name().to_string_lossy());
-                                                        }
-                                                    }
-                                                }
                                             }
                                             
                                             // Handle the edge template explicitly
@@ -816,17 +650,17 @@ pub fn execute(
             // Print success message with instructions
             println!("\n🎉 Project {} created successfully!", name);
             println!("\nNext steps:");
-            println!("  cd {}", name);
+            println!("- cd {}", name);
             // Detect if this is a Dioxus workspace (web, desktop, mobile all exist)
             let web_exists = std::path::Path::new(&format!("{}/web", name)).exists();
             let desktop_exists = std::path::Path::new(&format!("{}/desktop", name)).exists();
             let mobile_exists = std::path::Path::new(&format!("{}/mobile", name)).exists();
             if web_exists || desktop_exists || mobile_exists {
-                println!("  dx serve --package web    # For web application");
-                println!("  dx serve --package desktop    # For desktop application");
-                println!("  dx serve --package mobile    # For mobile application");
+                println!("- dx serve --package web    # For web application");
+                println!("- dx serve --package desktop    # For desktop application");
+                println!("- dx serve --package mobile    # For mobile application");
             } else {
-                println!("  dx serve");
+                println!("- dx serve");
             }
             
             return Ok(());
@@ -887,274 +721,165 @@ npx create-tauri-app {}
             // If not Leptos, Dioxus, or Tauri, use the selected framework as the template
             template = framework_selected.to_string();
         }
-    } else if template == "data-science" {
-        // For data science templates, first prompt for the ML framework
-        // Using a simpler approach to avoid UI rendering issues
-        let framework_options = vec![
-            "Data Analysis with Polars",
-            "Machine Learning with Linfa",
-            "Deep Learning with Burn"
-        ];
+    } else if template.starts_with("data-science") {
+        // Handle data-science template options
+        let mut selected_approach = String::new();
         
-        // Create a selection without additional prompt text to avoid duplication
-        let selection = Select::new()
-            .with_prompt("📊 Select a Data Science approach")
-            .default(0)
-            .items(&framework_options)
-            .interact()?;
+        if template == "data-science" {
+            // Let the user select a data science approach
+            let approach_options = [
+                "Data Analysis with Polars", 
+                "Machine Learning with Linfa",
+                "Computer Vision", 
+                "Natural Language Processing",
+                "Burn Neural Networks"
+            ];
             
-        // Based on framework selection, show appropriate templates
-        match selection {
-            0 => {
-                // Polars selected
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars");
-            },
-            1 => {
-                // Linfa selected
-                template = "data-science/linfa-examples".to_string();
-                println!("🔍 Selected: Machine Learning with Linfa");
-            },
-            2 => {
-                // Burn selected - show task categories
-                // Using a simpler approach for category selection
-                let burn_categories = vec![
-                    "Image Processing",
-                    "Text Processing",
-                    "Numerical Data",
-                    "Advanced & Experimental"
-                ];
+            let approach_selection = Select::new()
+                .with_prompt("📊 Select a Data Science approach")
+                .items(&approach_options)
+                .default(0)
+                .interact()?;
                 
-                let category_selection = Select::new()
-                    .with_prompt("🧠 Select a Deep Learning task category")
-                    .default(0)
-                    .items(&burn_categories)
-                    .interact()?;
-                
-                // Define the tasks and their corresponding template paths for each category
-                let (category_prompt, tasks, template_paths) = match category_selection {
-                    0 => {
-                        // First present the image processing task categories
-                        let image_categories = vec![
-                            "Image Classification",
-                            // Future categories (commented out until implemented)
-                            // "Image Generation (Coming Soon)",
-                            // "Image Segmentation (Coming Soon)",
-                            // "Image Detection (Coming Soon)"
-                        ];
+            selected_approach = approach_options[approach_selection].to_string();
+            println!("📈 Selected: {}", selected_approach);
+            
+            match approach_selection {
+                // Polars for data analysis
+                0 => {
+                    template = "data-science/polars-cli".to_string();
+                },
+                // Linfa for ML
+                1 => {
+                    template = "data-science/linfa-examples".to_string();
+                },
+                // Computer Vision
+                2 => {
+                    let cv_options = [
+                        "Image Classification (Digit Recognition)",
+                        "Image Classification (Custom CNN)"
+                    ];
+                    
+                    let cv_selection = Select::new()
+                        .with_prompt("🖼️ Select Computer Vision Task")
+                        .items(&cv_options)
+                        .default(0)
+                        .interact()?;
                         
-                        println!("🖼️ Select an Image Processing task:");
-                        let image_category = Select::new()
-                            .items(&image_categories)
-                            .default(0)
-                            .interact()?;
-                        
-                        // Based on the selected category, show appropriate options
-                        match image_category {
-                            0 => {
-                                // Image Classification options
-                                (
-                                    "📊 Select an Image Classification model",
-                                    vec![
-                                        "MNIST Digit Recognition (Simple)",
-                                        "General Image Classifier (CIFAR-10/Custom)"
-                                    ],
-                                    vec![
-                                        "data-science/burn-image-recognition",
-                                        "data-science/burn-image-classifier"
-                                    ]
-                                )
-                            },
-                            // Add other image categories in the future
-                            _ => (
-                                "📊 Select an Image Classification model",
-                                vec!["MNIST Digit Recognition (Simple)"],
-                                vec!["data-science/burn-image-recognition"]
-                            )
-                        }
-                    },
-                    1 => (
-                        "📝 Select a Text Processing task",
-                        vec![
-                            "Text Classifier",
-                            "Text Analyzer (Sentiment Analysis)"
-                        ],
-                        vec![
-                            "data-science/burn-text-classifier",
-                            "data-science/burn-text-analyzer"
-                        ]
-                    ),
-                    2 => (
-                        "📊 Select a Numerical Data task",
-                        vec![
-                            "Value Prediction",
-                            "Data Predictor (Advanced Regression)"
-                        ],
-                        vec![
-                            "data-science/burn-value-prediction",
-                            "data-science/burn-data-predictor"
-                        ]
-                    ),
-                    3 => (
-                        "⚙️ Select an Advanced or Experimental task",
-                        vec![
-                            "Neural Network Playground"
-                        ],
-                        vec![
-                            "data-science/burn-net"
-                        ]
-                    ),
-                    _ => (
-                        "🖼️ Select an Image Classification model",
-                        vec!["MNIST Digit Recognition (Simple)"],
-                        vec!["data-science/burn-image-recognition"]
-                    ),
-                };
-                
-                // Show task selection and get user choice
-                let task_selection = Select::new()
-                    .with_prompt(category_prompt)
-                    .default(0)
-                    .items(&tasks)
-                    .interact()?;
-                
-                // Set the template path based on the task selection
-                template = if task_selection < template_paths.len() {
-                    template_paths[task_selection].to_string()
-                } else {
-                    // Fallback to the first template if selection is out of bounds
-                    template_paths[0].to_string()
-                };
-                
-                println!("🧠 Selected: {}", tasks[task_selection]);
-            },
-            _ => {
-                // Fallback
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars (default)");
+                    let selected_cv = cv_options[cv_selection];
+                    println!("🔍 Selected: {}", selected_cv);
+                    
+                    match cv_selection {
+                        0 => template = "data-science/burn-image-recognition".to_string(),
+                        1 => template = "data-science/burn-image-classifier".to_string(),
+                        _ => template = "data-science/burn-image-recognition".to_string()
+                    }
+                },
+                // NLP
+                3 => {
+                    template = "data-science/polars-cli".to_string();
+                    println!("⚠️ NLP templates are coming soon. Using Polars for now.");
+                },
+                // Burn Neural Networks
+                4 => {
+                    template = "data-science/burn-image-recognition".to_string();
+                },
+                _ => {
+                    template = "data-science/polars-cli".to_string();
+                }
             }
+        } else {
+            selected_approach = template.replace("data-science/", "");
         }
-        
-        println!("🔍 Checking for wasm32-unknown-unknown target...");
-        check_dependencies(&template)?;
         
         println!("\n📊 Setting up {} data science project...", template.replace("data-science/", ""));
-    }
-
-    // Check for required dependencies based on template
-    check_dependencies(&template)?;
-
-    // Handle special cases for 
-    // 
-    // 
-    // 
-    // 
-    // 
-    // 
-    
-    
-    // embedded templates
-    if template == "embedded" {
-        println!("📦 Creating embedded project for microcontrollers");
         
-        // Get framework option if available
-        let framework = if let Some(vars) = &_additional_vars {
-            vars.get("framework").and_then(|f| f.as_str()).unwrap_or("none")
+        // Check for required dependencies
+        check_dependencies(&template)?;
+        
+        // For data-science/polars-cli template, we need to handle the data format selection
+        if template == "data-science/polars-cli" {
+            // Ask user what data format they want to use
+            let data_format_options = ["CSV files", "Parquet files", "JSON data"];
+            
+            let format_selection = Select::new()
+                .with_prompt("📊 Select the primary data format you'll be working with")
+                .items(&data_format_options)
+                .default(0)
+                .interact()?;
+                
+            let selected_format = data_format_options[format_selection];
+            println!("📄 Selected data format: {}", selected_format);
+            
+            // Create the target directory if it doesn't exist
+            if !app_path.exists() {
+                fs::create_dir_all(app_path)?;
+            }
+            
+            // Get the template directory path
+            let template_dir = PathBuf::from(format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template));
+            
+            // Copy only the selected data format file
+            let data_file_source = match selected_format {
+                "CSV files" => template_dir.join("data/example_data_csv.csv"),
+                "JSON data" => template_dir.join("data/example_data_json.json"),
+                "Parquet files" => template_dir.join("data/example_data_parquet.parquet"),
+                _ => template_dir.join("data/example_data_csv.csv") // Default to CSV
+            };
+            
+            let target_ext = match selected_format {
+                "CSV files" => "csv",
+                "JSON data" => "json",
+                "Parquet files" => "parquet",
+                _ => "csv" // Default to CSV
+            };
+            
+            let data_file_target = app_path.join("data").join(format!("example_data.{}", target_ext));
+            
+            // Create additional vars for template substitution
+            _additional_vars = Some(json!({
+                "data_source": selected_format,
+                "data_format": target_ext
+            }));
+            
+            // Apply the template using the normal template system
+            templates::apply_template(&template, app_path, &name, _additional_vars.clone())?;
+            
+            // After the template is applied, delete the unneeded data files
+            // and keep only the selected one
+            if selected_format != "CSV files" {
+                let csv_file = app_path.join("data").join("example_data.csv");
+                if csv_file.exists() {
+                    let _ = fs::remove_file(&csv_file);
+                }
+            }
+            
+            if selected_format != "JSON data" {
+                let json_file = app_path.join("data").join("example_data.json");
+                if json_file.exists() {
+                    let _ = fs::remove_file(&json_file);
+                }
+            }
+            
+            if selected_format != "Parquet files" {
+                let parquet_file = app_path.join("data").join("example_data.parquet");
+                if parquet_file.exists() {
+                    let _ = fs::remove_file(&parquet_file);
+                }
+            }
+            
+            // If the data file hasn't been copied (which can happen with the template system),
+            // copy the selected data file manually
+            if !data_file_target.exists() && data_file_source.exists() {
+                let _ = fs::copy(&data_file_source, &data_file_target);
+            }
+            
         } else {
-            "none"
-        };
+            // For other data science templates, use the standard template system
+            templates::apply_template(&template, app_path, &name, _additional_vars.clone())?;
+        }
         
-        // Check if the user selected Embassy framework
-        if framework == "Yes, use Embassy framework" {
-            // Get MCU target from the configuration
-            let target = if let Some(vars) = &_additional_vars {
-                vars.get("mcu_target")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("rp2040")
-                    .to_string()
-            } else {
-                "rp2040".to_string()
-            };
-            
-            // Create JSON options from variables
-            let mut options_map = serde_json::Map::new();
-            options_map.insert("mcu_target".to_string(), json!(target));
-            options_map.insert("template".to_string(), json!("embedded-embassy"));
-            let json_options = Value::Object(options_map);
-            
-            // Use the Embassy CLI handler from project_handlers
-            let handler = crate::project::find_handler("embedded-embassy", &json_options)
-                .ok_or_else(|| anyhow!("Embassy CLI handler not found"))?;
-            
-            println!("📦 Creating {} project with {} handler", name, handler.name());
-            
-            // Initialize the project using the handler
-            handler.initialize_project(&name, app_path, &json_options)?;
-            
-            // Display next steps
-            println!("\n✅ {} project created successfully!", name.green());
-            
-            let next_steps = handler.get_next_steps(&name, &json_options);
-            if !next_steps.is_empty() {
-                println!("\n{}", "Next steps:".bold().green());
-                for step in next_steps {
-                    println!("- {}", step);
-                }
-            }
-            
-            println!("\n🎉 Project {} created successfully!", name);
-            
-            return Ok(());
-        }
-        // Standard embedded template
-        else {
-            // Get microcontroller target from options
-            let target = if let Some(vars) = &_additional_vars {
-                vars.get("mcu_target")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("rp2040")
-                    .to_string() // Clone the string to avoid borrowing issues
-            } else {
-                "rp2040".to_string()
-            };
-            
-            println!("Using {} as the microcontroller target", target);
-            
-            // Create target-specific dependencies string
-            let mcu_target_deps = match target.as_str() {
-                "rp2040" => "rp2040-hal = \"0.9\"\nrp2040-boot2 = \"0.3\"\nusb-device = \"0.2\"\nusbd-serial = \"0.1\"",
-                "stm32" => "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }",
-                "esp32" => "esp32-hal = \"0.16\"\nesp-backtrace = \"0.9\"\nesp-println = \"0.6\"",
-                "arduino" => "arduino-hal = \"0.1\"\navr-device = \"0.5\"\nufmt = \"0.2\"",
-                _ => "",
-            };
-            
-            // Create variables for template substitution
-            let mut vars = serde_json::Map::new();
-            vars.insert("mcu_target".to_string(), json!(target));
-            vars.insert("mcu_target_deps".to_string(), json!(mcu_target_deps));
-            
-            // Merge with existing additional_vars if any
-            if let Some(ref existing_vars) = &_additional_vars {
-                if let Some(existing_obj) = existing_vars.as_object() {
-                    for (k, v) in existing_obj {
-                        if k != "mcu_target" && k != "mcu_target_deps" {
-                            vars.insert(k.clone(), v.clone());
-                        }
-                    }
-                }
-            }
-            
-            // Apply the template using the template manager
-            templates::apply_template(&template, app_path, &name, Some(serde_json::Value::Object(vars)))?;
-            
-            // Let the template's next steps handle all output 
-            // We don't need additional steps here since the template.json now has conditional steps
-            
-            println!("\n🎉 Project {} created successfully!", name);
-            
-            return Ok(());
-        }
+        println!("\n✅ {} project created successfully!", name);
     } else if template == "counter" || template == "router" || template == "todo" {
         // For Leptos templates, prepend "client/leptos/"
         let template_path = format!("client/leptos/{}", template);
@@ -1381,6 +1106,58 @@ pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additi
     if !template_dir_path.exists() {
         return Err(anyhow::anyhow!("Could not find template directory for {} template", template));
     }
+
+    // Get edge template configuration to extract next steps
+    let template_json_path = PathBuf::from(format!("{}/templates/edge/template.json", env!("CARGO_MANIFEST_DIR")));
+    let mut next_steps = Vec::new();
+    
+    if template_json_path.exists() {
+        let template_json_str = fs::read_to_string(&template_json_path)?;
+        let template_json: Value = serde_json::from_str(&template_json_str)?;
+        
+        // Extract selected edge_type and provider from template path
+        // Extract parts from template path like "edge/api-function/fastly"
+        let parts: Vec<&str> = template.split('/').collect();
+        let edge_type = if parts.len() > 1 { parts[1] } else { "api-function" };
+        let provider = if parts.len() > 2 { parts[2] } else { "fastly" };
+        
+        println!("Using edge_type: {}, provider: {}", edge_type, provider);
+        
+        // Extract next steps from the redirect structure
+        if let Some(redirect) = template_json.get("redirect") {
+            if let Some(type_config) = redirect.get(edge_type) {
+                if let Some(provider_config) = type_config.get(provider) {
+                    if let Some(steps) = provider_config.get("next_steps").and_then(|s| s.as_array()) {
+                        for step in steps {
+                            if let Some(step_str) = step.as_str() {
+                                // Replace project_name placeholder with actual name
+                                let step_str = step_str.replace("{{project_name}}", name);
+                                next_steps.push(step_str);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Create .ferrisup_next_steps.json file so template manager can find it
+        if !next_steps.is_empty() {
+            let next_steps_json = json!({
+                "next_steps": next_steps
+            });
+            fs::write(
+                app_path.join(".ferrisup_next_steps.json"),
+                serde_json::to_string_pretty(&next_steps_json)?
+            )?;
+            
+            // Display next steps to the user directly since edge templates bypass normal template flow
+            println!("\n✅ {} project created successfully!", name);
+            println!("\nNext steps:");
+            for step in &next_steps {
+                println!("- {}", step);
+            }
+        }
+    }
     
     // Create src directory if needed
     fs::create_dir_all(app_path.join("src"))?;
@@ -1398,9 +1175,7 @@ pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additi
         // Create template vars
         let template_vars = json!({
             "project_name": name,
-            "crate_name": name.replace("-", "_"),
-            "project_name_pascal_case": to_pascal_case(&name),
-            "authors": "Your Name <your.email@example.com>"
+            "project_name_pascal_case": to_pascal_case(&name)
         });
         
         // Apply templating
@@ -1434,17 +1209,22 @@ pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additi
     // Create template vars
     let template_vars = json!({
         "project_name": name,
-        "crate_name": name.replace("-", "_"),
-        "project_name_pascal_case": to_pascal_case(&name),
-        "authors": "Your Name <your.email@example.com>"
+        "project_name_pascal_case": to_pascal_case(&name)
     });
     
     // Apply templating
     let rendered = handlebars.render_template(&content, &template_vars)
         .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
         
-    // Write to target file
-    fs::write(app_path.join("Cargo.toml"), rendered)?;
+    // Determine the target file name (remove .template extension if present)
+    let mut target_file_name = "Cargo.toml";
+    if cargo_toml_path.file_name().unwrap().to_string_lossy().ends_with(".template") {
+        target_file_name = "Cargo.toml";
+    }
+    
+    // Write to target file with corrected name
+    let target_path = app_path.join(target_file_name);
+    fs::write(target_path, rendered)?;
     
     // Copy README.md from the template
     let readme_src = template_dir_path.join("README.md");
@@ -1460,9 +1240,7 @@ pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additi
         // Create template vars
         let template_vars = json!({
             "project_name": name,
-            "crate_name": name.replace("-", "_"),
-            "project_name_pascal_case": to_pascal_case(&name),
-            "authors": "Your Name <your.email@example.com>"
+            "project_name_pascal_case": to_pascal_case(&name)
         });
         
         // Apply templating
@@ -1502,16 +1280,21 @@ pub fn handle_edge_template(template: &str, app_path: &Path, name: &str, _additi
             // Create template vars
             let template_vars = json!({
                 "project_name": name,
-                "crate_name": name.replace("-", "_"),
-                "project_name_pascal_case": to_pascal_case(&name),
-                "authors": "Your Name <your.email@example.com>"
+                "project_name_pascal_case": to_pascal_case(&name)
             });
             
             // Apply templating
             let rendered = handlebars.render_template(&content, &template_vars)
                 .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
                 
-            // Write to target file
+            // Determine the target file name (remove .template extension if present)
+            let mut target_file_name = file_name_str.to_string();
+            if target_file_name.ends_with(".template") {
+                target_file_name = target_file_name.trim_end_matches(".template").to_string();
+            }
+            
+            // Write to target file with corrected name
+            let target_path = app_path.join(target_file_name);
             fs::write(target_path, rendered)?;
         }
     }
