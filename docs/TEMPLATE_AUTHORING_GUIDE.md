@@ -11,6 +11,7 @@ This guide explains how to create and customize templates for the FerrisUp CLI, 
 5. [File Transformations](#file-transformations)
 6. [Best Practices](#best-practices)
 7. [Examples](#examples)
+8. [Working with the Enhanced Template Configuration Framework](#working-with-the-enhanced-template-configuration-framework)
 
 ## Template Directory Structure
 
@@ -257,3 +258,175 @@ When using transformations, the `pattern` should match the **target** path from 
 ### Complex Template with Multiple Options
 
 See the embedded template for a complete example of a complex template with multiple options and conditional content.
+
+## Working with the Enhanced Template Configuration Framework
+
+FerrisUp now supports a more flexible template configuration framework that allows for conditional content and variable substitution. This guide explains how to create and customize templates using this framework.
+
+### Template Configuration File
+
+Each template has a `template.json` file that defines its structure and behavior. Here's an example of a template with conditional logic:
+
+```json
+{
+  "name": "example-template",
+  "description": "Example template with conditional logic",
+  "type": "binary",
+  "files": [
+    {
+      "source": "README.md",
+      "target": "README.md"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    }
+  ],
+  "options": [
+    {
+      "name": "feature",
+      "description": "Which feature do you want to enable?",
+      "type": "select",
+      "options": ["basic", "advanced", "expert"],
+      "default": "basic"
+    }
+  ],
+  "conditional_files": [
+    {
+      "when": "feature == 'basic'",
+      "files": [
+        {
+          "source": "basic/src/main.rs",
+          "target": "src/main.rs"
+        }
+      ]
+    },
+    {
+      "when": "feature == 'advanced'",
+      "files": [
+        {
+          "source": "advanced/src/main.rs",
+          "target": "src/main.rs"
+        }
+      ]
+    },
+    {
+      "when": "feature == 'expert'",
+      "files": [
+        {
+          "source": "expert/src/main.rs",
+          "target": "src/main.rs"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "serde = { version = \"1.0\", features = [\"derive\"] }"
+    ],
+    "advanced": [
+      "tokio = { version = \"1.36\", features = [\"full\"] }"
+    ],
+    "expert": [
+      "axum = \"0.7\"",
+      "tower = \"0.4\""
+    ]
+  },
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "cargo run"
+    ],
+    "conditional": [
+      {
+        "when": "feature == 'basic'",
+        "steps": [
+          "# This is a basic project with minimal features"
+        ]
+      },
+      {
+        "when": "feature == 'advanced'",
+        "steps": [
+          "# This project includes async support with Tokio"
+        ]
+      },
+      {
+        "when": "feature == 'expert'",
+        "steps": [
+          "# This project includes a web server with Axum"
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Template Structure
+
+- **name**: The name of the template.
+- **description**: A brief description of the template.
+- **type**: The type of project (`binary`, `library`, etc.).
+- **files**: Array of files to be included in all projects.
+- **options**: User-selectable options that affect the template content.
+- **conditional_files**: Files to include based on user selections.
+- **dependencies**: Rust dependencies to add to Cargo.toml.
+- **next_steps**: Instructions shown to the user after project creation.
+
+### Template Variables
+
+Template variables are available within template files and can be used with Handlebars syntax:
+
+- **project_name**: The name of the project being created.
+- **Any user-selected option**: Values from the `options` section.
+
+### File Templates
+
+Files with a `.template` extension will be processed with Handlebars to substitute variables. For example, in `Cargo.toml.template`:
+
+```toml
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+```
+
+### Conditional Files
+
+The `conditional_files` section allows you to include different files based on user selections. The `when` expression is evaluated against the user's selected options.
+
+### Conditional Next Steps
+
+The `next_steps` section can include both default steps shown to all users and conditional steps shown only when specific conditions are met.
+
+### Template Directory Structure
+
+For templates with conditional content, organize your files in subdirectories that match the condition values. For example:
+
+```
+templates/
+  └── my-template/
+      ├── template.json
+      ├── README.md
+      ├── Cargo.toml.template
+      ├── basic/
+      │   └── src/
+      │       └── main.rs
+      ├── advanced/
+      │   └── src/
+      │       └── main.rs
+      └── expert/
+          └── src/
+              └── main.rs
+```
+
+This structure makes it easy to maintain different versions of files for different user selections.
+
+### Best Practices
+
+1. **Use Descriptive Option Names**: Make sure option names clearly describe what they affect.
+2. **Provide Helpful Descriptions**: Option descriptions should help users understand the implications of their choices.
+3. **Set Sensible Defaults**: Always specify default values for options.
+4. **Organize Files Logically**: Keep related files in subdirectories that match option values.
+5. **Include Clear Next Steps**: Provide specific instructions for users to get started with their new project.

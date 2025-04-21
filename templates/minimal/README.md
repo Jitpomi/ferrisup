@@ -1,4 +1,4 @@
-# Minimal Rust Project
+# {{project_name}}
 
 This template provides a minimal starting point for a Rust project with a simple `main.rs` file and no external dependencies.
 
@@ -15,7 +15,7 @@ After generating your project with FerrisUp, follow these steps:
 
 1. Navigate to your project directory:
    ```bash
-   cd your-project-name
+   cd {{project_name}}
    ```
 
 2. Run the program:

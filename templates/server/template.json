@@ -7,5 +7,117 @@
       "source": "README.md",
       "target": "README.md"
     }
-  ]
+  ],
+  "options": [
+    {
+      "name": "framework",
+      "description": "Which web framework would you like to use?",
+      "type": "select",
+      "options": ["axum", "actix", "poem"],
+      "default": "axum"
+    }
+  ],
+  "conditional_files": [
+    {
+      "when": "framework == 'axum'",
+      "files": [
+        {
+          "source": "axum/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "axum/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "framework == 'actix'",
+      "files": [
+        {
+          "source": "actix/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "actix/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "framework == 'poem'",
+      "files": [
+        {
+          "source": "poem/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "poem/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "tokio = { version = \"1.36\", features = [\"full\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\""
+    ],
+    "axum": [
+      "axum = \"0.7\"",
+      "tower = \"0.4\"",
+      "tower-http = { version = \"0.4\", features = [\"fs\", \"trace\"] }",
+      "tracing = \"0.1\"",
+      "tracing-subscriber = \"0.3\""
+    ],
+    "actix": [
+      "actix-web = \"4.5\"",
+      "actix-rt = \"2.9\"",
+      "env_logger = \"0.11\"",
+      "log = \"0.4\""
+    ],
+    "poem": [
+      "poem = \"2.0\"",
+      "tracing = \"0.1\"",
+      "tracing-subscriber = \"0.3\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "reqwest = { version = \"0.11\", features = [\"json\"] }"
+    ]
+  },
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "cargo run"
+    ],
+    "conditional": [
+      {
+        "when": "framework == 'axum'",
+        "steps": [
+          "# Test the API with: curl http://localhost:3000/",
+          "# Add more routes in src/main.rs",
+          "# Enable OpenAPI with: axum-openapi = \"0.1\""
+        ]
+      },
+      {
+        "when": "framework == 'actix'",
+        "steps": [
+          "# Test the API with: curl http://localhost:8080/",
+          "# Add more routes in src/main.rs",
+          "# Explore middleware in Actix with actix-web-middleware"
+        ]
+      },
+      {
+        "when": "framework == 'poem'",
+        "steps": [
+          "# Test the API with: curl http://localhost:3000/",
+          "# Add more routes in src/main.rs",
+          "# Enable OpenAPI with: poem-openapi = \"3.0.0\""
+        ]
+      }
+    ]
+  }
 }
