@@ -28,6 +28,19 @@ The binary will be available at `target/release/{{project_name}}`.
 
 ## Usage
 
+### Generating Sample Data
+
+The project includes a script to generate sample data files for testing:
+
+```bash
+cd data
+./download_sample_data.sh
+```
+
+This will create:
+- example_data.csv - A CSV file with employee records
+- example_data.json - A JSON file with the same data
+
 ### Analyzing Data
 
 ```bash
