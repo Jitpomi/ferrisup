@@ -660,16 +660,98 @@ This project was generated using FerrisUp.
     }
     
     // After processing all files, clean up any files that shouldn't be in the target directory
-    if let Some(_mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
-        // Clean up mcu directories that don't match the selected target
+    if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+        // First, ensure the correct MCU-specific files are copied to the root
+        let mcu_dir = template_dir.join("mcu").join(mcu_target);
+        if mcu_dir.exists() {
+            // Copy the MCU-specific main.rs to src/main.rs
+            let mcu_main_rs = mcu_dir.join("src").join("main.rs");
+            if mcu_main_rs.exists() {
+                let target_main_rs = target_dir.join("src").join("main.rs");
+                // Read the source file
+                let content = fs::read_to_string(&mcu_main_rs)?;
+                
+                // Create handlebars instance for templating
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Apply templating
+                let rendered = handlebars.render_template(&content, &template_vars)
+                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                    
+                // Write to target file
+                fs::write(target_main_rs, rendered)?;
+            }
+            
+            // Copy the MCU-specific memory.x to memory.x
+            let mcu_memory_x = mcu_dir.join("memory.x");
+            if mcu_memory_x.exists() {
+                let target_memory_x = target_dir.join("memory.x");
+                fs::copy(&mcu_memory_x, &target_memory_x)?;
+            }
+            
+            // Copy the MCU-specific .cargo/config.toml to .cargo/config.toml
+            let mcu_cargo_config = mcu_dir.join(".cargo").join("config.toml");
+            if mcu_cargo_config.exists() {
+                let target_cargo_config = target_dir.join(".cargo").join("config.toml");
+                // Ensure the target directory exists
+                fs::create_dir_all(target_cargo_config.parent().unwrap())?;
+                fs::copy(&mcu_cargo_config, &target_cargo_config)?;
+            }
+            
+            // Copy any other MCU-specific files at the root level
+            if let Ok(entries) = fs::read_dir(&mcu_dir) {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let file_name = entry.file_name();
+                        let file_name_str = file_name.to_string_lossy();
+                        
+                        // Skip src, .cargo, and memory.x as they're handled separately
+                        if file_name_str == "src" || file_name_str == ".cargo" || file_name_str == "memory.x" {
+                            continue;
+                        }
+                        
+                        let source_path = entry.path();
+                        let target_path = target_dir.join(&file_name);
+                        
+                        if source_path.is_dir() {
+                            copy_dir_all(&source_path, &target_path)?;
+                        } else {
+                            // Check if it's a template file
+                            if source_path.extension().map_or(false, |ext| ext == "template") {
+                                // Read the source file
+                                let content = fs::read_to_string(&source_path)?;
+                                
+                                // Create handlebars instance for templating
+                                let mut handlebars = Handlebars::new();
+                                handlebars.register_escape_fn(handlebars::no_escape);
+                                
+                                // Apply templating
+                                let rendered = handlebars.render_template(&content, &template_vars)
+                                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                                
+                                // Write to target file (removing .template extension)
+                                let target_file_name = target_path.file_stem().unwrap().to_string_lossy().to_string();
+                                let target_file_path = target_dir.join(target_file_name);
+                                fs::write(target_file_path, rendered)?;
+                            } else {
+                                fs::copy(&source_path, &target_path)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Clean up mcu directories
         for mcu in &["rp2040", "stm32", "esp32", "arduino"] {
-            // Remove all MCU directories, even the selected one
+            // Remove all MCU directories
             let mcu_dir = target_dir.join("mcu").join(mcu);
             if mcu_dir.exists() {
                 fs::remove_dir_all(&mcu_dir)?;
             }
 
-            // Remove any main.rs.* files that don't match the selected target
+            // Remove any main.rs.* files
             let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
             if main_rs_file.exists() {
                 fs::remove_file(&main_rs_file)?;
