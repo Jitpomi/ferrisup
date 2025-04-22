@@ -625,7 +625,7 @@ This project was generated using FerrisUp.
                         if is_script {
                             let metadata = fs::metadata(&target_file)?;
                             let mut perms = metadata.permissions();
-                            perms.set_mode(0o755); // rwxr-xr-x
+                            perms.set_mode(0o755); // rwxr-x
                             fs::set_permissions(&target_file, perms)?;
                         }
                     }
@@ -666,19 +666,26 @@ This project was generated using FerrisUp.
             if *mcu != mcu_target {
                 let mcu_dir = target_dir.join("mcu").join(mcu);
                 if mcu_dir.exists() {
-                    println!("Removing directory: {}", mcu_dir.display());
-                    if let Err(e) = fs::remove_dir_all(&mcu_dir) {
-                        println!("Error removing directory {}: {}", mcu_dir.display(), e);
-                    }
+                    fs::remove_dir_all(&mcu_dir)?;
                 }
 
                 // Also remove any main.rs.* files that don't match the selected target
                 let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
                 if main_rs_file.exists() {
-                    println!("Removing file: {}", main_rs_file.display());
-                    if let Err(e) = fs::remove_file(&main_rs_file) {
-                        println!("Error removing file {}: {}", main_rs_file.display(), e);
-                    }
+                    fs::remove_file(&main_rs_file)?;
+                }
+            }
+        }
+    }
+
+    // Clean up cloud provider directories for serverless templates
+    if let Some(cloud_provider) = template_vars.get("cloud_provider").and_then(|v| v.as_str()) {
+        // Clean up cloud provider directories that don't match the selected provider
+        for provider in &["aws", "gcp", "azure", "vercel", "netlify"] {
+            if *provider != cloud_provider {
+                let provider_dir = target_dir.join(provider);
+                if provider_dir.exists() && provider_dir.is_dir() {
+                    fs::remove_dir_all(&provider_dir)?;
                 }
             }
         }
@@ -687,10 +694,7 @@ This project was generated using FerrisUp.
     // Remove template.json if it was copied
     let template_json_file = target_dir.join("template.json");
     if template_json_file.exists() {
-        println!("Removing file: {}", template_json_file.display());
-        if let Err(e) = fs::remove_file(&template_json_file) {
-            println!("Error removing file {}: {}", template_json_file.display(), e);
-        }
+        fs::remove_file(&template_json_file)?;
     }
     
     // Apply fixes for burn templates if needed
@@ -1371,11 +1375,12 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
             
             let target_path = dst.join(&target_file_name);
             
+            // Process files that need template variable substitution
             if path.extension().map_or(false, |ext| 
                 ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
                 ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
             ) {
-                // Process template variables
+                // Read template content
                 let template_content = fs::read_to_string(&path)?;
                 
                 // Write rendered content

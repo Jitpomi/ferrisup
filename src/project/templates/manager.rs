@@ -304,7 +304,7 @@ pub fn apply_template(
                             // Check if the variable exists and matches the expected value
                             if let Some(actual_value) = template_vars.get(var_name).and_then(|v| v.as_str()) {
                                 if actual_value == expected_value {
-                                    // Apply the files for this condition
+                                    // If condition matches, add the files
                                     if let Some(files_array) = condition_obj.get("files").and_then(|f| f.as_array()) {
                                         for file in files_array {
                                             let source = match file.get("source") {
@@ -406,19 +406,13 @@ pub fn apply_template(
             if *mcu != mcu_target {
                 let mcu_dir = target_dir.join("mcu").join(mcu);
                 if mcu_dir.exists() {
-                    println!("Removing directory: {}", mcu_dir.display());
-                    if let Err(e) = fs::remove_dir_all(&mcu_dir) {
-                        println!("Error removing directory {}: {}", mcu_dir.display(), e);
-                    }
+                    fs::remove_dir_all(&mcu_dir)?;
                 }
 
                 // Also remove any main.rs.* files that don't match the selected target
-                let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
+                let main_rs_file = target_dir.join("src").join(format!("main.rs.{}", mcu));
                 if main_rs_file.exists() {
-                    println!("Removing file: {}", main_rs_file.display());
-                    if let Err(e) = fs::remove_file(&main_rs_file) {
-                        println!("Error removing file {}: {}", main_rs_file.display(), e);
-                    }
+                    fs::remove_file(&main_rs_file)?;
                 }
             }
         }
@@ -427,10 +421,7 @@ pub fn apply_template(
     // Remove template.json if it was copied
     let template_json_file = target_dir.join("template.json");
     if template_json_file.exists() {
-        println!("Removing file: {}", template_json_file.display());
-        if let Err(e) = fs::remove_file(&template_json_file) {
-            println!("Error removing file {}: {}", template_json_file.display(), e);
-        }
+        fs::remove_file(&template_json_file)?;
     }
 
     // Copy dependencies to the Cargo.toml file if needed

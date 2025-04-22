@@ -361,199 +361,50 @@ pub fn execute(
         // Skip the rest of the template handling code
         return Ok(());
     } else if template == "serverless" {
-        // Serverless template handling
-        let provider_options = ["aws", "gcp", "azure", "vercel", "netlify"];
+        // Use the template manager for serverless template
+        // This will prompt for the cloud provider based on template.json options
+        template_manager::apply_template(&template, app_path, &name, None)?;
         
-        let selection = Select::new()
-            .with_prompt("Which cloud provider would you like to target for your serverless function?")
-            .items(&provider_options)
-            .default(0)
-            .interact()?;
-            
-        let provider_selected = provider_options[selection];
+        // Clean up provider-specific directories that weren't selected
+        let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
+        let template_json_path = PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR")));
+        let template_content = fs::read_to_string(&template_json_path)?;
+        let template_json: serde_json::Value = serde_json::from_str(&template_content)?;
         
-        // Display appropriate help message based on selected provider
-        let help_messages = json!({
-            "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
-            "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
-            "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
-            "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
-            "netlify": "Netlify Functions let you deploy server-side code that runs in response to events, without having to run a dedicated server."
-        });
-        
-        if let Some(help_message) = help_messages.get(provider_selected).and_then(|v| v.as_str()) {
-            println!("ℹ️  {}", help_message);
-        }
-        
-        println!("Using {} as the cloud_provider", provider_selected);
-        
-        // Handle serverless template creation manually
-        let provider_template_dir_path = PathBuf::from(format!("{}/templates/serverless/{}", env!("CARGO_MANIFEST_DIR"), provider_selected));
-        
-        if !provider_template_dir_path.exists() {
-            return Err(anyhow::anyhow!("Could not find template directory for {} provider", provider_selected));
-        }
-        
-        // Copy src directory
-        let src_dir = provider_template_dir_path.join("src");
-        if src_dir.exists() {
-            copy_dir_all(&src_dir, &app_path.join("src"))?;
+        // Get the selected cloud provider from the template variables
+        let _selected_provider = if let Some(vars) = template_json.get("variables").and_then(|v| v.as_object()) {
+            if let Some(provider) = vars.get("cloud_provider").and_then(|p| p.as_str()) {
+                provider
+            } else {
+                // Default to aws if not found
+                "aws"
+            }
         } else {
-            return Err(anyhow::anyhow!("Could not find src directory for {} provider", provider_selected));
-        }
-        
-        // Copy Cargo.toml.template and process it
-        let cargo_toml_template = provider_template_dir_path.join("Cargo.toml.template");
-        if cargo_toml_template.exists() {
-            let content = fs::read_to_string(&cargo_toml_template)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("Cargo.toml"), rendered)?;
-        } else {
-            return Err(anyhow::anyhow!("Could not find Cargo.toml.template for {} provider", provider_selected));
-        }
-        
-        // Copy README.md from the provider-specific template
-        let readme_src = provider_template_dir_path.join("README.md.template");
-        
-        if readme_src.exists() {
-            let content = fs::read_to_string(&readme_src)?;
-            
-            // Create handlebars instance for templating
-            let mut handlebars = Handlebars::new();
-            handlebars.register_escape_fn(handlebars::no_escape);
-            
-            // Create template vars
-            let template_vars = json!({
-                "project_name": name,
-                "project_name_pascal_case": to_pascal_case(&name)
-            });
-            
-            // Apply templating
-            let rendered = handlebars.render_template(&content, &template_vars)
-                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                
-            // Write to target file
-            fs::write(app_path.join("README.md"), rendered)?;
-        }
-        
-        // Copy provider-specific configuration files
-        let template_json_path = provider_template_dir_path.join("template.json");
-        let template_config = if template_json_path.exists() {
-            let content = fs::read_to_string(&template_json_path)?;
-            serde_json::from_str(&content).unwrap_or_else(|_| json!({}))
-        } else {
-            json!({})
+            // Default to aws if variables not found
+            "aws"
         };
         
-        if let Some(files) = template_config.get("files").and_then(|f| f.as_array()) {
-            for file_entry in files {
-                if let (Some(source), Some(target)) = (
-                    file_entry.get("source").and_then(|s| s.as_str()),
-                    file_entry.get("target").and_then(|t| t.as_str())
-                ) {
-                    let source_path = provider_template_dir_path.join(source);
-                    if source_path.exists() {
-                        if source_path.is_dir() {
-                            copy_dir_all(&source_path, &app_path.join(target))?;
-                        } else {
-                            // Read the source file
-                            let content = fs::read_to_string(&source_path)?;
-                            
-                            // Create handlebars instance for templating
-                            let mut handlebars = Handlebars::new();
-                            handlebars.register_escape_fn(handlebars::no_escape);
-                            
-                            // Create template vars
-                            let template_vars = json!({
-                                "project_name": name,
-                                "project_name_pascal_case": to_pascal_case(&name)
-                            });
-                            
-                            // Apply templating
-                            let rendered = handlebars.render_template(&content, &template_vars)
-                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                                
-                            // Write to target file
-                            let target_path = app_path.join(target);
-                            if let Some(parent) = target_path.parent() {
-                                fs::create_dir_all(parent)?;
-                            }
-                            fs::write(target_path, rendered)?;
-                        }
-                    }
-                }
+        // Remove all provider directories
+        for provider in providers {
+            let provider_dir = app_path.join(provider);
+            if provider_dir.exists() && provider_dir.is_dir() {
+                fs::remove_dir_all(provider_dir)?;
             }
         }
         
-        // Copy any provider-specific files directly from the provider directory
-        for entry in fs::read_dir(&provider_template_dir_path)? {
-            let entry = entry?;
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
-            
-            // Skip src, template.json, Cargo.toml.template, and README.md.template
-            if file_name_str == "src" || file_name_str == "template.json" || 
-               file_name_str == "Cargo.toml.template" || file_name_str == "README.md.template" {
-                continue;
-            }
-            
-            let source_path = entry.path();
-            let target_path = app_path.join(&file_name);
-            
-            if source_path.is_dir() {
-                copy_dir_all(&source_path, &target_path)?;
-            } else {
-                // Read the source file
-                let content = fs::read_to_string(&source_path)?;
-                
-                // Create handlebars instance for templating
-                let mut handlebars = Handlebars::new();
-                handlebars.register_escape_fn(handlebars::no_escape);
-                
-                // Create template vars
-                let template_vars = json!({
-                    "project_name": name,
-                    "project_name_pascal_case": to_pascal_case(&name)
-                });
-                
-                // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
-                // Write to target file
-                fs::write(target_path, rendered)?;
-            }
+        // Remove template.json file
+        let template_json_file = app_path.join("template.json");
+        if template_json_file.exists() {
+            fs::remove_file(template_json_file)?;
         }
         
-        // Show provider-specific next steps
-        let template_json = fs::read_to_string(PathBuf::from(format!("{}/templates/serverless/template.json", env!("CARGO_MANIFEST_DIR"))))?;
-        let template_config: Value = serde_json::from_str(&template_json)?;
-        let next_steps_key = format!("next_steps_{}", provider_selected);
-        
-        println!("\nNext steps:");
-        if let Some(next_steps) = template_config.get(&next_steps_key).and_then(|s| s.as_array()) {
-            for step in next_steps {
-                if let Some(step_str) = step.as_str() {
-                    let processed_step = step_str.replace("{{project_name}}", &name);
-                    println!("  {}", processed_step);
-                }
-            }
+        // Remove main.rs file in root directory if it exists (should be in src/main.rs)
+        let root_main_rs = app_path.join("main.rs");
+        if root_main_rs.exists() {
+            fs::remove_file(root_main_rs)?;
         }
+        
+        return Ok(());
     } else if template == "edge" {
         // Handle edge template specifically to support the hierarchical structure
         // Get the edge template configuration
@@ -1794,6 +1645,12 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
             // Write to target file
             fs::write(target_path, rendered)?;
         }
+    }
+    
+    // Remove main.rs file in root directory if it exists (should be in src/main.rs)
+    let root_main_rs = app_path.join("main.rs");
+    if root_main_rs.exists() {
+        fs::remove_file(root_main_rs)?;
     }
     
     Ok(())

@@ -23,22 +23,22 @@
     "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
     "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
     "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
-    "netlify": "Netlify Functions let you deploy server-side code that works alongside your static website or application."
+    "netlify": "Netlify Functions let you deploy server-side code that runs alongside your static website or application."
   },
   "conditional_files": [
     {
-      "when": "cloud_provider == 'aws'",
+      "when": "cloud_provider == \"aws\"",
       "files": [
         {
           "source": "aws/src/main.rs",
           "target": "src/main.rs"
         },
         {
-          "source": "aws/Cargo.toml",
+          "source": "aws/Cargo.toml.template",
           "target": "Cargo.toml"
         },
         {
-          "source": "aws/README.md",
+          "source": "aws/README.md.template",
           "target": "README.md"
         },
         {
@@ -52,18 +52,18 @@
       ]
     },
     {
-      "when": "cloud_provider == 'gcp'",
+      "when": "cloud_provider == \"gcp\"",
       "files": [
         {
           "source": "gcp/src/main.rs",
           "target": "src/main.rs"
         },
         {
-          "source": "gcp/Cargo.toml",
+          "source": "gcp/Cargo.toml.template",
           "target": "Cargo.toml"
         },
         {
-          "source": "gcp/README.md",
+          "source": "gcp/README.md.template",
           "target": "README.md"
         },
         {
@@ -77,18 +77,18 @@
       ]
     },
     {
-      "when": "cloud_provider == 'azure'",
+      "when": "cloud_provider == \"azure\"",
       "files": [
         {
           "source": "azure/src/main.rs",
           "target": "src/main.rs"
         },
         {
-          "source": "azure/Cargo.toml",
+          "source": "azure/Cargo.toml.template",
           "target": "Cargo.toml"
         },
         {
-          "source": "azure/README.md",
+          "source": "azure/README.md.template",
           "target": "README.md"
         },
         {
@@ -102,18 +102,18 @@
       ]
     },
     {
-      "when": "cloud_provider == 'vercel'",
+      "when": "cloud_provider == \"vercel\"",
       "files": [
         {
           "source": "vercel/src/main.rs",
           "target": "src/main.rs"
         },
         {
-          "source": "vercel/Cargo.toml",
+          "source": "vercel/Cargo.toml.template",
           "target": "Cargo.toml"
         },
         {
-          "source": "vercel/README.md",
+          "source": "vercel/README.md.template",
           "target": "README.md"
         },
         {
@@ -123,18 +123,18 @@
       ]
     },
     {
-      "when": "cloud_provider == 'netlify'",
+      "when": "cloud_provider == \"netlify\"",
       "files": [
         {
           "source": "netlify/src/main.rs",
           "target": "src/main.rs"
         },
         {
-          "source": "netlify/Cargo.toml",
+          "source": "netlify/Cargo.toml.template",
           "target": "Cargo.toml"
         },
         {
-          "source": "netlify/README.md",
+          "source": "netlify/README.md.template",
           "target": "README.md"
         },
         {
@@ -152,7 +152,7 @@
     ],
     "conditional": [
       {
-        "when": "cloud_provider == 'aws'",
+        "when": "cloud_provider == \"aws\"",
         "steps": [
           "# Install cargo-lambda: cargo install cargo-lambda",
           "# Test locally: cargo lambda watch",
@@ -160,14 +160,14 @@
         ]
       },
       {
-        "when": "cloud_provider == 'gcp'",
+        "when": "cloud_provider == \"gcp\"",
         "steps": [
           "# Build: docker build -t gcr.io/your-project/function .",
           "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http"
         ]
       },
       {
-        "when": "cloud_provider == 'azure'",
+        "when": "cloud_provider == \"azure\"",
         "steps": [
           "# Install Azure Functions Core Tools",
           "# Test locally: func start",
@@ -175,14 +175,14 @@
         ]
       },
       {
-        "when": "cloud_provider == 'vercel'",
+        "when": "cloud_provider == \"vercel\"",
         "steps": [
           "# Install Vercel CLI: npm i -g vercel",
           "# Deploy: vercel"
         ]
       },
       {
-        "when": "cloud_provider == 'netlify'",
+        "when": "cloud_provider == \"netlify\"",
         "steps": [
           "# Install Netlify CLI: npm i -g netlify-cli",
           "# Deploy: netlify deploy"
