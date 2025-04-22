@@ -660,21 +660,38 @@ This project was generated using FerrisUp.
     }
     
     // After processing all files, clean up any files that shouldn't be in the target directory
-    if let Some(mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
+    if let Some(_mcu_target) = template_vars.get("mcu_target").and_then(|v| v.as_str()) {
         // Clean up mcu directories that don't match the selected target
         for mcu in &["rp2040", "stm32", "esp32", "arduino"] {
-            if *mcu != mcu_target {
-                let mcu_dir = target_dir.join("mcu").join(mcu);
-                if mcu_dir.exists() {
-                    fs::remove_dir_all(&mcu_dir)?;
-                }
-
-                // Also remove any main.rs.* files that don't match the selected target
-                let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
-                if main_rs_file.exists() {
-                    fs::remove_file(&main_rs_file)?;
-                }
+            // Remove all MCU directories, even the selected one
+            let mcu_dir = target_dir.join("mcu").join(mcu);
+            if mcu_dir.exists() {
+                fs::remove_dir_all(&mcu_dir)?;
             }
+
+            // Remove any main.rs.* files that don't match the selected target
+            let main_rs_file = target_dir.join(format!("main.rs.{}", mcu));
+            if main_rs_file.exists() {
+                fs::remove_file(&main_rs_file)?;
+            }
+        }
+        
+        // Remove the common directory as its contents should be copied to the root
+        let common_dir = target_dir.join("common");
+        if common_dir.exists() {
+            fs::remove_dir_all(&common_dir)?;
+        }
+        
+        // Remove the root main.rs file (should be in src/main.rs)
+        let root_main_rs = target_dir.join("main.rs");
+        if root_main_rs.exists() {
+            fs::remove_file(&root_main_rs)?;
+        }
+        
+        // Remove the empty mcu directory
+        let mcu_dir = target_dir.join("mcu");
+        if mcu_dir.exists() && mcu_dir.is_dir() {
+            fs::remove_dir_all(&mcu_dir)?;
         }
     }
 
