@@ -18,7 +18,7 @@ After generating your project with FerrisUp, follow these steps:
 
 1. Navigate to your project directory:
    ```bash
-   cd your-project-name
+   cd {{project_name}}
    ```
 
 2. Run the server:
