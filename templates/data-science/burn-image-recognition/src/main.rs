@@ -83,9 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 std::process::exit(1);
             }
             let device = <InferenceBackend as Backend>::Device::default();
-            let mut model = Model::<InferenceBackend>::new(&device);
             let record = CompactRecorder::new().load(model_path, &device)?;
-            model = model.load_record(record);
+            let model = Model::from_record(&record, &device);
             let test_loader: Arc<dyn DataLoader<MnistBatch<InferenceBackend>>> = mnist_dataloader::<InferenceBackend>(false, device.clone(), batch_size, None, 2);
             let (loss, accuracy) = evaluate::<InferenceBackend>(&model, test_loader.as_ref());
             println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
@@ -103,9 +102,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 std::process::exit(1);
             }
             let device = <InferenceBackend as Backend>::Device::default();
-            let mut model = Model::<InferenceBackend>::new(&device);
             let record = CompactRecorder::new().load(model_path, &device)?;
-            model = model.load_record(record);
+            let model = Model::from_record(&record, &device);
             let image = image::open(image_path)?.to_luma8();
             let image = if image.dimensions() != (28, 28) {
                 image::imageops::resize(&image, 28, 28, image::imageops::FilterType::Nearest)
@@ -113,8 +111,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 image
             };
             let image_data: Vec<f32> = image.pixels().map(|p| normalize_mnist_pixel(p[0])).collect();
-            let input = Tensor::<InferenceBackend, 3>::from_floats(image_data.as_slice(), &device);
-            let output = model.forward(input);
+            let input = Tensor::<InferenceBackend, 3>::from_floats(image_data.as_slice(), &device).reshape([1, 28, 28]);
+            let output = model.forward(&input);
             let pred_data = output.argmax(1).to_data();
             let pred_slice = pred_data.as_slice().unwrap_or(&[0]);
             let pred = pred_slice[0];

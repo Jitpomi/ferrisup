@@ -32,8 +32,8 @@ impl<B: Backend<FloatElem = f32> + AutodiffBackend, O: Optimizer<Model<B>, B>> M
     pub fn new(model: Model<B>, optimizer: O, learning_rate: f64) -> Self {
         Self { model, optimizer, learning_rate }
     }
-    pub fn step(&mut self, batch: MnistBatch<B>) -> (f32, f32) {
-        let output = self.model.forward(batch.images.clone());
+    pub fn step(&mut self, batch: &MnistBatch<B>) -> (f32, f32) {
+        let output = self.model.forward(&batch.images);
         let loss = CrossEntropyLossConfig::new().init(&output.device()).forward(output.clone(), batch.targets.clone());
         let grads = loss.backward();
         let gradients_params = GradientsParams::from_grads(grads, &self.model);
@@ -104,7 +104,7 @@ pub fn evaluate<B: Backend<FloatElem = f32>>(
     let mut num_batches = 0;
     let progress_bar = create_progress_bar(10000 / 32, "Evaluation");
     for batch in dataloader.iter() {
-        let output = model.forward(batch.images.clone());
+        let output = model.forward(&batch.images);
         let loss = CrossEntropyLossConfig::new().init(&output.device()).forward(output.clone(), batch.targets.clone());
         let predicted = output.argmax(1).squeeze(1); // shape [batch_size]
         let accuracy = compute_accuracy(&predicted, &batch.targets); // both shape [batch_size]

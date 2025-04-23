@@ -6,6 +6,7 @@ use burn::{
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
 use burn::record::{Recorder, CompactRecorder};
+use std::path::Path;
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
@@ -46,20 +47,20 @@ impl<B: Backend> Model<B> {
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 3>) -> Tensor<B, 2> {
+    pub fn forward(&self, input: &Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, height, width] = input.dims();
         println!("Input dims: [{}, {}, {}]", batch_size, height, width);
         
-        let x = input.reshape([batch_size, 1, height, width]).detach();
+        let x = input.clone().reshape([batch_size, 1, height, width]).detach();
         println!("After reshape to 4D: {:?}", x.dims());
         
-        let x = self.conv1.forward(x);
+        let x = self.conv1.forward(&x);
         println!("After conv1: {:?}", x.dims());
         
-        let x = self.conv2.forward(x);
+        let x = self.conv2.forward(&x);
         println!("After conv2: {:?}", x.dims());
         
-        let x = self.conv3.forward(x);
+        let x = self.conv3.forward(&x);
         println!("After conv3: {:?}", x.dims());
         
         let [batch_size, channels, height, width] = x.dims();
@@ -86,7 +87,7 @@ impl<B: Backend> Model<B> {
     pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
         let targets = item.targets;
         println!("Targets dims: {:?}", targets.dims());
-        let output = self.forward(item.images);
+        let output = self.forward(&item.images);
         println!("Output dims: {:?}", output.dims());
         let loss = CrossEntropyLossConfig::new()
             .init(&output.device())
@@ -100,10 +101,20 @@ impl<B: Backend> Model<B> {
         }
     }
 
-    pub fn save(&self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-        let record = self.clone().into_record();
-        CompactRecorder::new().record(record, path.to_path_buf())?;
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+        let record = self.into_record();
+        let path = path.as_ref().to_path_buf();
+        CompactRecorder::new().record(record, path)?;
         Ok(())
+    }
+
+    pub fn from_record(record: &Record, device: &B::Device) -> Self {
+        Module::from_record(record, device)
+    }
+
+    pub fn load(path: &Path, device: &B::Device) -> Result<Self, Box<dyn std::error::Error>> {
+        let record = CompactRecorder::new().load(path.to_path_buf())?;
+        Ok(Self::from_record(&record, device))
     }
 }
 
@@ -128,8 +139,8 @@ impl<B: Backend> ConvBlock<B> {
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let x = self.conv.forward(input);
+    pub fn forward(&self, input: &Tensor<B, 4>) -> Tensor<B, 4> {
+        let x = self.conv.forward(input.clone());
         let x = self.norm.forward(x);
 
         self.activation.forward(x)
