@@ -1,19 +1,46 @@
 {
   "name": "polars-cli",
-  "description": "Data analysis CLI using Polars (similar to pandas in Python)",
+  "description": "Data Analysis with Polars",
   "type": "binary",
-  "hooks": {
-    "pre_gen": "hooks/pre_gen_hook.sh",
-    "post_gen": "hooks/post_gen_hook.sh"
+  "variables": {
+    "data_format": "{{#if (eq data_source \"CSV files\")}}csv{{else}}{{#if (eq data_source \"JSON data\")}}json{{else}}parquet{{/if}}{{/if}}"
   },
   "files": [
     {
-      "source": "src/main.rs.template",
-      "target": "src/main.rs"
+      "source": "src/main.rs.csv.template",
+      "target": "src/main.rs",
+      "condition": "data_source == \"CSV files\"",
+      "template": true
     },
     {
-      "source": "Cargo.toml.template",
-      "target": "Cargo.toml"
+      "source": "src/main.rs.json.template",
+      "target": "src/main.rs",
+      "condition": "data_source == \"JSON data\"",
+      "template": true
+    },
+    {
+      "source": "src/main.rs.parquet.template",
+      "target": "src/main.rs",
+      "condition": "data_source == \"Parquet files\"",
+      "template": true
+    },
+    {
+      "source": "Cargo.toml.csv.template",
+      "target": "Cargo.toml",
+      "condition": "data_source == \"CSV files\"",
+      "template": true
+    },
+    {
+      "source": "Cargo.toml.json.template",
+      "target": "Cargo.toml",
+      "condition": "data_source == \"JSON data\"",
+      "template": true
+    },
+    {
+      "source": "Cargo.toml.parquet.template",
+      "target": "Cargo.toml",
+      "condition": "data_source == \"Parquet files\"",
+      "template": true
     },
     {
       "source": "README.md.template",
@@ -49,8 +76,8 @@
       "question": "What type of data will you be working with?",
       "options": [
         "CSV files",
-        "Parquet files",
-        "JSON data"
+        "JSON data",
+        "Parquet files"
       ],
       "default": "CSV files"
     },
@@ -76,9 +103,9 @@
       "default": "yes"
     }
   ],
-  
-  "variables": {
-    "data_format": "{{#if (eq data_source \"CSV files\")}}csv{{else}}{{#if (eq data_source \"JSON data\")}}json{{else}}parquet{{/if}}{{/if}}"
+  "hooks": {
+    "pre_gen": "hooks/pre_gen_hook.sh",
+    "post_gen": "hooks/post_gen_hook.sh"
   },
   "next_steps": [
     "📊 Try the example analysis: cd {{project_name}} && cargo run -- analyze -f data/example_data.{{data_format}}",

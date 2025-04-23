@@ -1,0 +1,9 @@
+[package]
+name = "sample_parquet_generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+polars = { version = "0.38.0", features = ["parquet", "random"] }
+rand = "0.8.5"
+chrono = "0.4.35"

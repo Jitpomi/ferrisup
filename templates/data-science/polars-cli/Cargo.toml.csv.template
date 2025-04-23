@@ -15,24 +15,9 @@ chrono = "0.4"
 comfy-table = "7.1"
 rand = "0.8"
 
-# Polars with data format-specific features
-{{#if (eq data_source "CSV files")}}
 # CSV-specific dependencies
 polars = { version = "0.46.0", features = ["lazy", "csv", "strings", "temporal", "random", "object", "dtype-full"] }
 polars-io = { version = "0.46.0", features = ["csv"] }
-{{/if}}
-
-{{#if (eq data_source "Parquet files")}}
-# Parquet-specific dependencies
-polars = { version = "0.46.0", features = ["lazy", "parquet", "strings", "temporal", "random", "object", "dtype-full"] }
-polars-io = { version = "0.46.0", features = ["parquet"] }
-{{/if}}
-
-{{#if (eq data_source "JSON data")}}
-# JSON-specific dependencies
-polars = { version = "0.46.0", features = ["lazy", "json", "strings", "temporal", "random", "object", "dtype-full"] }
-polars-io = { version = "0.46.0", features = ["json"] }
-{{/if}}
 
 # Visualization dependencies
 {{#if (eq visualization "yes")}}

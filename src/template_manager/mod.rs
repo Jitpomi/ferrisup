@@ -549,15 +549,27 @@ This project was generated using FerrisUp.
                                                         return Err(anyhow!("Source file does not exist: {}", source_file.display()));
                                                     }
                                                     
-                                                    let content = fs::read_to_string(&source_file)
-                                                        .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
+                                                    // Check if this is a binary file that should be copied directly
+                                                    let is_binary = source_path.ends_with(".parquet") || 
+                                                                    source_path.ends_with(".bin") || 
+                                                                    source_path.ends_with(".dat") ||
+                                                                    source_path.ends_with(".model");
                                                     
-                                                    // Apply template variables
-                                                    let rendered = handlebars.render_template(&content, &template_vars)
-                                                        .map_err(|e| anyhow!("Failed to render template: {}", e))?;
-                                                    
-                                                    // Write to target
-                                                    fs::write(&target_file, rendered)?;
+                                                    if is_binary {
+                                                        // For binary files, just copy them directly without template processing
+                                                        fs::copy(&source_file, &target_file)?;
+                                                    } else {
+                                                        // For text files, apply template processing
+                                                        let content = fs::read_to_string(&source_file)
+                                                            .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
+                                                        
+                                                        // Apply template variables
+                                                        let rendered = handlebars.render_template(&content, &template_vars)
+                                                            .map_err(|e| anyhow!("Failed to render template: {}", e))?;
+                                                        
+                                                        // Write to target
+                                                        fs::write(&target_file, rendered)?;
+                                                    }
                                                 }
                                             }
                                         }
@@ -577,11 +589,35 @@ This project was generated using FerrisUp.
             if let Some(file_obj) = file.as_object() {
                 let source = file_obj.get("source").and_then(|s| s.as_str());
                 let target = file_obj.get("target").and_then(|t| t.as_str());
+                let condition = file_obj.get("condition").and_then(|c| c.as_str());
                 
                 if let (Some(source_path), Some(target_path)) = (source, target) {
                     // Skip template.json file
                     if source_path == "template.json" || target_path == "template.json" {
                         continue;
+                    }
+
+                    // Check if there's a condition and evaluate it
+                    if let Some(condition_expr) = condition {
+                        // Parse and evaluate the condition
+                        let parts: Vec<&str> = condition_expr.split("==").collect();
+                        if parts.len() == 2 {
+                            let var_name = parts[0].trim();
+                            let expected_value = parts[1].trim().trim_matches('\'').trim_matches('"');
+                            
+                            if let Some(var_value) = template_vars.get(var_name).and_then(|v| v.as_str()) {
+                                if var_value != expected_value {
+                                    // Condition not met, skip this file
+                                    continue;
+                                }
+                            } else {
+                                // Variable not found, skip this file
+                                continue;
+                            }
+                        } else {
+                            // Invalid condition format, skip this file
+                            continue;
+                        }
                     }
 
                     // Skip mcu directories that don't match the selected target
@@ -604,29 +640,41 @@ This project was generated using FerrisUp.
                         return Err(anyhow!("Source file does not exist: {}", source_file.display()));
                     }
                     
-                    let content = fs::read_to_string(&source_file)
-                        .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
+                    // Check if this is a binary file that should be copied directly
+                    let is_binary = source_path.ends_with(".parquet") || 
+                                    source_path.ends_with(".bin") || 
+                                    source_path.ends_with(".dat") ||
+                                    source_path.ends_with(".model");
                     
-                    // Apply template variables
-                    let rendered = handlebars.render_template(&content, &template_vars)
-                        .map_err(|e| anyhow!("Failed to render template: {}", e))?;
-                    
-                    // Write to target
-                    fs::write(&target_file, rendered)?;
-                    
-                    // If it's a script, make it executable on Unix
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        let is_script = target_path.ends_with(".sh") || 
-                                        content.starts_with("#!/bin/bash") ||
-                                        content.starts_with("#!/usr/bin/env");
+                    if is_binary {
+                        // For binary files, just copy them directly without template processing
+                        fs::copy(&source_file, &target_file)?;
+                    } else {
+                        // For text files, apply template processing
+                        let content = fs::read_to_string(&source_file)
+                            .map_err(|e| anyhow!("Failed to read source file {}: {}", source_file.display(), e))?;
                         
-                        if is_script {
-                            let metadata = fs::metadata(&target_file)?;
-                            let mut perms = metadata.permissions();
-                            perms.set_mode(0o755); // rwxr-x
-                            fs::set_permissions(&target_file, perms)?;
+                        // Apply template variables
+                        let rendered = handlebars.render_template(&content, &template_vars)
+                            .map_err(|e| anyhow!("Failed to render template: {}", e))?;
+                        
+                        // Write to target
+                        fs::write(&target_file, rendered)?;
+                        
+                        // If it's a script, make it executable on Unix
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            let is_script = target_path.ends_with(".sh") || 
+                                            content.starts_with("#!/bin/bash") ||
+                                            content.starts_with("#!/usr/bin/env");
+                            
+                            if is_script {
+                                let metadata = fs::metadata(&target_file)?;
+                                let mut perms = metadata.permissions();
+                                perms.set_mode(0o755); // rwxr-x
+                                fs::set_permissions(&target_file, perms)?;
+                            }
                         }
                     }
                 }

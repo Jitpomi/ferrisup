@@ -1,7 +1,14 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use comfy_table::{Cell, ContentArrangement, Table};
 use polars::prelude::*;
+
+// Common imports for all data formats
+use std::path::PathBuf;
+use std::fs::File;
+use rand::Rng;
+
+// Data format specific imports
 {{#if (eq data_source "CSV files")}}
 use polars::prelude::CsvReader;
 use polars::prelude::CsvWriter;
@@ -15,14 +22,11 @@ use polars::prelude::JsonFormat;
 use polars::prelude::ParquetReader;
 use polars::prelude::ParquetWriter;
 {{/if}}
-use std::path::PathBuf;
-use std::fs::File;
-use rand::Rng;
+
 {{#if (eq visualization "yes")}}
 use plotters::prelude::*;
 {{/if}}
 
-/// A Rust CLI for data analysis using Polars (similar to pandas in Python)
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -32,79 +36,50 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Load and analyze a data file
+    /// Analyze a data file
     Analyze {
-        /// Path to the data file (CSV, JSON, or Parquet)
-        #[arg(short, long, default_value = "data/example_data.{{data_format}}")]
+        /// Path to the data file
+        #[arg(short, long)]
         file: PathBuf,
         
-        /// File format (csv, json, parquet)
-        #[arg(short = 't', long, default_value = "{{data_format}}")]
+        /// Format of the data file (auto-detected if not specified)
+        #[arg(short, long, default_value = "")]
         format: String,
         
-        {{#if (eq data_source "JSON data")}}
-        /// JSON format (records, lines) - only used for JSON files
-        #[arg(long, default_value = "records")]
-        json_format: String,
-        {{/if}}
+        /// Show statistics
+        #[arg(short, long)]
+        statistics: bool,
         
-        /// Optional column to filter on
-        #[arg(short = 'c', long)]
+        /// Filter by column=value
+        #[arg(short, long)]
         filter_column: Option<String>,
         
-        /// Optional value to filter for
+        /// Filter value
         #[arg(short = 'v', long)]
         filter_value: Option<String>,
         
-        /// Optional column to group by
-        #[arg(short = 'g', long)]
+        /// Group by column
+        #[arg(short, long)]
         group_by: Option<String>,
         
-        /// Optional column to aggregate
-        #[arg(short = 'a', long)]
+        /// Aggregate column
+        #[arg(short, long)]
         aggregate: Option<String>,
         
-        /// Aggregation function (sum, mean, min, max, count)
-        #[arg(short = 'u', long, default_value = "count")]
-        agg_func: String,
+        /// Aggregation function (mean, sum, min, max, count)
+        #[arg(short = 'u', long, default_value = "mean")]
+        agg_function: String,
         
-        /// Perform statistical analysis
-        #[arg(short, long)]
-        stats: bool,
-        
-        /// Confidence level for statistical tests (0.90, 0.95, 0.99)
-        #[arg(long, default_value = "0.95")]
-        confidence: f64,
-    },
-    
-    {{#if (eq visualization "yes")}}
-    /// Create visualizations from data
-    Visualize {
-        /// Path to the data file (CSV, JSON, or Parquet)
-        #[arg(short, long, default_value = "data/example_data.{{data_format}}")]
-        file: PathBuf,
-        
-        /// File format (csv, json, parquet)
-        #[arg(short = 't', long, default_value = "{{data_format}}")]
-        format: String,
-        
-        {{#if (eq data_source "JSON data")}}
-        /// JSON format (records, lines) - only used for JSON files
-        #[arg(long, default_value = "records")]
+        /// JSON format (json or lines) - only applicable for JSON files
+        #[arg(short = 'j', long, default_value = "json")]
         json_format: String,
-        {{/if}}
         
-        /// Column to visualize (must be numeric)
-        #[arg(short = 'c', long)]
-        column: String,
-        
-        /// Output file path (defaults to column_name_histogram.png)
+        /// Output file path (optional)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    {{/if}}
     
-    /// Generate a sample dataset
+    /// Generate sample data
     Generate {
         /// Number of rows to generate
         #[arg(short, long, default_value_t = 100)]
@@ -114,43 +89,85 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
         
-        /// Output format (csv, json, parquet)
-        #[arg(short = 't', long, default_value = "{{data_format}}")]
+        /// Format of the output file (csv, json, parquet)
+        #[arg(short, long, default_value = "")]
         format: String,
+    },
+    
+    /// Visualize data
+    Visualize {
+        /// Path to the data file
+        #[arg(short, long)]
+        file: PathBuf,
+        
+        /// Column to visualize
+        #[arg(short, long)]
+        column: String,
+        
+        /// Format of the data file (auto-detected if not specified)
+        #[arg(short, long, default_value = "")]
+        format: String,
+        
+        /// Output image file path (PNG)
+        #[arg(short, long)]
+        output: PathBuf,
+        
+        /// JSON format (json or lines) - only applicable for JSON files
+        #[arg(short = 'j', long, default_value = "json")]
+        json_format: String,
     },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-
+    
     match &cli.command {
         Commands::Analyze {
             file,
             format,
-            {{#if (eq data_source "JSON data")}}
-            json_format: _,
-            {{/if}}
             filter_column,
             filter_value,
             group_by,
             aggregate,
-            agg_func,
-            stats,
-            confidence,
+            agg_function,
+            json_format,
+            statistics,
+            output,
         } => {
             println!("📊 Loading data from : {}", file.display());
             
             // Determine the file format based on extension if not explicitly provided
-            let format_str = if format.is_empty() {
-                file.extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("{{data_format}}")
-                    .to_lowercase()
+            let format_str = if !format.is_empty() {
+                format.to_string()
             } else {
-                format.to_lowercase()
+                match file.extension().and_then(|ext| ext.to_str()) {
+                    Some("csv") => "csv".to_string(),
+                    {{#if (eq data_source "Parquet files")}}
+                    Some("parquet") => "parquet".to_string(),
+                    {{/if}}
+                    {{#if (eq data_source "JSON data")}}
+                    Some("json") => "json".to_string(),
+                    {{/if}}
+                    _ => {
+                        // Default to the selected format for this template
+                        {{#if (eq data_source "CSV files")}}
+                        "csv".to_string()
+                        {{else}}
+                        {{#if (eq data_source "Parquet files")}}
+                        "parquet".to_string()
+                        {{else}}
+                        {{#if (eq data_source "JSON data")}}
+                        "json".to_string()
+                        {{else}}
+                        "csv".to_string()
+                        {{/if}}
+                        {{/if}}
+                        {{/if}}
+                    }
+                }
             };
             
-            // Read the data file based on format
+            // Load data based on format
             let df = match format_str.as_str() {
                 {{#if (eq data_source "Parquet files")}}
                 "parquet" => {
@@ -168,8 +185,8 @@ fn main() -> Result<()> {
                         .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
                     
                     let mut reader = JsonReader::new(file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
+                    let json_format_str = json_format.to_lowercase();
+                    if json_format_str == "lines" {
                         reader = reader.with_json_format(JsonFormat::JsonLines);
                     } else {
                         reader = reader.with_json_format(JsonFormat::Json);
@@ -177,35 +194,14 @@ fn main() -> Result<()> {
                     reader.finish().with_context(|| "Failed to parse JSON data")?
                 },
                 {{/if}}
-                {{#if (eq data_source "CSV files")}}
                 "csv" | _ => {
-                {{else}}
-                _ => {
-                {{/if}}
-                    // Default to the selected format
+                    // Default to CSV format
                     let file = File::open(file)
-                        .with_context(|| format!("Failed to open {{data_format}} file: {}", file.display()))?;
+                        .with_context(|| format!("Failed to open CSV file: {}", file.display()))?;
                     
-                    {{#if (eq data_source "CSV files")}}
                     CsvReader::new(file)
                         .finish()
                         .with_context(|| "Failed to parse CSV data")?
-                    {{/if}}
-                    {{#if (eq data_source "JSON data")}}
-                    let mut reader = JsonReader::new(file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
-                        reader = reader.with_json_format(JsonFormat::JsonLines);
-                    } else {
-                        reader = reader.with_json_format(JsonFormat::Json);
-                    }
-                    reader.finish().with_context(|| "Failed to parse JSON data")?
-                    {{/if}}
-                    {{#if (eq data_source "Parquet files")}}
-                    ParquetReader::new(file)
-                        .finish()
-                        .with_context(|| "Failed to parse Parquet data")?
-                    {{/if}}
                 }
             };
             
@@ -216,224 +212,339 @@ fn main() -> Result<()> {
             println!("Column names: {:?}", df.get_column_names());
             
             // Apply filter if specified
-            let filtered_df = if let (Some(col_name), Some(val)) = (filter_column, filter_value) {
-                println!("\n🔍 Filtering where {} = {}", col_name, val);
-                // In Polars 0.46.0, we need to use the correct filter syntax
-                let filter_expr = col(col_name).eq(lit(val.as_str()));
-                df.lazy().filter(filter_expr).collect()?
-            } else {
-                df.clone()
-            };
+            let mut filtered_df = df.clone();
+            if let (Some(col), Some(val)) = (filter_column, filter_value) {
+                println!("\n🔍 Filtering where {} = {}", col, val);
+                
+                // Create filter expression
+                let col_name = col.as_str();
+                let filter_expr = polars::prelude::col(col_name).eq(lit(val.as_str()));
+                
+                // Apply filter
+                filtered_df = df.filter(&filter_expr)
+                    .with_context(|| format!("Failed to filter data on column {}", col))?;
+                
+                println!("Filtered rows: {}", filtered_df.height());
+            }
             
-            // Apply grouping and aggregation if specified
-            let result_df = if let Some(group_col) = group_by {
-                println!("\n📊 Grouping by: {}", group_col);
+            // Show statistics if requested
+            if *statistics {
+                println!("\n📊 Column Statistics:");
                 
-                let agg_col = aggregate.as_ref().unwrap_or(&group_col);
-                println!("📊 Aggregating: {} using {}", agg_col, agg_func);
-                
-                let gb = filtered_df.lazy().group_by([col(group_col)]);
-                
-                match agg_func.as_str() {
-                    "sum" => gb.agg([col(agg_col).sum()]).collect()?,
-                    "mean" => gb.agg([col(agg_col).mean()]).collect()?,
-                    "min" => gb.agg([col(agg_col).min()]).collect()?,
-                    "max" => gb.agg([col(agg_col).max()]).collect()?,
-                    _ => gb.agg([col(agg_col).count()]).collect()?,
-                }
-            } else {
-                filtered_df
-            };
-            
-            // Sort using the correct API for Polars 0.46.0
-            let options = SortMultipleOptions {
-                descending: vec![false],
-                nulls_last: vec![true],
-                maintain_order: false,
-                multithreaded: true,
-                limit: None,
-            };
-            let result_df = if let Some(group_col) = group_by {
-                result_df.sort([group_col.to_string()], options)?
-            } else {
-                result_df
-            };
-            
-            // Perform statistical analysis if requested
-            if *stats {
-                println!("\n📈 Statistical Analysis (Confidence Level: {}%):", confidence * 100.0);
-                
-                for col_name in result_df.get_column_names() {
-                    if let Ok(col) = result_df.column(col_name) {
-                        // Check if the column is numeric
-                        if !matches!(col.dtype(), 
-                            DataType::Int8 | DataType::Int16 | DataType::Int32 | 
-                            DataType::Int64 | DataType::UInt8 | DataType::UInt16 | 
-                            DataType::UInt32 | DataType::UInt64 | DataType::Float32 | 
-                            DataType::Float64) {
-                            
-                            continue;
-                        }
-                        
-                        println!("\nColumn: {}", col_name);
-                        
-                        // Calculate basic statistics manually
-                        let series = match col {
-                            Column::Series(s) => s,
-                            _ => continue,
-                        };
-                        
-                        // Get count
-                        let count = series.len() as f64;
-                        println!("  Count: {}", count);
-                        
-                        // Get min and max
-                        if let Ok(Some(min_val)) = series.min::<f64>() {
-                            println!("  Min: {}", min_val);
-                        }
-                        
-                        if let Ok(Some(max_val)) = series.max::<f64>() {
-                            println!("  Max: {}", max_val);
-                        }
-                        
-                        // Get mean
-                        let mean = if let Some(mean_val) = series.mean() {
-                            println!("  Mean: {:.4}", mean_val);
-                            mean_val
-                        } else {
-                            0.0
-                        };
-                        
-                        // Get standard deviation
-                        let std_dev = if let Some(std_val) = series.std(1) {
-                            println!("  Std Dev: {:.4}", std_val);
-                            std_val
-                        } else {
-                            0.0
-                        };
-                        
-                        // Confidence interval
-                        let z_score = match *confidence {
-                            0.90 => 1.645,
-                            0.99 => 2.576,
-                            _ => 1.96, // 0.95 is default
-                        };
-                        
-                        let margin_error = z_score * std_dev / count.sqrt();
-                        println!("  {}% Confidence Interval: {:.4} ± {:.4}", 
-                                 confidence * 100.0, mean, margin_error);
-                                     
-                        {{#if (eq visualization "yes")}}
-                        // Generate a simple histogram for this column
-                        if let Some(numeric_col) = series.cast(&DataType::Float64).ok() {
-                            if let Ok(values) = numeric_col.f64() {
-                                let output_path = file.with_file_name(format!(
-                                    "{}_histogram_{}.png",
-                                    file.file_stem().unwrap().to_string_lossy(),
-                                    col_name
-                                ));
-                                
-                                if let Err(e) = plot_histogram(&values, col_name, &output_path) {
-                                    println!("  Warning: Could not generate histogram: {}", e);
-                                } else {
-                                    println!("  Histogram saved to: {}", output_path.display());
-                                }
-                            }
-                        }
-                        {{/if}}
+                for col_name in filtered_df.get_column_names() {
+                    let series = filtered_df.column(col_name)?;
+                    
+                    // Skip non-numeric columns for statistics
+                    if !series.dtype().is_numeric() {
+                        continue;
                     }
+                    
+                    println!("\nColumn: {}", col_name);
+                    
+                    // Calculate statistics
+                    let describe = series.describe();
+                    let stats_df = describe.0;
+                    
+                    // Create a table for better display
+                    let mut table = Table::new();
+                    table.set_content_arrangement(ContentArrangement::Dynamic);
+                    
+                    // Add headers
+                    let mut header_row = vec![Cell::new("Statistic")];
+                    header_row.push(Cell::new("Value"));
+                    table.set_header(header_row);
+                    
+                    // Add rows
+                    for i in 0..stats_df.height() {
+                        let stat_name = stats_df.column("statistic")?.get(i).unwrap();
+                        let stat_value = stats_df.column("value")?.get(i).unwrap();
+                        
+                        let mut row = vec![Cell::new(stat_name.to_string())];
+                        row.push(Cell::new(stat_value.to_string()));
+                        table.add_row(row);
+                    }
+                    
+                    println!("{}", table);
                 }
             }
             
-            // Display results in a nice table
-            print_dataframe(&result_df)?;
+            // Group by if specified
+            if let (Some(group_col), Some(agg_col)) = (group_by, aggregate) {
+                println!("\n📊 Grouping by {} and aggregating {} with {}", group_col, agg_col, agg_function);
+                
+                // Create group by expression
+                let gb = filtered_df.group_by([polars::prelude::col(group_col)])?;
+                
+                // Apply aggregation based on function
+                let result_df = match agg_function.to_lowercase().as_str() {
+                    "mean" => gb.mean(),
+                    "sum" => gb.sum(),
+                    "min" => gb.min(),
+                    "max" => gb.max(),
+                    "count" => gb.count(),
+                    _ => {
+                        return Err(anyhow!("Unsupported aggregation function: {}", agg_function));
+                    }
+                }?;
+                
+                // Display results
+                println!("\n📋 Aggregation Results:");
+                
+                // Create a table for better display
+                let mut table = Table::new();
+                table.set_content_arrangement(ContentArrangement::Dynamic);
+                
+                // Add headers
+                let mut header_row = vec![Cell::new(group_col)];
+                // Find the aggregated column
+                for col_name in result_df.get_column_names() {
+                    if col_name != group_col {
+                        header_row.push(Cell::new(format!("{} ({})", col_name, agg_function)));
+                    }
+                }
+                table.set_header(header_row);
+                
+                // Add rows
+                for i in 0..result_df.height() {
+                    let mut row = Vec::new();
+                    
+                    // Add group column value
+                    let group_val = result_df.column(group_col)?.get(i).unwrap();
+                    row.push(Cell::new(group_val.to_string()));
+                    
+                    // Add aggregated values
+                    for col_name in result_df.get_column_names() {
+                        if col_name != group_col {
+                            let agg_val = result_df.column(col_name)?.get(i).unwrap();
+                            row.push(Cell::new(agg_val.to_string()));
+                        }
+                    }
+                    
+                    table.add_row(row);
+                }
+                
+                println!("{}", table);
+                
+                // Save to file if output specified
+                if let Some(output_path) = output {
+                    println!("\n💾 Saving aggregation results to: {}", output_path.display());
+                    
+                    // Create output directory if it doesn't exist
+                    if let Some(parent) = output_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    
+                    // Determine output format
+                    let format_str = if !format.is_empty() {
+                        format.to_string()
+                    } else {
+                        match output_path.extension().and_then(|ext| ext.to_str()) {
+                            Some("csv") => "csv".to_string(),
+                            {{#if (eq data_source "Parquet files")}}
+                            Some("parquet") => "parquet".to_string(),
+                            {{/if}}
+                            {{#if (eq data_source "JSON data")}}
+                            Some("json") => "json".to_string(),
+                            {{/if}}
+                            _ => {
+                                // Default to the selected format for this template
+                                {{#if (eq data_source "CSV files")}}
+                                "csv".to_string()
+                                {{else}}
+                                {{#if (eq data_source "Parquet files")}}
+                                "parquet".to_string()
+                                {{else}}
+                                {{#if (eq data_source "JSON data")}}
+                                "json".to_string()
+                                {{else}}
+                                "csv".to_string()
+                                {{/if}}
+                                {{/if}}
+                                {{/if}}
+                            }
+                        }
+                    };
+                    
+                    // Create output file
+                    let mut output_file = File::create(output_path)?;
+                    let mut result_df_mut = result_df.clone();
+                    
+                    // Write to file based on format
+                    match format_str.as_str() {
+                        {{#if (eq data_source "Parquet files")}}
+                        "parquet" => {
+                            let parquet_writer = ParquetWriter::new(&mut output_file);
+                            parquet_writer.finish(&mut result_df_mut)?;
+                        }
+                        {{/if}}
+                        {{#if (eq data_source "JSON data")}}
+                        "json" => {
+                            let mut json_writer = JsonWriter::new(&mut output_file);
+                            json_writer = json_writer.with_json_format(JsonFormat::Json);
+                            json_writer.finish(&mut result_df_mut)?;
+                        }
+                        {{/if}}
+                        "csv" | _ => {
+                            // Default to the selected format for this template
+                            let mut csv_writer = CsvWriter::new(&mut output_file);
+                            csv_writer.finish(&mut result_df_mut)?;
+                        }
+                    };
+                    
+                    println!("✅ Results saved successfully!");
+                }
+            }
             
-            // Save the result
-            let output_path = file.with_file_name(format!(
-                "{}_analyzed.{}",
-                file.file_stem().unwrap().to_string_lossy(),
-                match format_str.as_str() {
+            Ok(())
+        },
+        Commands::Generate { rows, output, format } => {
+            println!("🧮 Generating sample data with {} rows", rows);
+            
+            // Determine output format
+            let format_str = if !format.is_empty() {
+                format.to_string()
+            } else {
+                match output.extension().and_then(|ext| ext.to_str()) {
+                    Some("csv") => "csv".to_string(),
                     {{#if (eq data_source "Parquet files")}}
-                    "parquet" => "parquet",
+                    Some("parquet") => "parquet".to_string(),
                     {{/if}}
                     {{#if (eq data_source "JSON data")}}
-                    "json" => "json",
+                    Some("json") => "json".to_string(),
                     {{/if}}
-                    {{#if (eq data_source "CSV files")}}
-                    "csv" | _ => "csv",
-                    {{else}}
-                    _ => "{{data_format}}",
-                    {{/if}}
+                    _ => {
+                        // Default to the selected format for this template
+                        {{#if (eq data_source "CSV files")}}
+                        "csv".to_string()
+                        {{else}}
+                        {{#if (eq data_source "Parquet files")}}
+                        "parquet".to_string()
+                        {{else}}
+                        {{#if (eq data_source "JSON data")}}
+                        "json".to_string()
+                        {{else}}
+                        "csv".to_string()
+                        {{/if}}
+                        {{/if}}
+                        {{/if}}
+                    }
                 }
-            ));
+            };
             
-            let mut output_file = File::create(&output_path)?;
-            let mut result_df_mut = result_df.clone();
+            // Create output directory if it doesn't exist
+            if let Some(parent) = output.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             
+            // Generate sample data
+            let mut rng = rand::thread_rng();
+            
+            // Generate random data
+            let mut id_vec = Vec::with_capacity(*rows);
+            let mut name_vec = Vec::with_capacity(*rows);
+            let mut age_vec = Vec::with_capacity(*rows);
+            let mut salary_vec = Vec::with_capacity(*rows);
+            let mut department_vec = Vec::with_capacity(*rows);
+            
+            let departments = vec!["Engineering", "Marketing", "Sales", "HR", "Finance"];
+            
+            for i in 0..*rows {
+                id_vec.push(i as i32);
+                
+                // Generate a random name
+                let first_names = vec!["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Edward", "Fiona"];
+                let last_names = vec!["Smith", "Johnson", "Williams", "Jones", "Brown", "Davis", "Miller", "Wilson"];
+                
+                let first_name = first_names[rng.gen_range(0..first_names.len())];
+                let last_name = last_names[rng.gen_range(0..last_names.len())];
+                name_vec.push(format!("{} {}", first_name, last_name));
+                
+                // Generate a random age between 22 and 65
+                age_vec.push(rng.gen_range(22..65) as i32);
+                
+                // Generate a random salary between 30000 and 150000
+                salary_vec.push(rng.gen_range(30000..150000) as f64);
+                
+                // Assign a random department
+                department_vec.push(departments[rng.gen_range(0..departments.len())].to_string());
+            }
+            
+            // Create DataFrame
+            let df = DataFrame::new(vec![
+                Series::new("id", id_vec).into(),
+                Series::new("name", name_vec).into(),
+                Series::new("age", age_vec).into(),
+                Series::new("salary", salary_vec).into(),
+                Series::new("department", department_vec).into(),
+            ])?;
+            
+            println!("📋 Generated DataFrame:");
+            println!("{}", df);
+            
+            // Create file
+            let mut file = File::create(output)?;
+            
+            // Write to file based on format
             match format_str.as_str() {
                 {{#if (eq data_source "Parquet files")}}
                 "parquet" => {
-                    let parquet_writer = ParquetWriter::new(&mut output_file);
-                    parquet_writer.finish(&mut result_df_mut)?;
-                },
+                    let parquet_writer = ParquetWriter::new(&mut file);
+                    parquet_writer.finish(&mut df.clone())?;
+                }
                 {{/if}}
                 {{#if (eq data_source "JSON data")}}
                 "json" => {
-                    let mut json_writer = JsonWriter::new(&mut output_file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
-                        json_writer = json_writer.with_json_format(JsonFormat::JsonLines);
-                    } else {
-                        json_writer = json_writer.with_json_format(JsonFormat::Json);
-                    }
-                    json_writer.finish(&mut result_df_mut)?;
-                },
-                {{/if}}
-                {{#if (eq data_source "CSV files")}}
-                "csv" | _ => {
-                {{else}}
-                _ => {
-                {{/if}}
-                    // Default to the selected format
-                    {{#if (eq data_source "CSV files")}}
-                    let mut csv_writer = CsvWriter::new(&mut output_file);
-                    csv_writer.finish(&mut result_df_mut)?;
-                    {{/if}}
-                    {{#if (eq data_source "JSON data")}}
-                    let mut json_writer = JsonWriter::new(&mut output_file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
-                        json_writer = json_writer.with_json_format(JsonFormat::JsonLines);
-                    } else {
-                        json_writer = json_writer.with_json_format(JsonFormat::Json);
-                    }
-                    json_writer.finish(&mut result_df_mut)?;
-                    {{/if}}
-                    {{#if (eq data_source "Parquet files")}}
-                    let parquet_writer = ParquetWriter::new(&mut output_file);
-                    parquet_writer.finish(&mut result_df_mut)?;
-                    {{/if}}
+                    let mut json_writer = JsonWriter::new(&mut file);
+                    json_writer = json_writer.with_json_format(JsonFormat::Json);
+                    json_writer.finish(&mut df.clone())?;
                 }
-            };
+                {{/if}}
+                "csv" | _ => {
+                    // Default to CSV format
+                    let mut csv_writer = CsvWriter::new(&mut file);
+                    csv_writer.finish(&mut df.clone())?;
+                }
+            }
             
-            println!("\n💾 Results saved to: {}", output_path.display());
-        }
-        
+            println!("✅ Sample data generated and saved to {}", output.display());
+            Ok(())
+        },
         {{#if (eq visualization "yes")}}
-        Commands::Visualize { file, format, {{#if (eq data_source "JSON data")}} json_format, {{/if}} column, output } => {
+        Commands::Visualize { file, column, format, output, json_format } => {
             println!("📊 Loading data from : {}", file.display());
             
             // Determine the file format based on extension if not explicitly provided
-            let format_str = if format.is_empty() {
-                file.extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("{{data_format}}")
-                    .to_lowercase()
+            let format_str = if !format.is_empty() {
+                format.to_string()
             } else {
-                format.to_lowercase()
+                match file.extension().and_then(|ext| ext.to_str()) {
+                    Some("csv") => "csv".to_string(),
+                    {{#if (eq data_source "Parquet files")}}
+                    Some("parquet") => "parquet".to_string(),
+                    {{/if}}
+                    {{#if (eq data_source "JSON data")}}
+                    Some("json") => "json".to_string(),
+                    {{/if}}
+                    _ => {
+                        // Default to the selected format for this template
+                        {{#if (eq data_source "CSV files")}}
+                        "csv".to_string()
+                        {{else}}
+                        {{#if (eq data_source "Parquet files")}}
+                        "parquet".to_string()
+                        {{else}}
+                        {{#if (eq data_source "JSON data")}}
+                        "json".to_string()
+                        {{else}}
+                        "csv".to_string()
+                        {{/if}}
+                        {{/if}}
+                        {{/if}}
+                    }
+                }
             };
             
-            // Read the data file based on format
+            // Load data based on format
             let df = match format_str.as_str() {
                 {{#if (eq data_source "Parquet files")}}
                 "parquet" => {
@@ -451,7 +562,8 @@ fn main() -> Result<()> {
                         .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
                     
                     let mut reader = JsonReader::new(file);
-                    if json_format.to_lowercase() == "lines" {
+                    let json_format_str = json_format.to_lowercase();
+                    if json_format_str == "lines" {
                         reader = reader.with_json_format(JsonFormat::JsonLines);
                     } else {
                         reader = reader.with_json_format(JsonFormat::Json);
@@ -459,266 +571,100 @@ fn main() -> Result<()> {
                     reader.finish().with_context(|| "Failed to parse JSON data")?
                 },
                 {{/if}}
-                {{#if (eq data_source "CSV files")}}
                 "csv" | _ => {
-                {{else}}
-                _ => {
-                {{/if}}
-                    // Default to the selected format
+                    // Default to CSV format
                     let file = File::open(file)
-                        .with_context(|| format!("Failed to open {{data_format}} file: {}", file.display()))?;
+                        .with_context(|| format!("Failed to open CSV file: {}", file.display()))?;
                     
-                    {{#if (eq data_source "CSV files")}}
                     CsvReader::new(file)
                         .finish()
                         .with_context(|| "Failed to parse CSV data")?
-                    {{/if}}
-                    {{#if (eq data_source "JSON data")}}
-                    let mut reader = JsonReader::new(file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
-                        reader = reader.with_json_format(JsonFormat::JsonLines);
-                    } else {
-                        reader = reader.with_json_format(JsonFormat::Json);
-                    }
-                    reader.finish().with_context(|| "Failed to parse JSON data")?
-                    {{/if}}
-                    {{#if (eq data_source "Parquet files")}}
-                    ParquetReader::new(file)
-                        .finish()
-                        .with_context(|| "Failed to parse Parquet data")?
-                    {{/if}}
                 }
             };
             
-            // Check if the column exists
-            let column_exists = df.get_column_names().iter().any(|c| c.as_str() == column);
-            if !column_exists {
-                println!("Error: Column '{}' does not exist in the data", column);
-                return Ok(());
-            }
-            
-            // Get the column
-            let col = df.column(column).unwrap();
+            // Get the column data
+            let series = df.column(column)
+                .with_context(|| format!("Column '{}' not found in the data", column))?;
             
             // Check if the column is numeric
-            if !matches!(col.dtype(), 
-                DataType::Int8 | DataType::Int16 | DataType::Int32 | 
-                DataType::Int64 | DataType::UInt8 | DataType::UInt16 | 
-                DataType::UInt32 | DataType::UInt64 | DataType::Float32 | 
-                DataType::Float64) {
-                
-                println!("Error: Column '{}' is not numeric", column);
-                return Ok(());
+            if !series.dtype().is_numeric() {
+                return Err(anyhow!("Column '{}' is not numeric and cannot be visualized", column));
             }
             
-            // Get the output path
-            let output_path = output.clone().unwrap_or_else(|| {
-                file.with_file_name(format!("{}_histogram.png", column))
-            });
+            // Convert to f64 for visualization
+            let data: Vec<f64> = series.f64()
+                .with_context(|| format!("Failed to convert column '{}' to f64", column))?
+                .into_iter()
+                .filter_map(|v| v)
+                .collect();
             
-            // Generate the histogram
-            if let Some(numeric_col) = col.cast(&DataType::Float64).ok() {
-                if let Ok(values) = numeric_col.f64() {
-                    if let Err(e) = plot_histogram(&values, column, &output_path) {
-                        println!("Error: Could not generate histogram: {}", e);
-                    } else {
-                        println!("Histogram saved to: {}", output_path.display());
-                    }
-                }
-            }
-        },
-        {{/if}}
-        
-        Commands::Generate { rows, output, format } => {
-            println!("🔄 Generating sample dataset with {} rows", rows);
-            
-            // Determine the file format based on extension if not explicitly provided
-            let format_str = if format.is_empty() {
-                output.extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("{{data_format}}")
-                    .to_lowercase()
-            } else {
-                format.to_lowercase()
-            };
-            
-            let mut rng = rand::thread_rng();
-            let mut df = df! [
-                "id" => (0..*rows as i32).collect::<Vec<_>>(),
-                "name" => (0..*rows).map(|i| format!("Person_{}", i)).collect::<Vec<_>>(),
-                "age" => (0..*rows).map(|_| rng.gen_range(20..100)).collect::<Vec<_>>(),
-                "salary" => (0..*rows).map(|_| (rng.gen::<f32>() * 100000.0).round()).collect::<Vec<_>>(),
-                "department" => (0..*rows).map(|i| {
-                    match i % 5 {
-                        0 => "Engineering",
-                        1 => "Marketing",
-                        2 => "Sales",
-                        3 => "HR",
-                        _ => "Finance",
-                    }.to_string()
-                }).collect::<Vec<_>>(),
-                "date" => (0..*rows).map(|i| {
-                    let days = i as i64 % 365;
-                    chrono::NaiveDate::from_ymd_opt(2023, 1, 1)
-                        .unwrap()
-                        .checked_add_days(chrono::Days::new(days as u64))
-                        .unwrap()
-                        .format("%Y-%m-%d")
-                        .to_string()
-                }).collect::<Vec<_>>()
-            ]?;
-            
+            // Create output directory if it doesn't exist
             if let Some(parent) = output.parent() {
                 std::fs::create_dir_all(parent)?;
             }
             
-            let mut file = File::create(output)?;
+            // Create the chart
+            let root = BitMapBackend::new(&output, (800, 600)).into_drawing_area();
+            root.fill(&WHITE)?;
             
-            match format_str.as_str() {
-                {{#if (eq data_source "Parquet files")}}
-                "parquet" => {
-                    let parquet_writer = ParquetWriter::new(&mut file);
-                    parquet_writer.finish(&mut df)?;
-                },
-                {{/if}}
-                {{#if (eq data_source "JSON data")}}
-                "json" => {
-                    let mut json_writer = JsonWriter::new(&mut file);
-                    let json_format = "json"; // Default format
-                    if json_format.to_lowercase() == "lines" {
-                        json_writer = json_writer.with_json_format(JsonFormat::JsonLines);
-                    } else {
-                        json_writer = json_writer.with_json_format(JsonFormat::Json);
-                    }
-                    json_writer.finish(&mut df)?;
-                },
-                {{/if}}
-                {{#if (eq data_source "CSV files")}}
-                "csv" | _ => {
-                {{else}}
-                _ => {
-                {{/if}}
-                    // Default to CSV
-                    let mut csv_writer = CsvWriter::new(&mut file);
-                    csv_writer.finish(&mut df)?;
-                }
+            // Calculate histogram data
+            let min_val = data.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+            let max_val = data.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+            let bin_width = (max_val - min_val) / 20.0;
+            let bin_count = 20;
+            
+            let mut histogram = vec![0; bin_count];
+            for &value in &data {
+                let bin = ((value - min_val) / bin_width).floor() as usize;
+                let bin_index = bin.min(bin_count - 1);
+                histogram[bin_index] += 1;
             }
             
-            println!("✅ Sample data saved to: {}", output.display());
-            println!("\nTry analyzing it with:");
-            println!("cargo run -- analyze -f {}", output.display());
+            // Create chart
+            let mut chart = ChartBuilder::on(&root)
+                .caption(format!("Histogram of {}", column), ("sans-serif", 30).into_font())
+                .margin(10)
+                .x_label_area_size(30)
+                .y_label_area_size(30)
+                .build_cartesian_2d(
+                    (min_val..max_val).step(bin_width),
+                    0..(*histogram.iter().max().unwrap_or(&1) + 5),
+                )?;
+            
+            chart.configure_mesh()
+                .x_desc(column)
+                .y_desc("Frequency")
+                .axis_desc_style(("sans-serif", 15))
+                .draw()?;
+            
+            // Draw the histogram bars
+            chart.draw_series(
+                Histogram::vertical(&chart)
+                    .style(BLUE.filled())
+                    .margin(0)
+                    .data(histogram.iter().enumerate().map(|(i, &count)| {
+                        (min_val + i as f64 * bin_width, count)
+                    })),
+            )?;
+            
+            // Add some statistics as text
+            let mean = data.iter().sum::<f64>() / data.len() as f64;
+            let variance = data.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
+            let std_dev = variance.sqrt();
+            
+            // Draw statistics on the chart
+            let style = TextStyle::from(("sans-serif", 15).into_font()).color(&BLACK);
+            
+            root.draw_text(&format!("Mean: {:.2}", mean), &style, (70, 30))?;
+            root.draw_text(&format!("Std Dev: {:.2}", std_dev), &style, (70, 50))?;
+            root.draw_text(&format!("Min: {:.2}", min_val), &style, (70, 70))?;
+            root.draw_text(&format!("Max: {:.2}", max_val), &style, (70, 90))?;
+            
+            println!("✅ Chart created successfully!");
+            println!("📊 Saved to: {}", output.display());
+            
+            Ok(())
         }
+        {{/if}}
     }
-
-    Ok(())
-}
-
-{{#if (eq visualization "yes")}}
-fn plot_histogram(values: &ChunkedArray<Float64Type>, column_name: &str, output_path: &PathBuf) -> Result<()> {
-    let root = BitMapBackend::new(output_path, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    // Find min and max for the x-axis range
-    let min_val = values.min().unwrap_or(0.0);
-    let max_val = values.max().unwrap_or(100.0);
-    
-    // Create bins for the histogram
-    let bin_count = 10;
-    let bin_width = (max_val - min_val) / bin_count as f64;
-    
-    let mut bins = vec![0; bin_count];
-    let mut bin_labels = vec![];
-    
-    // Create bin labels
-    for i in 0..bin_count {
-        let lower = min_val + i as f64 * bin_width;
-        let upper = min_val + (i + 1) as f64 * bin_width;
-        bin_labels.push(format!("{:.1}-{:.1}", lower, upper));
-    }
-    
-    // Count values in each bin
-    for val in values.into_iter().flatten() {
-        let bin_idx = ((val - min_val) / bin_width).floor() as usize;
-        if bin_idx < bin_count {
-            bins[bin_idx] += 1;
-        }
-    }
-    
-    // Find the maximum bin count for y-axis scaling
-    let max_count = *bins.iter().max().unwrap_or(&1) as f64;
-    
-    let mut chart = ChartBuilder::on(&root)
-        .caption(format!("Histogram of {}", column_name), ("sans-serif", 22))
-        .margin(10)
-        .x_label_area_size(40)
-        .y_label_area_size(60)
-        .build_cartesian_2d(
-            0..bin_count,
-            0.0..max_count * 1.1,
-        )?;
-    
-    chart.configure_mesh()
-        .x_labels(bin_count)
-        .x_label_formatter(&|x| {
-            let idx = *x as usize;
-            if idx < bin_labels.len() {
-                bin_labels[idx].clone()
-            } else {
-                "".to_string()
-            }
-        })
-        .x_desc("Value")
-        .y_desc("Count")
-        .draw()?;
-    
-    chart.draw_series(
-        Histogram::vertical(&chart)
-            .style(BLUE.filled())
-            .margin(0)
-            .data(bins.iter().enumerate().map(|(i, c)| (i, *c as f64))),
-    )?;
-    
-    root.present()?;
-    
-    Ok(())
-}
-{{/if}}
-
-fn print_dataframe(df: &DataFrame) -> Result<()> {
-    let mut table = Table::new();
-    table.set_content_arrangement(ContentArrangement::Dynamic);
-    
-    let headers: Vec<Cell> = df.get_column_names()
-        .iter()
-        .map(|name| Cell::new(name))
-        .collect();
-    table.set_header(headers);
-    
-    let max_rows = std::cmp::min(df.height(), 20);
-    for row_idx in 0..max_rows {
-        let row_cells: Vec<Cell> = df.get_column_names()
-            .iter()
-            .map(|col_name| {
-                let col = df.column(col_name).unwrap();
-                let cell_value = match col.dtype() {
-                    DataType::Float32 | DataType::Float64 => {
-                        format!("{:.2}", col.get(row_idx).unwrap())
-                    },
-                    _ => format!("{}", col.get(row_idx).unwrap()),
-                };
-                Cell::new(cell_value)
-            })
-            .collect();
-        table.add_row(row_cells);
-    }
-    
-    println!("\n📊 Results:");
-    println!("{table}");
-    
-    if df.height() > max_rows {
-        println!("(Showing {} of {} rows)", max_rows, df.height());
-    }
-    
-    Ok(())
 }
