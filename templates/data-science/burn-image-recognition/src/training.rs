@@ -97,7 +97,7 @@ pub fn evaluate<B: Backend>(
     for batch in loader.iter() {
         let output = model.step(batch);
         let batch_loss = output.loss.into_scalar();
-        let batch_accuracy = accuracy(output);
+        let batch_accuracy = accuracy(output.item);
 
         total_loss += batch_loss;
         total_acc += batch_accuracy;
