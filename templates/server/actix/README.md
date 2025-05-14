@@ -28,8 +28,8 @@ After generating your project with FerrisUp, follow these steps:
 
 3. Test the API:
    ```bash
-   curl http://localhost:8080/
-   curl http://localhost:8080/hello/world
+   curl http://localhost:3000/
+   curl http://localhost:3000/api/info
    ```
 
 ## Project Structure

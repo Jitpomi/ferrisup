@@ -445,7 +445,7 @@ This project was generated using FerrisUp.
     // Process the template-specific options
     let options = template_config.get("options").and_then(|o| o.as_array());
     if let Some(options) = options {
-        let mut vars = template_vars.as_object_mut().unwrap();
+        let vars = template_vars.as_object_mut().unwrap();
         
         // Only prompt for options if skip_framework_prompt is not set to true
         let skip_framework_prompt = variables
@@ -927,6 +927,7 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
     Ok(())
 }
 
+#[allow(dead_code)]
 fn process_file(
     file_entry: &Value,
     template_dir: &Path,
@@ -2725,6 +2726,7 @@ fn train_model<B, M, O>(
 }
 
 /// Fix MNIST data implementation to work with the latest Burn API
+#[allow(dead_code)]
 fn fix_mnist_data_implementation(target_dir: &Path) -> Result<()> {
     // Path to the data.rs file
     let data_path = target_dir.join("src").join("data.rs");
@@ -2887,6 +2889,7 @@ pub fn mnist_dataloader<B: Backend + 'static>(
 }
 
 /// Fix MNIST model implementation to work with the latest Burn API
+#[allow(dead_code)]
 fn fix_mnist_model_implementation(target_dir: &Path) -> Result<()> {
     // Path to the model.rs file
     let model_path = target_dir.join("src").join("model.rs");
@@ -3042,6 +3045,7 @@ impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> 
 }
 
 /// Fix MNIST training implementation to work with the latest Burn API
+#[allow(dead_code)]
 fn fix_mnist_training_implementation(target_dir: &Path) -> Result<()> {
     // Path to the training.rs file
     let training_path = target_dir.join("src").join("training.rs");
@@ -3184,6 +3188,7 @@ fn accuracy<B: Backend>(output: ClassificationOutput<B>) -> f64 {
 }
 
 /// Fix MNIST main implementation to work with the latest Burn API
+#[allow(dead_code)]
 fn fix_mnist_main_implementation(target_dir: &Path) -> Result<()> {
     // Path to the main.rs file
     let main_path = target_dir.join("src").join("main.rs");
