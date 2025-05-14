@@ -1,3 +1,5 @@
+#![recursion_limit = "256"] // Required for WGPU backends
+
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use image;
@@ -6,21 +8,37 @@ mod model;
 mod data;
 mod training;
 
-use data::{mnist_dataloader, normalize_mnist_pixel, MnistBatch};
+use data::{MnistBatch, normalize_mnist_pixel};
 use model::Model;
 use training::{train, evaluate};
-use burn_autodiff::Autodiff;
-use burn::tensor::Tensor;
-use burn::prelude::Backend;
+use burn::tensor::{backend::Backend, Tensor, Data, Shape};
+use burn::prelude::*;
 use std::sync::Arc;
 use burn::record::{Recorder, CompactRecorder};
 use burn::module::Module;
 use burn::data::dataloader::DataLoader;
 
-// For training
-// (Burn autodiff backend wrapper)
-type TrainBackend = Autodiff<burn_ndarray::NdArray>;
-type InferenceBackend = burn_ndarray::NdArray;
+// Choose your preferred backend by uncommenting one of these sections:
+
+// For CPU (NdArray backend)
+type MyBackend = burn_ndarray::NdArray;
+type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End CPU section
+
+// For Metal (macOS)
+// type MyBackend = burn_wgpu::Wgpu<burn_wgpu::metal::Metal>;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End Metal section
+
+// For CUDA (NVIDIA GPUs)
+// type MyBackend = burn_cuda::Cuda;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End CUDA section
+
+// For Vulkan
+// type MyBackend = burn_wgpu::Wgpu<burn_wgpu::vulkan::Vulkan>;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End Vulkan section
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -57,6 +75,10 @@ enum Commands {
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let cli = Cli::parse();
+    
+    // Create the appropriate device based on the selected backend
+    let device = <MyBackend as Backend>::Device::default();
+    
     match cli.command {
         Commands::Train { num_epochs, batch_size, learning_rate, model_path } => {
             println!("🚀 Training MNIST digit recognition model");
@@ -65,8 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 eprintln!("❌ MNIST data not found. Please run ./download_mnist.sh before training.");
                 std::process::exit(1);
             }
-            let device = <TrainBackend as Backend>::Device::default();
-            train::<TrainBackend>(
+            
+            train::<MyAutodiffBackend>(
                 &device,
                 num_epochs,
                 batch_size,
@@ -82,11 +104,13 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 eprintln!("❌ Model file not found: {}", model_path.display());
                 std::process::exit(1);
             }
-            let device = <InferenceBackend as Backend>::Device::default();
-            let record = CompactRecorder::new().load(model_path, &device)?;
-            let model = Model::from_record(&record, &device);
-            let test_loader: Arc<dyn DataLoader<MnistBatch<InferenceBackend>>> = mnist_dataloader::<InferenceBackend>(false, device.clone(), batch_size, None, 2);
-            let (loss, accuracy) = evaluate::<InferenceBackend>(&model, test_loader.as_ref());
+            
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<MyBackend>::from_record(&record, &device);
+            let test_loader: Arc<dyn DataLoader<MnistBatch<MyBackend>>> = 
+                data::mnist_dataloader::<MyBackend>(false, &device, batch_size, None, 2);
+            
+            let (loss, accuracy) = evaluate::<MyBackend>(&model, test_loader.as_ref());
             println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
             println!("📉 Test loss: {:.4}", loss);
         },
@@ -101,20 +125,25 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
                 eprintln!("❌ Image file not found: {}", image_path.display());
                 std::process::exit(1);
             }
-            let device = <InferenceBackend as Backend>::Device::default();
-            let record = CompactRecorder::new().load(model_path, &device)?;
-            let model = Model::from_record(&record, &device);
+            
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<MyBackend>::from_record(&record, &device);
             let image = image::open(image_path)?.to_luma8();
             let image = if image.dimensions() != (28, 28) {
                 image::imageops::resize(&image, 28, 28, image::imageops::FilterType::Nearest)
             } else {
                 image
             };
+            
             let image_data: Vec<f32> = image.pixels().map(|p| normalize_mnist_pixel(p[0])).collect();
-            let input = Tensor::<InferenceBackend, 3>::from_floats(image_data.as_slice(), &device).reshape([1, 28, 28]);
+            let input = Tensor::<MyBackend, 3>::from_data(
+                Data::new(image_data, Shape::new([1, 28, 28])),
+                &device
+            );
+            
             let output = model.forward(&input);
             let pred_data = output.argmax(1).to_data();
-            let pred_slice = pred_data.as_slice().unwrap_or(&[0]);
+            let pred_slice = pred_data.as_slice::<i64>().unwrap_or(&[0]);
             let pred = pred_slice[0];
             println!("Predicted digit: {}", pred);
         }

@@ -2723,3 +2723,608 @@ fn train_model<B, M, O>(
     
     Ok(())
 }
+
+/// Fix MNIST data implementation to work with the latest Burn API
+fn fix_mnist_data_implementation(target_dir: &Path) -> Result<()> {
+    // Path to the data.rs file
+    let data_path = target_dir.join("src").join("data.rs");
+    
+    // Check if the data.rs file exists
+    if data_path.exists() {
+        let content = std::fs::read_to_string(&data_path)?;
+        
+        // Check if this is the MNIST data.rs file
+        if content.contains("MnistItem") && content.contains("MnistBatch") {
+            // Apply a specific patch for the MNIST data.rs file
+            let updated_content = r#"use burn::data::dataset::Dataset;
+use burn::data::dataloader::{DataLoader, DataLoaderBuilder, batcher::Batcher};
+use burn::tensor::{backend::Backend, Int, Tensor, Data, Shape};
+use std::path::Path;
+use std::sync::Arc;
+use burn::record::{Recorder, CompactRecorder};
+use burn::module::Module;
+use burn::data::dataloader::DataLoader;
+
+/// Normalize a single MNIST pixel value (u8 or f32) to f32 with PyTorch stats.
+pub fn normalize_mnist_pixel<T: Into<f32>>(pixel: T) -> f32 {
+    ((pixel.into() / 255.0) - 0.1307) / 0.3081
+}
+
+#[derive(Debug, Clone)]
+pub struct MnistItem {
+    pub image: Vec<f32>,
+    pub label: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct MnistBatch<B: Backend> {
+    pub images: Tensor<B, 3>,
+    pub targets: Tensor<B, 1, Int>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MnistBatcher<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> MnistBatcher<B> {
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+}
+
+impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
+    fn batch(&self, items: Vec<MnistItem>) -> MnistBatch<B> {
+        let batch_size = items.len();
+        
+        // Create a flat vector of all pixel values
+        let mut image_data = Vec::with_capacity(batch_size * 28 * 28);
+        for item in &items {
+            image_data.extend_from_slice(&item.image);
+        }
+        
+        // Create the images tensor
+        let images = Tensor::<B, 3>::from_data(
+            Data::new(image_data, Shape::new([batch_size, 28, 28])),
+            &self.device
+        );
+
+        // Create the targets tensor
+        let targets = Tensor::<B, 1, Int>::from_data(
+            Data::new(items.iter().map(|item| item.label as i64).collect::<Vec<_>>(), Shape::new([batch_size])),
+            &self.device
+        );
+
+        MnistBatch { images, targets }
+    }
+}
+
+pub struct MnistDataset {
+    images: Vec<MnistItem>,
+}
+
+impl MnistDataset {
+    pub fn new(images: Vec<MnistItem>) -> Self {
+        Self { images }
+    }
+
+    pub fn from_path(path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+        let images = std::fs::read(path.join("train-images-idx3-ubyte")).unwrap();
+        let labels = std::fs::read(path.join("train-labels-idx1-ubyte")).unwrap();
+
+        // Skip the header bytes: 16 for images, 8 for labels
+        let images = &images[16..];
+        let labels = &labels[8..];
+
+        let images = images
+            .chunks(28 * 28)
+            .zip(labels.iter())
+            .map(|(chunk, &label)| {
+                let values = chunk
+                    .iter()
+                    .map(|&b| normalize_mnist_pixel(b))
+                    .collect::<Vec<_>>();
+                
+                MnistItem {
+                    image: values,
+                    label: label as usize,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Self { images }
+    }
+    
+    pub fn train() -> Self {
+        Self::from_path("data/mnist")
+    }
+    
+    pub fn test() -> Self {
+        Self::from_path("data/mnist")
+    }
+}
+
+impl Dataset<MnistItem> for MnistDataset {
+    fn get(&self, index: usize) -> Option<MnistItem> {
+        self.images.get(index).cloned()
+    }
+
+    fn len(&self) -> usize {
+        self.images.len()
+    }
+}
+
+/// Build a `DataLoader` for MNIST training or testing data.
+pub fn mnist_dataloader<B: Backend + 'static>(
+    train: bool,
+    device: B::Device,
+    batch_size: usize,
+    shuffle: Option<u64>,
+    num_workers: usize,
+) -> Arc<dyn DataLoader<MnistBatch<B>>> {
+    let dataset = if train {
+        MnistDataset::train()
+    } else {
+        MnistDataset::test()
+    };
+    let batcher = MnistBatcher::<B>::new(device);
+    let mut builder = DataLoaderBuilder::new(batcher)
+        .batch_size(batch_size)
+        .num_workers(num_workers);
+    if let Some(seed) = shuffle {
+        builder = builder.shuffle(seed);
+    }
+    builder.build(dataset)
+}"#;
+            
+            // Write the updated content to the file
+            std::fs::write(data_path, updated_content)?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Fix MNIST model implementation to work with the latest Burn API
+fn fix_mnist_model_implementation(target_dir: &Path) -> Result<()> {
+    // Path to the model.rs file
+    let model_path = target_dir.join("src").join("model.rs");
+    
+    // Check if the model.rs file exists
+    if model_path.exists() {
+        let content = std::fs::read_to_string(&model_path)?;
+        
+        // Check if this is the MNIST model.rs file
+        if content.contains("Model") && content.contains("ConvBlock") {
+            // Apply a specific patch for the MNIST model.rs file
+            let updated_content = r#"use crate::data::MnistBatch;
+use burn::{
+    module::Module,
+    nn,
+    nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
+    tensor::backend::Backend,
+    tensor::backend::AutodiffBackend,
+    tensor::Tensor,
+    train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
+    record::Record,
+};
+
+#[derive(Module, Debug)]
+pub struct Model<B: Backend> {
+    conv1: ConvBlock<B>,
+    conv2: ConvBlock<B>,
+    conv3: ConvBlock<B>,
+    dropout: nn::Dropout,
+    fc1: nn::Linear<B>,
+    fc2: nn::Linear<B>,
+    activation: nn::Gelu,
+}
+
+const NUM_CLASSES: usize = 10;
+
+impl<B: Backend> Model<B> {
+    pub fn new(device: &B::Device) -> Self {
+        let conv1 = ConvBlock::new([1, 8], [3, 3], device); // out: [Batch,8,26,26]
+        let conv2 = ConvBlock::new([8, 16], [3, 3], device); // out: [Batch,16,24x24]
+        let conv3 = ConvBlock::new([16, 24], [3, 3], device); // out: [Batch,24,22x22]
+        let hidden_size = 24 * 22 * 22;
+        let fc1 = nn::LinearConfig::new(hidden_size, 32)
+            .with_bias(false)
+            .init(device);
+        let fc2 = nn::LinearConfig::new(32, NUM_CLASSES)
+            .with_bias(false)
+            .init(device);
+
+        let dropout = nn::DropoutConfig::new(0.5).init();
+
+        Self {
+            conv1,
+            conv2,
+            conv3,
+            dropout,
+            fc1,
+            fc2,
+            activation: nn::Gelu::new(),
+        }
+    }
+
+    pub fn forward(&self, input: &Tensor<B, 3>) -> Tensor<B, 2> {
+        let [batch_size, height, width] = input.dims();
+        
+        let x = input.clone().reshape([batch_size, 1, height, width]);
+        
+        let x = self.conv1.forward(&x);
+        let x = self.conv2.forward(&x);
+        let x = self.conv3.forward(&x);
+        
+        let [batch_size, channels, height, width] = x.dims();
+        
+        let x = x.reshape([batch_size, channels * height * width]);
+        
+        let x = self.dropout.forward(x);
+        let x = self.fc1.forward(x);
+        let x = self.activation.forward(x);
+        let x = self.fc2.forward(x);
+        
+        x
+    }
+
+    pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        let targets = item.targets;
+        let output = self.forward(&item.images);
+        let loss = CrossEntropyLossConfig::new()
+            .init(&output.device())
+            .forward(output.clone(), targets.clone());
+
+        ClassificationOutput {
+            loss,
+            output,
+            targets,
+        }
+    }
+
+    pub fn from_record(record: &impl Record, device: &B::Device) -> Self {
+        Module::from_record(record, device)
+    }
+}
+
+#[derive(Module, Debug)]
+pub struct ConvBlock<B: Backend> {
+    conv: nn::conv::Conv2d<B>,
+    norm: BatchNorm<B, 2>,
+    activation: nn::Gelu,
+}
+
+impl<B: Backend> ConvBlock<B> {
+    pub fn new(channels: [usize; 2], kernel_size: [usize; 2], device: &B::Device) -> Self {
+        let conv = nn::conv::Conv2dConfig::new(channels, kernel_size)
+            .with_padding(PaddingConfig2d::Valid)
+            .init(device);
+        let norm = nn::BatchNormConfig::new(channels[1]).init(device);
+
+        Self {
+            conv,
+            norm,
+            activation: nn::Gelu::new(),
+        }
+    }
+
+    pub fn forward(&self, input: &Tensor<B, 4>) -> Tensor<B, 4> {
+        let x = self.conv.forward(input.clone());
+        let x = self.norm.forward(x);
+
+        self.activation.forward(x)
+    }
+}
+
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
+        let item = self.forward_classification(item);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        self.forward_classification(item)
+    }
+}
+"#;
+            
+            // Write the updated content to the file
+            std::fs::write(model_path, updated_content)?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Fix MNIST training implementation to work with the latest Burn API
+fn fix_mnist_training_implementation(target_dir: &Path) -> Result<()> {
+    // Path to the training.rs file
+    let training_path = target_dir.join("src").join("training.rs");
+    
+    // Check if the training.rs file exists
+    if training_path.exists() {
+        let content = std::fs::read_to_string(&training_path)?;
+        
+        // Check if this is the MNIST training.rs file
+        if content.contains("train") && content.contains("evaluate") {
+            // Apply a specific patch for the MNIST training.rs file
+            let updated_content = r#"use crate::data::{MnistBatch, mnist_dataloader};
+use crate::model::Model;
+use burn::{
+    tensor::backend::Backend,
+    train::{
+        ClassificationOutput, LearningRate, Optimizer, OptimizerConfig, StepOutput, TrainStep, ValidStep,
+    },
+    record::{Recorder, CompactRecorder},
+};
+use std::sync::Arc;
+
+pub fn train<B: burn::tensor::backend::AutodiffBackend>(
+    device: &B::Device,
+    num_epochs: usize,
+    batch_size: usize,
+    learning_rate: f64,
+    model_path: String,
+) {
+    // Create the model and optimizer
+    let model = Model::new(device);
+    let mut optimizer = burn::optim::AdamConfig::new()
+        .with_learning_rate(learning_rate)
+        .with_weight_decay(1e-5)
+        .init();
+
+    // Create the training and validation data loaders
+    let train_loader = mnist_dataloader::<B>(true, device.clone(), batch_size, Some(42), 2);
+    let valid_loader = mnist_dataloader::<B>(false, device.clone(), batch_size, None, 2);
+
+    // Initialize the recorder
+    let mut recorder = CompactRecorder::new();
+
+    // Training loop
+    for epoch in 0..num_epochs {
+        let mut train_loss = 0.0;
+        let mut train_acc = 0.0;
+        let mut train_batches = 0;
+
+        // Training
+        for batch in train_loader.iter() {
+            let output = model.step(batch);
+            let batch_loss = output.loss.clone().into_scalar();
+            let batch_accuracy = accuracy(output.item);
+
+            train_loss += batch_loss;
+            train_acc += batch_accuracy;
+            train_batches += 1;
+
+            // Update the model
+            optimizer.update(&mut *output.model, output.gradients);
+
+            // Print progress
+            if train_batches % 100 == 0 {
+                println!(
+                    "Epoch: {}/{}, Batch: {}, Loss: {:.4}, Accuracy: {:.2}%",
+                    epoch + 1,
+                    num_epochs,
+                    train_batches,
+                    train_loss / train_batches as f64,
+                    train_acc * 100.0 / train_batches as f64
+                );
+            }
+        }
+
+        // Calculate average training metrics
+        train_loss /= train_batches as f64;
+        train_acc /= train_batches as f64;
+
+        // Validation
+        let (val_loss, val_acc) = evaluate::<B>(&model, valid_loader.as_ref());
+
+        println!(
+            "Epoch: {}/{}, Train Loss: {:.4}, Train Acc: {:.2}%, Val Loss: {:.4}, Val Acc: {:.2}%",
+            epoch + 1,
+            num_epochs,
+            train_loss,
+            train_acc * 100.0,
+            val_loss,
+            val_acc * 100.0
+        );
+    }
+
+    // Save the model
+    recorder.record(&model);
+    recorder.save(model_path).expect("Failed to save model");
+}
+
+pub fn evaluate<B: Backend>(
+    model: &Model<B>,
+    loader: &dyn burn::data::dataloader::DataLoader<MnistBatch<B>>,
+) -> (f64, f64) {
+    let mut total_loss = 0.0;
+    let mut total_acc = 0.0;
+    let mut num_batches = 0;
+
+    for batch in loader.iter() {
+        let output = model.step(batch);
+        let batch_loss = output.loss.into_scalar();
+        let batch_accuracy = accuracy(output);
+
+        total_loss += batch_loss;
+        total_acc += batch_accuracy;
+        num_batches += 1;
+    }
+
+    (total_loss / num_batches as f64, total_acc / num_batches as f64)
+}
+
+fn accuracy<B: Backend>(output: ClassificationOutput<B>) -> f64 {
+    let predictions = output.output.argmax(1);
+    let targets = output.targets;
+    
+    let pred_data = predictions.to_data();
+    let target_data = targets.to_data();
+    
+    let pred = pred_data.as_slice::<i64>().unwrap();
+    let target = target_data.as_slice::<i64>().unwrap();
+    
+    let correct = pred.iter().zip(target.iter()).filter(|&(a, b)| a == b).count();
+    correct as f64 / pred.len() as f64
+}"#;
+            
+            // Write the updated content to the file
+            std::fs::write(training_path, updated_content)?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Fix MNIST main implementation to work with the latest Burn API
+fn fix_mnist_main_implementation(target_dir: &Path) -> Result<()> {
+    // Path to the main.rs file
+    let main_path = target_dir.join("src").join("main.rs");
+    
+    // Check if the main.rs file exists
+    if main_path.exists() {
+        let content = std::fs::read_to_string(&main_path)?;
+        
+        // Check if this is the MNIST main.rs file
+        if content.contains("train") && content.contains("evaluate") && content.contains("predict") {
+            // Apply a specific patch for the MNIST main.rs file
+            let updated_content = r#"use clap::{Parser, Subcommand};
+use std::path::PathBuf;
+use image;
+
+mod model;
+mod data;
+mod training;
+
+use data::{MnistBatch, normalize_mnist_pixel};
+use model::Model;
+use training::{train, evaluate};
+use burn::tensor::{backend::Backend, Tensor, Data, Shape};
+use burn_autodiff::Autodiff;
+use std::sync::Arc;
+use burn::record::{Recorder, CompactRecorder};
+use burn::module::Module;
+use burn::data::dataloader::DataLoader;
+
+// For training
+// (Burn autodiff backend wrapper)
+type TrainBackend = Autodiff<burn_ndarray::NdArray>;
+type InferenceBackend = burn_ndarray::NdArray;
+
+#[derive(Parser)]
+#[command(subcommand)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Train {
+        #[arg(short, long, default_value = "10")]
+        num_epochs: usize,
+        #[arg(short, long, default_value = "64")]
+        batch_size: usize,
+        #[arg(short, long, default_value = "0.001")]
+        learning_rate: f64,
+        #[arg(short, long, default_value = "./model.json")]
+        model_path: PathBuf,
+    },
+    Evaluate {
+        #[arg(short, long)]
+        model_path: PathBuf,
+        #[arg(short, long, default_value = "64")]
+        batch_size: usize,
+    },
+    Predict {
+        #[arg(short, long)]
+        model_path: PathBuf,
+        #[arg(short, long)]
+        image_path: PathBuf,
+    },
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Train { num_epochs, batch_size, learning_rate, model_path } => {
+            println!("🚀 Training MNIST digit recognition model");
+            // Check for MNIST data presence
+            if !std::path::Path::new("./data/mnist/train-images-idx3-ubyte").exists() {
+                eprintln!("❌ MNIST data not found. Please run ./download_mnist.sh before training.");
+                std::process::exit(1);
+            }
+            let device = <TrainBackend as Backend>::Device::default();
+            train::<TrainBackend>(
+                &device,
+                num_epochs,
+                batch_size,
+                learning_rate,
+                model_path.to_string_lossy().to_string(),
+            );
+            println!("✅ Training completed successfully!");
+        },
+        Commands::Evaluate { model_path, batch_size } => {
+            println!("🔍 Evaluating MNIST digit recognition model");
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
+            let device = <InferenceBackend as Backend>::Device::default();
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<InferenceBackend>::from_record(&record, &device);
+            let test_loader: Arc<dyn DataLoader<MnistBatch<InferenceBackend>>> = data::mnist_dataloader::<InferenceBackend>(false, device.clone(), batch_size, None, 2);
+            let (loss, accuracy) = evaluate::<InferenceBackend>(&model, test_loader.as_ref());
+            println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
+            println!("📉 Test loss: {:.4}", loss);
+        },
+        Commands::Predict { model_path, image_path } => {
+            println!("🔮 Predicting digit from image");
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
+            if !image_path.exists() {
+                eprintln!("❌ Image file not found: {}", image_path.display());
+                std::process::exit(1);
+            }
+            let device = <InferenceBackend as Backend>::Device::default();
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<InferenceBackend>::from_record(&record, &device);
+            let image = image::open(image_path)?.to_luma8();
+            let image = if image.dimensions() != (28, 28) {
+                image::imageops::resize(&image, 28, 28, image::imageops::FilterType::Nearest)
+            } else {
+                image
+            };
+            let image_data: Vec<f32> = image.pixels().map(|p| normalize_mnist_pixel(p[0])).collect();
+            let input = Tensor::<InferenceBackend, 3>::from_data(
+                Data::new(image_data, Shape::new([1, 28, 28])),
+                &device
+            );
+            let output = model.forward(&input);
+            let pred_data = output.argmax(1).to_data();
+            let pred_slice = pred_data.as_slice::<i64>().unwrap_or(&[0]);
+            let pred = pred_slice[0];
+            println!("Predicted digit: {}", pred);
+        }
+    }
+    Ok(())
+}"#;
+            
+            // Write the updated content to the file
+            std::fs::write(main_path, updated_content)?;
+        }
+    }
+    
+    Ok(())
+}

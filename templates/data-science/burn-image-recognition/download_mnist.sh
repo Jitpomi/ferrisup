@@ -1,38 +1,27 @@
 #!/bin/bash
-
-# Create directory for MNIST dataset
-mkdir -p data/mnist
+set -e
 
 echo "Downloading MNIST dataset..."
 
-# Use a more reliable mirror for the MNIST dataset
-MNIST_BASE_URL="https://storage.googleapis.com/cvdf-datasets/mnist"
+# Create data directory if it doesn't exist
+mkdir -p data/mnist
 
 # Download MNIST dataset files
-curl -L -o data/mnist/train-images-idx3-ubyte.gz "${MNIST_BASE_URL}/train-images-idx3-ubyte.gz"
-curl -L -o data/mnist/train-labels-idx1-ubyte.gz "${MNIST_BASE_URL}/train-labels-idx1-ubyte.gz"
-curl -L -o data/mnist/t10k-images-idx3-ubyte.gz "${MNIST_BASE_URL}/t10k-images-idx3-ubyte.gz"
-curl -L -o data/mnist/t10k-labels-idx1-ubyte.gz "${MNIST_BASE_URL}/t10k-labels-idx1-ubyte.gz"
+wget -nc -q http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz -O data/mnist/train-images-idx3-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz -O data/mnist/train-labels-idx1-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz -O data/mnist/t10k-images-idx3-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz -O data/mnist/t10k-labels-idx1-ubyte.gz
 
 # Extract the files
-echo "Extracting MNIST dataset files..."
 gunzip -f data/mnist/train-images-idx3-ubyte.gz
 gunzip -f data/mnist/train-labels-idx1-ubyte.gz
 gunzip -f data/mnist/t10k-images-idx3-ubyte.gz
 gunzip -f data/mnist/t10k-labels-idx1-ubyte.gz
 
-# Also download the pre-trained model file
-cd ..
-if [ ! -f "model.mpk" ]; then
-  echo "Downloading pre-trained model file..."
-  # This is just a placeholder URL - replace with actual model hosting location
-  curl -L -o model.mpk "https://example.com/models/mnist_model.mpk" || {
-    echo "Could not download model file. You'll need to train your own model using:"
-    echo "cargo run -- train"
-  }
-else
-  echo "Model file already exists. Skipping."
+# Create a placeholder model.json file if it doesn't exist
+if [ ! -f model.json ]; then
+    echo "{}" > model.json
 fi
 
-echo " MNIST dataset downloaded and extracted to data/mnist/ directory"
-echo "You can now train the model with: cargo run -- train"
+echo " MNIST dataset downloaded and extracted successfully!"
+echo "You can now run 'cargo run -- train' to train the model."

@@ -1,122 +1,122 @@
+use crate::data::{MnistBatch, mnist_dataloader};
+use crate::model::Model;
 use burn::{
-    tensor::{backend::Backend, Tensor, Int},
-    tensor::backend::AutodiffBackend,
-    optim::{AdamConfig, Optimizer, GradientsParams},
-    nn::loss::CrossEntropyLossConfig,
+    tensor::backend::Backend,
+    train::{
+        ClassificationOutput, LearningRate, Optimizer, OptimizerConfig, StepOutput, TrainStep, ValidStep,
+    },
+    record::{Recorder, CompactRecorder},
+    prelude::*,
 };
-use crate::{
-    model::Model,
-    data::{mnist_dataloader, MnistBatch},
-};
-use indicatif::{ProgressBar, ProgressStyle};
-use std::ops::AddAssign;
+use std::sync::Arc;
 
-pub fn compute_accuracy<B: Backend<FloatElem = f32>>(predicted: &Tensor<B, 1, Int>, targets: &Tensor<B, 1, Int>) -> f32 {
-    let correct = predicted.clone().equal(targets.clone());
-    correct.float().mean().into_scalar()
-}
-
-pub fn create_progress_bar(len: u64, _label: &str) -> ProgressBar {
-    let pb = ProgressBar::new(len);
-    pb.set_style(ProgressStyle::default_bar().progress_chars("#>-") );
-    pb
-}
-
-pub struct ModelTrainStep<B: Backend + AutodiffBackend, O> {
-    pub model: Model<B>,
-    pub optimizer: O,
-    pub learning_rate: f64,
-}
-
-impl<B: Backend<FloatElem = f32> + AutodiffBackend, O: Optimizer<Model<B>, B>> ModelTrainStep<B, O> {
-    pub fn new(model: Model<B>, optimizer: O, learning_rate: f64) -> Self {
-        Self { model, optimizer, learning_rate }
-    }
-    pub fn step(&mut self, batch: &MnistBatch<B>) -> (f32, f32) {
-        let output = self.model.forward(&batch.images);
-        let loss = CrossEntropyLossConfig::new().init(&output.device()).forward(output.clone(), batch.targets.clone());
-        let grads = loss.backward();
-        let gradients_params = GradientsParams::from_grads(grads, &self.model);
-        self.model = self.optimizer.step(self.learning_rate, self.model.clone(), gradients_params);
-        let predicted = output.argmax(1).squeeze(1); // shape [batch_size]
-        let accuracy = compute_accuracy(&predicted, &batch.targets); // both shape [batch_size]
-        (loss.into_scalar(), accuracy)
-    }
-}
-
-pub fn train<B: Backend<FloatElem = f32> + AutodiffBackend>(
+pub fn train<B: burn::tensor::backend::AutodiffBackend>(
     device: &B::Device,
     num_epochs: usize,
     batch_size: usize,
     learning_rate: f64,
-    model_path: impl AsRef<std::path::Path> + std::fmt::Display,
-) -> Model<B>
-where
-    f32: AddAssign<<B as Backend>::FloatElem>,
-{
+    model_path: String,
+) {
+    // Create the model and optimizer
     let model = Model::new(device);
-    // When calling dataloader, use:
-    let dataloader_train = mnist_dataloader::<B>(true, device.clone(), batch_size, Some(42), 4);
-    // When passing to evaluate, use:
-    let dataloader_test = mnist_dataloader::<B>(false, device.clone(), batch_size, None, 2);
-    let optimizer_config = AdamConfig::new();
-    let optimizer = optimizer_config.init::<B, Model<B>>();
-    let mut train_state = ModelTrainStep::new(model, optimizer, learning_rate);
+    let mut optimizer = burn::optim::AdamConfig::new()
+        .with_learning_rate(learning_rate)
+        .with_weight_decay(1e-5)
+        .init();
+
+    // Create the training and validation data loaders
+    let train_loader = mnist_dataloader::<B>(true, device, batch_size, Some(42), 2);
+    let valid_loader = mnist_dataloader::<B>(false, device, batch_size, None, 2);
+
+    // Initialize the recorder
+    let mut recorder = CompactRecorder::new();
+
+    // Training loop
     for epoch in 0..num_epochs {
-        println!("Epoch {}/{}", epoch + 1, num_epochs);
-        let mut train_loss: f32 = 0.0;
-        let mut train_accuracy: f32 = 0.0;
-        let mut num_batches = 0;
-        let progress_bar = create_progress_bar(60000 / batch_size as u64, "Training");
-        for batch in dataloader_train.iter() {
-            let (loss, accuracy) = train_state.step(batch);
-            train_loss += loss;
-            train_accuracy += accuracy;
-            num_batches += 1;
-            progress_bar.inc(1);
+        let mut train_loss = 0.0;
+        let mut train_acc = 0.0;
+        let mut train_batches = 0;
+
+        // Training
+        for batch in train_loader.iter() {
+            let output = model.step(batch);
+            let batch_loss = output.loss.clone().into_scalar();
+            let batch_accuracy = accuracy(output.item);
+
+            train_loss += batch_loss;
+            train_acc += batch_accuracy;
+            train_batches += 1;
+
+            // Update the model
+            optimizer.update(&mut *output.model, output.gradients);
+
+            // Print progress
+            if train_batches % 100 == 0 {
+                println!(
+                    "Epoch: {}/{}, Batch: {}, Loss: {:.4}, Accuracy: {:.2}%",
+                    epoch + 1,
+                    num_epochs,
+                    train_batches,
+                    train_loss / train_batches as f64,
+                    train_acc * 100.0 / train_batches as f64
+                );
+            }
         }
-        progress_bar.finish_with_message("Training completed");
-        if num_batches > 0 {
-            train_loss /= num_batches as f32;
-            train_accuracy /= num_batches as f32;
-        }
-        let (val_loss, val_accuracy) = evaluate(&train_state.model, dataloader_test.as_ref());
+
+        // Calculate average training metrics
+        train_loss /= train_batches as f64;
+        train_acc /= train_batches as f64;
+
+        // Validation
+        let (val_loss, val_acc) = evaluate::<B>(&model, valid_loader.as_ref());
+
         println!(
-            "Train Loss: {:.4}, Train Accuracy: {:.2}%, Val Loss: {:.4}, Val Accuracy: {:.2}%",
+            "Epoch: {}/{}, Train Loss: {:.4}, Train Acc: {:.2}%, Val Loss: {:.4}, Val Acc: {:.2}%",
+            epoch + 1,
+            num_epochs,
             train_loss,
-            train_accuracy * 100.0,
+            train_acc * 100.0,
             val_loss,
-            val_accuracy * 100.0
+            val_acc * 100.0
         );
     }
-    println!("Saving model to {}", model_path);
-    train_state.model.save(model_path.as_ref()).expect("Failed to save model");
-    train_state.model
+
+    // Save the model
+    recorder.record(&model);
+    recorder.save(model_path).expect("Failed to save model");
 }
 
-pub fn evaluate<B: Backend<FloatElem = f32>>(
+pub fn evaluate<B: Backend>(
     model: &Model<B>,
-    dataloader: &dyn burn::data::dataloader::DataLoader<MnistBatch<B>>,
-) -> (f32, f32) {
-    // When passing dataloader, use .as_ref()
-    let mut total_loss: f32 = 0.0;
-    let mut total_accuracy: f32 = 0.0;
+    loader: &dyn burn::data::dataloader::DataLoader<MnistBatch<B>>,
+) -> (f64, f64) {
+    let mut total_loss = 0.0;
+    let mut total_acc = 0.0;
     let mut num_batches = 0;
-    let progress_bar = create_progress_bar(10000 / 32, "Evaluation");
-    for batch in dataloader.iter() {
-        let output = model.forward(&batch.images);
-        let loss = CrossEntropyLossConfig::new().init(&output.device()).forward(output.clone(), batch.targets.clone());
-        let predicted = output.argmax(1).squeeze(1); // shape [batch_size]
-        let accuracy = compute_accuracy(&predicted, &batch.targets); // both shape [batch_size]
-        total_loss += loss.into_scalar();
-        total_accuracy += accuracy;
+
+    for batch in loader.iter() {
+        let output = model.step(batch);
+        let batch_loss = output.loss.into_scalar();
+        let batch_accuracy = accuracy(output);
+
+        total_loss += batch_loss;
+        total_acc += batch_accuracy;
         num_batches += 1;
-        progress_bar.inc(1);
     }
-    progress_bar.finish_with_message("Evaluation completed");
-    if num_batches > 0 {
-        (total_loss / num_batches as f32, total_accuracy / num_batches as f32)
-    } else {
-        (0.0, 0.0)
-    }
+
+    (total_loss / num_batches as f64, total_acc / num_batches as f64)
+}
+
+fn accuracy<B: Backend>(output: ClassificationOutput<B>) -> f64 {
+    let predictions = output.output.argmax(1);
+    let targets = output.targets;
+    
+    let pred_data = predictions.to_data();
+    let target_data = targets.to_data();
+    
+    let pred = pred_data.as_slice::<i64>().unwrap();
+    let target = target_data.as_slice::<i64>().unwrap();
+    
+    let correct = pred.iter().zip(target.iter()).filter(|&(a, b)| a == b).count();
+    correct as f64 / pred.len() as f64
 }

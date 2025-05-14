@@ -1,12 +1,15 @@
 use crate::data::MnistBatch;
 use burn::{
+    module::Module,
+    nn,
     nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
-    prelude::*,
+    tensor::backend::Backend,
     tensor::backend::AutodiffBackend,
+    tensor::Tensor,
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
+    record::Record,
+    prelude::*,
 };
-use burn::record::{Recorder, CompactRecorder};
-use std::path::Path;
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
@@ -49,50 +52,31 @@ impl<B: Backend> Model<B> {
 
     pub fn forward(&self, input: &Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, height, width] = input.dims();
-        println!("Input dims: [{}, {}, {}]", batch_size, height, width);
         
-        let x = input.clone().reshape([batch_size, 1, height, width]).detach();
-        println!("After reshape to 4D: {:?}", x.dims());
+        let x = input.clone().reshape([batch_size, 1, height, width]);
         
         let x = self.conv1.forward(&x);
-        println!("After conv1: {:?}", x.dims());
-        
         let x = self.conv2.forward(&x);
-        println!("After conv2: {:?}", x.dims());
-        
         let x = self.conv3.forward(&x);
-        println!("After conv3: {:?}", x.dims());
         
         let [batch_size, channels, height, width] = x.dims();
-        println!("Before reshape to 2D: batch_size={}, channels={}, height={}, width={}", batch_size, channels, height, width);
         
         let x = x.reshape([batch_size, channels * height * width]);
-        println!("After reshape to 2D: {:?}", x.dims());
         
         let x = self.dropout.forward(x);
-        println!("After dropout: {:?}", x.dims());
-        
         let x = self.fc1.forward(x);
-        println!("After fc1: {:?}", x.dims());
-        
         let x = self.activation.forward(x);
-        println!("After activation: {:?}", x.dims());
-        
         let x = self.fc2.forward(x);
-        println!("After fc2: {:?}", x.dims());
         
         x
     }
 
     pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
         let targets = item.targets;
-        println!("Targets dims: {:?}", targets.dims());
         let output = self.forward(&item.images);
-        println!("Output dims: {:?}", output.dims());
         let loss = CrossEntropyLossConfig::new()
             .init(&output.device())
             .forward(output.clone(), targets.clone());
-        println!("Loss computed, shape should be scalar");
 
         ClassificationOutput {
             loss,
@@ -101,20 +85,8 @@ impl<B: Backend> Model<B> {
         }
     }
 
-    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
-        let record = self.into_record();
-        let path = path.as_ref().to_path_buf();
-        CompactRecorder::new().record(record, path)?;
-        Ok(())
-    }
-
-    pub fn from_record(record: &Record, device: &B::Device) -> Self {
+    pub fn from_record(record: &impl Record, device: &B::Device) -> Self {
         Module::from_record(record, device)
-    }
-
-    pub fn load(path: &Path, device: &B::Device) -> Result<Self, Box<dyn std::error::Error>> {
-        let record = CompactRecorder::new().load(path.to_path_buf())?;
-        Ok(Self::from_record(&record, device))
     }
 }
 

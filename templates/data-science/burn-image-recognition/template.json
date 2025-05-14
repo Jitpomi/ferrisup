@@ -40,16 +40,23 @@
     {
       "source": "download_mnist.sh",
       "target": "download_mnist.sh"
+    },
+    {
+      "source": "post_generation.sh",
+      "target": "post_generation.sh"
     }
   ],
   "dependencies": {
     "default": [
-      "burn = { version = \"0.16.1\", features = [\"ndarray\", \"autodiff\", \"train\"] }",
-      "burn-tensor = { version = \"0.16.1\" }",
-      "burn-train = { version = \"0.16.1\" }",
-      "burn-autodiff = { version = \"0.16.1\" }",
-      "burn-ndarray = { version = \"0.16.1\" }",
-      "burn-dataset = { version = \"0.16.1\", features = [\"vision\"] }",
+      "burn = { version = \"0.17.0\", features = [\"ndarray\", \"autodiff\", \"train\"] }",
+      "burn-tensor = { version = \"0.17.0\" }",
+      "burn-train = { version = \"0.17.0\" }",
+      "burn-autodiff = { version = \"0.17.0\" }",
+      "burn-ndarray = { version = \"0.17.0\" }",
+      "# Uncomment one of the following backends based on your hardware",
+      "# burn-wgpu = { version = \"0.17.0\", features = [\"metal\"] } # For macOS with Metal",
+      "# burn-cuda = { version = \"0.17.0\" } # For NVIDIA GPUs",
+      "# burn-wgpu = { version = \"0.17.0\", features = [\"vulkan\"] } # For Vulkan support",
       "serde = { version = \"1.0\", features = [\"derive\"] }",
       "serde_json = \"1.0\"",
       "anyhow = \"1.0\"",

@@ -1,115 +1,223 @@
 #!/bin/bash
 set -e
 
-echo "Setting up image-recognition project..."
-echo "Generating MNIST digit recognition project..."
+echo "Running post-generation fixes for Burn Image Recognition project..."
 
-# Create basic project structure
-mkdir -p src
+# Make the download scripts executable
+chmod +x download_mnist.sh
+chmod +x download_sample_images.sh
 
-# Create the necessary files for a basic MNIST project
-echo "Creating project files..."
+# Create a placeholder model.json file if it doesn't exist
+if [ ! -f model.json ]; then
+    echo "Creating placeholder model.json file..."
+    echo "{}" > model.json
+fi
 
-# Create lib.rs
-cat > src/lib.rs << 'EOL'
-//! MNIST digit recognition using the Burn framework
-//!
-//! This crate provides a simple implementation of a convolutional neural network
-//! for recognizing handwritten digits from the MNIST dataset.
+# Create data directories
+mkdir -p data/mnist
+mkdir -p sample_images
 
-pub mod data;
-pub mod model;
-pub mod training;
+# Fix Cargo.toml to ensure no duplicate dependencies
+if [ -f Cargo.toml ]; then
+    echo "Ensuring Cargo.toml has all required dependencies..."
+    
+    # Create a clean version of Cargo.toml without duplicates
+    TMP_FILE=$(mktemp)
+    cat > "$TMP_FILE" << 'EOL'
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+burn = { version = "0.17.0", features = ["ndarray", "autodiff", "train"] }
+burn-tensor = { version = "0.17.0" }
+burn-train = { version = "0.17.0" }
+burn-autodiff = { version = "0.17.0" }
+burn-ndarray = { version = "0.17.0" }
+# Uncomment one of the following backends based on your hardware
+# burn-wgpu = { version = "0.17.0", features = ["metal"] } # For macOS with Metal
+# burn-cuda = { version = "0.17.0" } # For NVIDIA GPUs
+# burn-wgpu = { version = "0.17.0", features = ["vulkan"] } # For Vulkan support
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+indicatif = "0.17.7"
+image = "0.24.7"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "app"
+path = "src/main.rs"
 EOL
 
-# Create data.rs
-cat > src/data.rs << 'EOL'
-use burn::{
-    data::{
-        dataloader::{DataLoaderBuilder, batcher::Batcher}, 
-        dataset::vision::{MnistDataset, MnistItem}
-    },
-    tensor::{backend::Backend, Data as TensorData, Tensor},
-};
+    # Replace project name placeholder with actual project name
+    PROJECT_NAME=$(grep "^name" Cargo.toml | head -1 | cut -d '"' -f 2 || echo "demo")
+    sed -i.bak "s/{{project_name}}/$PROJECT_NAME/g" "$TMP_FILE"
+    mv "$TMP_FILE" Cargo.toml
+    rm -f Cargo.toml.bak
+fi
 
-/// Create train and test dataloaders for MNIST
-pub fn create_dataloaders<B: Backend>(
-    device: &B::Device,
-    batch_size: usize,
-) -> (
-    impl Iterator<Item = (Tensor<B, 4>, Tensor<B, 1>)>,
-    impl Iterator<Item = (Tensor<B, 4>, Tensor<B, 1>)>,
-) {
-    // Create the datasets
-    let train_dataset = MnistDataset::train();
-    let test_dataset = MnistDataset::test();
-    
-    // Create the batcher
-    let batcher = MnistBatcher::default();
-    
-    // Create the dataloaders
-    let train_loader = DataLoaderBuilder::new(batcher.clone())
-        .batch_size(batch_size)
-        .shuffle(true)
-        .build(train_dataset)
-        .map(|batch| batch.to_device(device))
-        .map(|batch| (batch.images, batch.targets));
-    
-    let test_loader = DataLoaderBuilder::new(batcher)
-        .batch_size(batch_size)
-        .shuffle(false)
-        .build(test_dataset)
-        .map(|batch| batch.to_device(device))
-        .map(|batch| (batch.images, batch.targets));
-    
-    (train_loader, test_loader)
+# Fix the data.rs file to use the correct MnistDataset implementation
+cat > src/data.rs << 'EOL'
+use burn::data::dataset::Dataset;
+use burn::data::dataloader::{DataLoader, DataLoaderBuilder, batcher::Batcher};
+use burn::tensor::{backend::Backend, Int, Tensor, Data, Shape};
+use burn::prelude::*;
+use std::path::Path;
+use std::sync::Arc;
+
+/// Normalize a single MNIST pixel value (u8 or f32) to f32 with PyTorch stats.
+pub fn normalize_mnist_pixel<T: Into<f32>>(pixel: T) -> f32 {
+    ((pixel.into() / 255.0) - 0.1307) / 0.3081
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct MnistBatcher {}
+#[derive(Debug, Clone)]
+pub struct MnistItem {
+    pub image: Vec<f32>,
+    pub label: usize,
+}
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct MnistBatch<B: Backend> {
-    pub images: Tensor<B, 4>,
-    pub targets: Tensor<B, 1>,
+    pub images: Tensor<B, 3>,
+    pub targets: Tensor<B, 1, Int>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MnistBatcher;
+
+impl MnistBatcher {
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl<B: Backend> Batcher<B, MnistItem, MnistBatch<B>> for MnistBatcher {
     fn batch(&self, items: Vec<MnistItem>, device: &B::Device) -> MnistBatch<B> {
-        let images = items
-            .iter()
-            .map(|item| TensorData::from(item.image))
-            .map(|data| Tensor::<B, 2>::from_data(data.convert::<B::FloatElem>(), device))
-            // normalize: make between [0,1] and make the mean = 0 and std = 1
-            // values mean=0.1307,std=0.3081 were copied from PyTorch MNIST Example
-            .map(|tensor| ((tensor / 255) - 0.1307) / 0.3081)
-            .map(|tensor| tensor.reshape([1, 1, 28, 28])) // [1, channels, height, width]
-            .collect();
+        let batch_size = items.len();
+        
+        // Create a flat vector of all pixel values
+        let mut image_data = Vec::with_capacity(batch_size * 28 * 28);
+        for item in &items {
+            image_data.extend_from_slice(&item.image);
+        }
+        
+        // Create the images tensor
+        let images = Tensor::<B, 3>::from_data(
+            Data::new(image_data, Shape::new([batch_size, 28, 28])),
+            device
+        );
 
-        let targets = items
-            .iter()
-            .map(|item| {
-                Tensor::<B, 1>::from_data(
-                    TensorData::from([(item.label as i64).elem::<B::IntElem>()]),
-                    device,
-                )
-            })
-            .collect();
-
-        let images = Tensor::cat(images, 0);
-        let targets = Tensor::cat(targets, 0);
+        // Create the targets tensor
+        let targets = Tensor::<B, 1, Int>::from_data(
+            Data::new(items.iter().map(|item| item.label as i64).collect::<Vec<_>>(), Shape::new([batch_size])),
+            device
+        );
 
         MnistBatch { images, targets }
     }
 }
+
+pub struct MnistDataset {
+    images: Vec<MnistItem>,
+}
+
+impl MnistDataset {
+    pub fn new(images: Vec<MnistItem>) -> Self {
+        Self { images }
+    }
+
+    pub fn from_path(path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+        let images = std::fs::read(path.join("train-images-idx3-ubyte")).unwrap();
+        let labels = std::fs::read(path.join("train-labels-idx1-ubyte")).unwrap();
+
+        // Skip the header bytes: 16 for images, 8 for labels
+        let images = &images[16..];
+        let labels = &labels[8..];
+
+        let images = images
+            .chunks(28 * 28)
+            .zip(labels.iter())
+            .map(|(chunk, &label)| {
+                let values = chunk
+                    .iter()
+                    .map(|&b| normalize_mnist_pixel(b))
+                    .collect::<Vec<_>>();
+                
+                MnistItem {
+                    image: values,
+                    label: label as usize,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Self { images }
+    }
+    
+    pub fn train() -> Self {
+        Self::from_path("data/mnist")
+    }
+    
+    pub fn test() -> Self {
+        Self::from_path("data/mnist")
+    }
+}
+
+impl Dataset<MnistItem> for MnistDataset {
+    fn get(&self, index: usize) -> Option<MnistItem> {
+        self.images.get(index).cloned()
+    }
+
+    fn len(&self) -> usize {
+        self.images.len()
+    }
+}
+
+/// Build a `DataLoader` for MNIST training or testing data.
+pub fn mnist_dataloader<B: Backend + 'static>(
+    train: bool,
+    device: &B::Device,
+    batch_size: usize,
+    shuffle: Option<u64>,
+    num_workers: usize,
+) -> Arc<dyn DataLoader<MnistBatch<B>>> {
+    let dataset = if train {
+        MnistDataset::train()
+    } else {
+        MnistDataset::test()
+    };
+    let batcher = MnistBatcher::new();
+    let mut builder = DataLoaderBuilder::new(batcher)
+        .batch_size(batch_size)
+        .num_workers(num_workers)
+        .set_device(device.clone());
+    
+    if let Some(seed) = shuffle {
+        builder = builder.shuffle(seed);
+    }
+    
+    builder.build(dataset)
+}
 EOL
 
-# Create model.rs
+# Fix the model.rs file to use the correct imports and module structure
 cat > src/model.rs << 'EOL'
+use crate::data::MnistBatch;
 use burn::{
     module::Module,
-    nn::{BatchNorm, PaddingConfig2d},
-    tensor::{backend::Backend, Tensor},
+    nn,
+    nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
+    tensor::backend::Backend,
+    tensor::backend::AutodiffBackend,
+    tensor::Tensor,
+    train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
+    record::Record,
+    prelude::*,
 };
 
 #[derive(Module, Debug)]
@@ -117,17 +225,10 @@ pub struct Model<B: Backend> {
     conv1: ConvBlock<B>,
     conv2: ConvBlock<B>,
     conv3: ConvBlock<B>,
-    dropout: burn::nn::Dropout,
-    fc1: burn::nn::Linear<B>,
-    fc2: burn::nn::Linear<B>,
-    activation: burn::nn::Gelu,
-}
-
-impl<B: Backend> Default for Model<B> {
-    fn default() -> Self {
-        let device = B::Device::default();
-        Self::new(&device)
-    }
+    dropout: nn::Dropout,
+    fc1: nn::Linear<B>,
+    fc2: nn::Linear<B>,
+    activation: nn::Gelu,
 }
 
 const NUM_CLASSES: usize = 10;
@@ -138,14 +239,14 @@ impl<B: Backend> Model<B> {
         let conv2 = ConvBlock::new([8, 16], [3, 3], device); // out: [Batch,16,24x24]
         let conv3 = ConvBlock::new([16, 24], [3, 3], device); // out: [Batch,24,22x22]
         let hidden_size = 24 * 22 * 22;
-        let fc1 = burn::nn::LinearConfig::new(hidden_size, 32)
+        let fc1 = nn::LinearConfig::new(hidden_size, 32)
             .with_bias(false)
             .init(device);
-        let fc2 = burn::nn::LinearConfig::new(32, NUM_CLASSES)
+        let fc2 = nn::LinearConfig::new(32, NUM_CLASSES)
             .with_bias(false)
             .init(device);
 
-        let dropout = burn::nn::DropoutConfig::new(0.5).init();
+        let dropout = nn::DropoutConfig::new(0.5).init();
 
         Self {
             conv1,
@@ -154,262 +255,264 @@ impl<B: Backend> Model<B> {
             dropout,
             fc1,
             fc2,
-            activation: burn::nn::Gelu::new(),
+            activation: nn::Gelu::new(),
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 2> {
-        // Input shape: [batch_size, channels, height, width]
-        let x = self.conv1.forward(input);
-        let x = self.conv2.forward(x);
-        let x = self.conv3.forward(x);
-
+    pub fn forward(&self, input: &Tensor<B, 3>) -> Tensor<B, 2> {
+        let [batch_size, height, width] = input.dims();
+        
+        let x = input.clone().reshape([batch_size, 1, height, width]);
+        
+        let x = self.conv1.forward(&x);
+        let x = self.conv2.forward(&x);
+        let x = self.conv3.forward(&x);
+        
         let [batch_size, channels, height, width] = x.dims();
+        
         let x = x.reshape([batch_size, channels * height * width]);
-
+        
         let x = self.dropout.forward(x);
         let x = self.fc1.forward(x);
         let x = self.activation.forward(x);
+        let x = self.fc2.forward(x);
+        
+        x
+    }
 
-        self.fc2.forward(x)
+    pub fn forward_classification(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        let targets = item.targets;
+        let output = self.forward(&item.images);
+        let loss = CrossEntropyLossConfig::new()
+            .init(&output.device())
+            .forward(output.clone(), targets.clone());
+
+        ClassificationOutput {
+            loss,
+            output,
+            targets,
+        }
+    }
+
+    pub fn from_record(record: &impl Record, device: &B::Device) -> Self {
+        Module::from_record(record, device)
     }
 }
 
 #[derive(Module, Debug)]
 pub struct ConvBlock<B: Backend> {
-    conv: burn::nn::conv::Conv2d<B>,
+    conv: nn::conv::Conv2d<B>,
     norm: BatchNorm<B, 2>,
-    activation: burn::nn::Gelu,
+    activation: nn::Gelu,
 }
 
 impl<B: Backend> ConvBlock<B> {
     pub fn new(channels: [usize; 2], kernel_size: [usize; 2], device: &B::Device) -> Self {
-        let conv = burn::nn::conv::Conv2dConfig::new(channels, kernel_size)
+        let conv = nn::conv::Conv2dConfig::new(channels, kernel_size)
             .with_padding(PaddingConfig2d::Valid)
             .init(device);
-        let norm = burn::nn::BatchNormConfig::new(channels[1]).init(device);
+        let norm = nn::BatchNormConfig::new(channels[1]).init(device);
 
         Self {
             conv,
             norm,
-            activation: burn::nn::Gelu::new(),
+            activation: nn::Gelu::new(),
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let x = self.conv.forward(input);
+    pub fn forward(&self, input: &Tensor<B, 4>) -> Tensor<B, 4> {
+        let x = self.conv.forward(input.clone());
         let x = self.norm.forward(x);
 
         self.activation.forward(x)
     }
 }
+
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
+        let item = self.forward_classification(item);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, item: MnistBatch<B>) -> ClassificationOutput<B> {
+        self.forward_classification(item)
+    }
+}
 EOL
 
-# Create training.rs
+# Fix the training.rs file to use the correct imports and training loop
 cat > src/training.rs << 'EOL'
-use crate::{data::create_dataloaders, model::Model};
+use crate::data::{MnistBatch, mnist_dataloader};
+use crate::model::Model;
 use burn::{
-    optim::AdamConfig,
-    tensor::{backend::Backend, Tensor},
+    tensor::backend::Backend,
+    train::{
+        ClassificationOutput, LearningRate, Optimizer, OptimizerConfig, StepOutput, TrainStep, ValidStep,
+    },
+    record::{Recorder, CompactRecorder},
+    prelude::*,
 };
-use indicatif::{ProgressBar, ProgressStyle};
-use std::path::Path;
+use std::sync::Arc;
 
-/// Train the model
-pub fn train<B: Backend>(
+pub fn train<B: burn::tensor::backend::AutodiffBackend>(
     device: &B::Device,
-    model: Model<B>,
     num_epochs: usize,
     batch_size: usize,
     learning_rate: f64,
-    model_path: impl AsRef<Path>,
-) -> Model<B> {
-    // Create dataloaders
-    let (dataloader_train, dataloader_test) = create_dataloaders::<B>(device, batch_size);
-    
-    // Create optimizer
-    let optimizer = AdamConfig::new().with_learning_rate(learning_rate).init();
-    
-    // Create training state
-    let mut train_state = burn::train::TrainState::new(model, optimizer);
-    
+    model_path: String,
+) {
+    // Create the model and optimizer
+    let model = Model::new(device);
+    let mut optimizer = burn::optim::AdamConfig::new()
+        .with_learning_rate(learning_rate)
+        .with_weight_decay(1e-5)
+        .init();
+
+    // Create the training and validation data loaders
+    let train_loader = mnist_dataloader::<B>(true, device, batch_size, Some(42), 2);
+    let valid_loader = mnist_dataloader::<B>(false, device, batch_size, None, 2);
+
+    // Initialize the recorder
+    let mut recorder = CompactRecorder::new();
+
     // Training loop
     for epoch in 0..num_epochs {
-        // Create progress bar
-        let pb = ProgressBar::new(100); // Estimate based on dataset size
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
-        
-        // Training phase
-        let mut train_accuracy_sum = 0.0f32;
-        let mut train_loss_sum = 0.0f32;
-        let mut train_count = 0;
-        
-        for (images, targets) in dataloader_train {
-            // Forward pass
-            let output = train_state.model().forward(images.clone());
-            
-            // Compute loss
-            let loss = cross_entropy_loss(&output, &targets);
-            
-            // Backward pass and optimization
-            train_state.backward_step(&loss);
-            
-            // Compute accuracy
-            let predicted = output.argmax(1).squeeze(1);
-            let correct = (predicted.equal(&targets)).to_dtype::<f32>().mean().into_scalar();
-            
-            // Update metrics
-            train_accuracy_sum += correct;
-            train_loss_sum += loss.into_scalar();
-            train_count += 1;
-            
-            pb.inc(1);
+        let mut train_loss = 0.0;
+        let mut train_acc = 0.0;
+        let mut train_batches = 0;
+
+        // Training
+        for batch in train_loader.iter() {
+            let output = model.step(batch);
+            let batch_loss = output.loss.clone().into_scalar();
+            let batch_accuracy = accuracy(output.item);
+
+            train_loss += batch_loss;
+            train_acc += batch_accuracy;
+            train_batches += 1;
+
+            // Update the model
+            optimizer.update(&mut *output.model, output.gradients);
+
+            // Print progress
+            if train_batches % 100 == 0 {
+                println!(
+                    "Epoch: {}/{}, Batch: {}, Loss: {:.4}, Accuracy: {:.2}%",
+                    epoch + 1,
+                    num_epochs,
+                    train_batches,
+                    train_loss / train_batches as f64,
+                    train_acc * 100.0 / train_batches as f64
+                );
+            }
         }
-        
-        let train_accuracy = train_accuracy_sum / train_count as f32;
-        let train_loss = train_loss_sum / train_count as f32;
-        
-        // Validation phase
-        let mut valid_accuracy_sum = 0.0f32;
-        let mut valid_loss_sum = 0.0f32;
-        let mut valid_count = 0;
-        
-        for (images, targets) in dataloader_test {
-            // Forward pass
-            let output = train_state.model().forward(images);
-            
-            // Compute loss
-            let loss = cross_entropy_loss(&output, &targets);
-            
-            // Compute accuracy
-            let predicted = output.argmax(1).squeeze(1);
-            let correct = (predicted.equal(&targets)).to_dtype::<f32>().mean().into_scalar();
-            
-            // Update metrics
-            valid_accuracy_sum += correct;
-            valid_loss_sum += loss.into_scalar();
-            valid_count += 1;
-        }
-        
-        let valid_accuracy = valid_accuracy_sum / valid_count as f32;
-        let valid_loss = valid_loss_sum / valid_count as f32;
-        
-        pb.finish_and_clear();
-        
+
+        // Calculate average training metrics
+        train_loss /= train_batches as f64;
+        train_acc /= train_batches as f64;
+
+        // Validation
+        let (val_loss, val_acc) = evaluate::<B>(&model, valid_loader.as_ref());
+
         println!(
-            "Epoch {}/{}: Train Loss = {:.4}, Train Accuracy = {:.4}, Valid Loss = {:.4}, Valid Accuracy = {:.4}",
+            "Epoch: {}/{}, Train Loss: {:.4}, Train Acc: {:.2}%, Val Loss: {:.4}, Val Acc: {:.2}%",
             epoch + 1,
             num_epochs,
             train_loss,
-            train_accuracy,
-            valid_loss,
-            valid_accuracy
+            train_acc * 100.0,
+            val_loss,
+            val_acc * 100.0
         );
     }
-    
-    // Save the model if a path is provided
-    if let Some(parent) = model_path.as_ref().parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent).unwrap();
-        }
-    }
-    
-    train_state.model().save(model_path).unwrap();
-    
-    // Return the trained model
-    train_state.into_model()
+
+    // Save the model
+    recorder.record(&model);
+    recorder.save(model_path).expect("Failed to save model");
 }
 
-/// Evaluate the model
 pub fn evaluate<B: Backend>(
-    device: &B::Device,
-    model: Model<B>,
-    batch_size: usize,
-) -> (f32, f32) {
-    // Create dataloaders
-    let (_, dataloader_test) = create_dataloaders::<B>(device, batch_size);
-    
-    // Evaluation metrics
-    let mut accuracy_sum = 0.0f32;
-    let mut loss_sum = 0.0f32;
-    let mut count = 0;
-    
-    // Create progress bar
-    let pb = ProgressBar::new(100); // Estimate based on dataset size
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-            .unwrap()
-            .progress_chars("#>-"),
-    );
-    
-    // Evaluation loop
-    for (images, targets) in dataloader_test {
-        // Forward pass
-        let output = model.forward(images);
-        
-        // Compute loss
-        let loss = cross_entropy_loss(&output, &targets);
-        
-        // Compute accuracy
-        let predicted = output.argmax(1).squeeze(1);
-        let correct = (predicted.equal(&targets)).to_dtype::<f32>().mean().into_scalar();
-        
-        // Update metrics
-        accuracy_sum += correct;
-        loss_sum += loss.into_scalar();
-        count += 1;
-        
-        pb.inc(1);
+    model: &Model<B>,
+    loader: &dyn burn::data::dataloader::DataLoader<MnistBatch<B>>,
+) -> (f64, f64) {
+    let mut total_loss = 0.0;
+    let mut total_acc = 0.0;
+    let mut num_batches = 0;
+
+    for batch in loader.iter() {
+        let output = model.step(batch);
+        let batch_loss = output.loss.into_scalar();
+        let batch_accuracy = accuracy(output);
+
+        total_loss += batch_loss;
+        total_acc += batch_accuracy;
+        num_batches += 1;
     }
-    
-    pb.finish_and_clear();
-    
-    let accuracy = accuracy_sum / count as f32;
-    let loss = loss_sum / count as f32;
-    
-    println!("Evaluation: Loss = {:.4}, Accuracy = {:.4}", loss, accuracy);
-    
-    (accuracy, loss)
+
+    (total_loss / num_batches as f64, total_acc / num_batches as f64)
 }
 
-/// Cross-entropy loss function
-fn cross_entropy_loss<B: Backend>(output: &Tensor<B, 2>, target: &Tensor<B, 1>) -> Tensor<B, 1> {
-    let log_softmax = output.log_softmax(1);
-    let nll = log_softmax.gather(1, &target.unsqueeze(1)).negative();
-    nll.mean(0)
+fn accuracy<B: Backend>(output: ClassificationOutput<B>) -> f64 {
+    let predictions = output.output.argmax(1);
+    let targets = output.targets;
+    
+    let pred_data = predictions.to_data();
+    let target_data = targets.to_data();
+    
+    let pred = pred_data.as_slice::<i64>().unwrap();
+    let target = target_data.as_slice::<i64>().unwrap();
+    
+    let correct = pred.iter().zip(target.iter()).filter(|&(a, b)| a == b).count();
+    correct as f64 / pred.len() as f64
 }
 EOL
 
-# Create main.rs
+# Fix the main.rs file to use the correct imports and command structure
 cat > src/main.rs << 'EOL'
-use anyhow::Result;
-use burn::tensor::{backend::Backend, Data as TensorData, Tensor};
-use burn_ndarray::NdArray;
+#![recursion_limit = "256"] // Required for WGPU backends
+
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use image;
 
-# Ensure MNIST data is always downloaded before training
-if [ ! -f data/mnist/train-images-idx3-ubyte ] || [ ! -f data/mnist/train-labels-idx1-ubyte ]; then
-  echo "Downloading MNIST dataset automatically..."
-  ./download_mnist.sh
-fi
+mod model;
+mod data;
+mod training;
 
-# Import our modules
-use {{ project_name }}::{
-    model::Model,
-    training::{train, evaluate},
-};
+use data::{MnistBatch, normalize_mnist_pixel};
+use model::Model;
+use training::{train, evaluate};
+use burn::tensor::{backend::Backend, Tensor, Data, Shape};
+use burn::prelude::*;
+use std::sync::Arc;
+use burn::record::{Recorder, CompactRecorder};
+use burn::module::Module;
+use burn::data::dataloader::DataLoader;
 
-# Define the backend type
-type Backend = NdArray<f32>;
+// Choose your preferred backend by uncommenting one of these sections:
 
-# Command line interface for our application
+// For CPU (NdArray backend)
+type MyBackend = burn_ndarray::NdArray;
+type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End CPU section
+
+// For Metal (macOS)
+// type MyBackend = burn_wgpu::Wgpu<burn_wgpu::metal::Metal>;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End Metal section
+
+// For CUDA (NVIDIA GPUs)
+// type MyBackend = burn_cuda::Cuda;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End CUDA section
+
+// For Vulkan
+// type MyBackend = burn_wgpu::Wgpu<burn_wgpu::vulkan::Vulkan>;
+// type MyAutodiffBackend = burn_autodiff::Autodiff<MyBackend>;
+// End Vulkan section
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -417,300 +520,164 @@ struct Cli {
     command: Commands,
 }
 
-# Available commands: train, evaluate, or predict
 #[derive(Subcommand)]
 enum Commands {
-    # Train a new model
     Train {
         #[arg(short, long, default_value = "10")]
-        epochs: usize,
-        
+        num_epochs: usize,
         #[arg(short, long, default_value = "64")]
         batch_size: usize,
-        
         #[arg(short, long, default_value = "0.001")]
         learning_rate: f64,
-        
         #[arg(short, long, default_value = "./model.json")]
         model_path: PathBuf,
     },
-    
-    # Evaluate an existing model
     Evaluate {
         #[arg(short, long)]
         model_path: PathBuf,
-        
         #[arg(short, long, default_value = "64")]
         batch_size: usize,
     },
-    
-    # Predict using an existing model
     Predict {
         #[arg(short, long)]
         model_path: PathBuf,
-        
         #[arg(short, long)]
         image_path: PathBuf,
     },
 }
 
-# Main function - entry point of our program
-fn main() -> Result<()> {
-    # Parse command line arguments
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let cli = Cli::parse();
     
-    # Create a device for computation
-    let device = Default::default();
+    // Create the appropriate device based on the selected backend
+    let device = <MyBackend as Backend>::Device::default();
     
-    # Handle the different commands
     match cli.command {
-        Commands::Train { epochs, batch_size, learning_rate, model_path } => {
-            println!("🚀 Training a new MNIST digit recognition model");
-            println!("📊 Epochs: {}", epochs);
-            println!("📦 Batch size: {}", batch_size);
-            println!("📈 Learning rate: {}", learning_rate);
+        Commands::Train { num_epochs, batch_size, learning_rate, model_path } => {
+            println!("🚀 Training MNIST digit recognition model");
+            // Check for MNIST data presence
+            if !std::path::Path::new("./data/mnist/train-images-idx3-ubyte").exists() {
+                eprintln!("❌ MNIST data not found. Please run ./download_mnist.sh before training.");
+                std::process::exit(1);
+            }
             
-            # Create a new model
-            let model = Model::<Backend>::default();
-            
-            # Train the model
-            let trained_model = train(
+            train::<MyAutodiffBackend>(
                 &device,
-                model,
-                epochs,
+                num_epochs,
                 batch_size,
                 learning_rate,
-                model_path,
+                model_path.to_string_lossy().to_string(),
             );
-            
             println!("✅ Training completed successfully!");
         },
-        
         Commands::Evaluate { model_path, batch_size } => {
             println!("🔍 Evaluating MNIST digit recognition model");
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
             
-            # Load the model
-            let model = Model::<Backend>::load(model_path)?;
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<MyBackend>::from_record(&record, &device);
+            let test_loader: Arc<dyn DataLoader<MnistBatch<MyBackend>>> = 
+                data::mnist_dataloader::<MyBackend>(false, &device, batch_size, None, 2);
             
-            # Evaluate the model
-            let (accuracy, loss) = evaluate(&device, model, batch_size);
-            
+            let (loss, accuracy) = evaluate::<MyBackend>(&model, test_loader.as_ref());
             println!("📊 Test accuracy: {:.2}%", accuracy * 100.0);
             println!("📉 Test loss: {:.4}", loss);
         },
-        
         Commands::Predict { model_path, image_path } => {
             println!("🔮 Predicting digit from image");
+            // Check for model file presence
+            if !model_path.exists() {
+                eprintln!("❌ Model file not found: {}", model_path.display());
+                std::process::exit(1);
+            }
+            if !image_path.exists() {
+                eprintln!("❌ Image file not found: {}", image_path.display());
+                std::process::exit(1);
+            }
             
-            # Load the model
-            let model = Model::<Backend>::load(model_path)?;
-            
-            # Load and preprocess the image
-            let image = image::open(image_path)?
-                .to_luma8();
-            
-            # Resize to 28x28 if needed
+            let record = CompactRecorder::new().load(model_path.to_path_buf(), &device)?;
+            let model = Model::<MyBackend>::from_record(&record, &device);
+            let image = image::open(image_path)?.to_luma8();
             let image = if image.dimensions() != (28, 28) {
-                image::imageops::resize(
-                    &image,
-                    28,
-                    28,
-                    image::imageops::FilterType::Nearest,
-                )
+                image::imageops::resize(&image, 28, 28, image::imageops::FilterType::Nearest)
             } else {
                 image
             };
             
-            # Convert to tensor
-            let image_data: Vec<f32> = image
-                .pixels()
-                .map(|p| (p[0] as f32 / 255.0 - 0.1307) / 0.3081)
-                .collect();
-            
-            # Create a 4D tensor [batch_size=1, channels=1, height=28, width=28]
-            let tensor = Tensor::<Backend, 4>::from_data(
-                TensorData::new(image_data, [1, 1, 28, 28]),
-                &device,
+            let image_data: Vec<f32> = image.pixels().map(|p| normalize_mnist_pixel(p[0])).collect();
+            let input = Tensor::<MyBackend, 3>::from_data(
+                Data::new(image_data, Shape::new([1, 28, 28])),
+                &device
             );
             
-            # Make prediction
-            let output = model.forward(tensor);
-            
-            # Get the predicted digit
-            let prediction = output
-                .argmax(1)
-                .squeeze(1)
-                .into_scalar::<i64>();
-            
-            println!("✅ Predicted digit: {}", prediction);
-        },
+            let output = model.forward(&input);
+            let pred_data = output.argmax(1).to_data();
+            let pred_slice = pred_data.as_slice::<i64>().unwrap_or(&[0]);
+            let pred = pred_slice[0];
+            println!("Predicted digit: {}", pred);
+        }
     }
-    
     Ok(())
 }
 EOL
 
-# Create README.md
-cat > README.md << 'EOL'
-# MNIST Digit Recognition
-
-A handwritten digit recognition project using the Burn deep learning framework and the MNIST dataset.
-
-## Overview
-
-This project implements a Convolutional Neural Network (CNN) to recognize handwritten digits from the MNIST dataset. It uses the Burn framework, a deep learning framework written in Rust.
-
-## Getting Started
-
-### Prerequisites
-
-- Rust and Cargo (install from [rustup.rs](https://rustup.rs/))
-- The MNIST dataset (download script provided)
-
-### Setup
-
-1. Download the MNIST dataset:
-
-```bash
-./download_mnist.sh
-```
-
-2. Download sample images for testing:
-
-```bash
-./download_sample_images.sh
-```
-
-## Usage
-
-### Training a Model
-
-To train a new model with default parameters:
-
-```bash
-cargo run -- train
-```
-
-You can customize the training process with the following options:
-
-```bash
-cargo run -- train --epochs 10 --batch-size 128 --learning-rate 0.001 --model-path model.json
-```
-
-### Evaluating a Model
-
-To evaluate a trained model on the test dataset:
-
-```bash
-cargo run -- evaluate --model-path model.json
-```
-
-### Making Predictions
-
-To recognize a digit in a custom image:
-
-```bash
-cargo run -- predict --model-path model.json --image-path path/to/your/image.png
-```
-
-The image should ideally be a grayscale image with a white digit on a black background, similar to the MNIST format.
-
-## Model Architecture
-
-The CNN architecture consists of:
-- Three convolutional layers with batch normalization and GELU activation
-- Dropout for regularization
-- Two fully connected layers
-
-## Project Structure
-
-- `src/data.rs`: Dataset loading and batching
-- `src/model.rs`: Neural network architecture
-- `src/training.rs`: Training and evaluation logic
-- `src/main.rs`: CLI interface
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-EOL
-
-# Create download_sample_images.sh
-cat > download_sample_images.sh << 'EOL'
-#!/bin/bash
-
-# Create directory for sample images
-mkdir -p sample_images
-
-# Download 10 sample MNIST images (one for each digit)
-echo "Downloading sample MNIST images..."
-
-# Use a more reliable source for sample MNIST images
-# These are hosted on GitHub in a public repository
-URLS=(
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/0.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/1.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/2.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/3.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/4.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/5.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/6.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/7.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/8.png"
-  "https://github.com/tracel-ai/burn/raw/main/examples/mnist/assets/9.png"
-)
-
-# Download each image
-for i in {0..9}; do
-  echo "Downloading digit $i sample..."
-  curl -L -s "${URLS[$i]}" -o "sample_images/digit_$i.png"
-done
-
-echo "✅ Sample images downloaded to sample_images/ directory"
-echo "You can use these images for testing with the predict command:"
-echo "cargo run -- predict --model-path model.json --image-path sample_images/digit_0.png"
-EOL
-
-# Create download_mnist.sh
+# Fix the download_mnist.sh script to properly download and extract the MNIST dataset
 cat > download_mnist.sh << 'EOL'
 #!/bin/bash
-
-# Create directory for MNIST dataset
-mkdir -p data/mnist
+set -e
 
 echo "Downloading MNIST dataset..."
 
-# Use a more reliable mirror for the MNIST dataset
-MNIST_BASE_URL="https://storage.googleapis.com/cvdf-datasets/mnist"
+# Create data directory if it doesn't exist
+mkdir -p data/mnist
 
 # Download MNIST dataset files
-curl -L -o data/mnist/train-images-idx3-ubyte.gz "${MNIST_BASE_URL}/train-images-idx3-ubyte.gz"
-curl -L -o data/mnist/train-labels-idx1-ubyte.gz "${MNIST_BASE_URL}/train-labels-idx1-ubyte.gz"
-curl -L -o data/mnist/t10k-images-idx3-ubyte.gz "${MNIST_BASE_URL}/t10k-images-idx3-ubyte.gz"
-curl -L -o data/mnist/t10k-labels-idx1-ubyte.gz "${MNIST_BASE_URL}/t10k-labels-idx1-ubyte.gz"
+wget -nc -q http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz -O data/mnist/train-images-idx3-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz -O data/mnist/train-labels-idx1-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz -O data/mnist/t10k-images-idx3-ubyte.gz
+wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz -O data/mnist/t10k-labels-idx1-ubyte.gz
 
 # Extract the files
-echo "Extracting MNIST dataset files..."
 gunzip -f data/mnist/train-images-idx3-ubyte.gz
 gunzip -f data/mnist/train-labels-idx1-ubyte.gz
 gunzip -f data/mnist/t10k-images-idx3-ubyte.gz
 gunzip -f data/mnist/t10k-labels-idx1-ubyte.gz
 
-echo "✅ MNIST dataset downloaded and extracted to data/mnist/ directory"
-echo "You can now train the model with: cargo run -- train"
-EOL
-
-# Make the scripts executable
-chmod +x download_sample_images.sh
-chmod +x download_mnist.sh
-
-# Automatically download MNIST dataset into the generated app's directory
-if [ -d "$DESTINATION_DIR" ]; then
-  cd "$DESTINATION_DIR"
-  if [ ! -f data/mnist/train-images-idx3-ubyte ] || [ ! -f data/mnist/train-labels-idx1-ubyte ]; then
-    echo "Downloading MNIST dataset automatically into new app..."
-    ./download_mnist.sh
-  fi
-  cd -
+# Create a placeholder model.json file if it doesn't exist
+if [ ! -f model.json ]; then
+    echo "{}" > model.json
 fi
 
-echo "✅ Setup completed successfully!"
+echo "✅ MNIST dataset downloaded and extracted successfully!"
+echo "You can now run 'cargo run -- train' to train the model."
+EOL
+
+# Fix the download_sample_images.sh script to download sample MNIST digit images
+cat > download_sample_images.sh << 'EOL'
+#!/bin/bash
+set -e
+
+echo "Downloading sample MNIST digit images..."
+
+# Create sample_images directory if it doesn't exist
+mkdir -p sample_images
+
+# Download sample images
+for i in {0..9}; do
+    wget -nc -q "https://raw.githubusercontent.com/tracel-ai/burn/main/examples/mnist/sample_images/digit_$i.png" -O "sample_images/digit_$i.png"
+done
+
+echo "✅ Sample images downloaded successfully!"
+echo "You can now run 'cargo run -- predict --model-path ./model.json --image-path sample_images/digit_0.png' to test prediction."
+EOL
+
+echo "Post-generation fixes completed successfully!"
+echo "You can now run the following commands:"
+echo "  - ./download_mnist.sh to download the MNIST dataset"
+echo "  - ./download_sample_images.sh to download sample images for testing"
+echo "  - cargo run -- train to train the model"
+echo "  - cargo run -- predict -m model.json -i sample_images/digit_0.png to test prediction"
