@@ -7,10 +7,10 @@ echo "Downloading MNIST dataset..."
 mkdir -p data/mnist
 
 # Download MNIST dataset files
-wget -nc -q http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz -O data/mnist/train-images-idx3-ubyte.gz
-wget -nc -q http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz -O data/mnist/train-labels-idx1-ubyte.gz
-wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz -O data/mnist/t10k-images-idx3-ubyte.gz
-wget -nc -q http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz -O data/mnist/t10k-labels-idx1-ubyte.gz
+curl -s -o data/mnist/train-images-idx3-ubyte.gz http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz
+curl -s -o data/mnist/train-labels-idx1-ubyte.gz http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz
+curl -s -o data/mnist/t10k-images-idx3-ubyte.gz http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz
+curl -s -o data/mnist/t10k-labels-idx1-ubyte.gz http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz
 
 # Extract the files
 gunzip -f data/mnist/train-images-idx3-ubyte.gz
