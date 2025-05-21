@@ -40,40 +40,16 @@ pub fn get_template(name: &str) -> Result<String> {
 }
 
 pub fn get_all_templates() -> Result<Vec<String>> {
-    // List all built-in templates
+    // Only return verified working templates
     let templates = vec![
         "minimal".to_string(),
         "library".to_string(),
         "embedded".to_string(),
         "server".to_string(),
-        "serverless".to_string(),
         "client".to_string(),
+        "serverless".to_string(),
         "data-science".to_string(),
     ];
-    
-    // Check for custom templates in the templates directory
-    let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
-    if let Ok(entries) = fs::read_dir(&templates_dir) {
-        let mut all_templates = templates;
-        
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(dir_name) = entry.file_name().to_str() {
-                    // Skip templates that are known to be incomplete
-                    if dir_name == "web" || !entry.path().join("template.json").exists() {
-                        continue;
-                    }
-                    
-                    // Only add if not already in the list
-                    if !all_templates.contains(&dir_name.to_string()) {
-                        all_templates.push(dir_name.to_string());
-                    }
-                }
-            }
-        }
-        
-        return Ok(all_templates);
-    }
     
     Ok(templates)
 }
@@ -81,63 +57,16 @@ pub fn get_all_templates() -> Result<Vec<String>> {
 /// Returns a list of templates with their descriptions
 /// Format: Vec<(name, description)>
 pub fn list_templates() -> Result<Vec<(String, String)>> {
-    // Define core templates with descriptions
-    let mut templates = vec![
+    // Define only verified working templates with descriptions
+    let templates = vec![
         ("minimal".to_string(), "Simple binary with a single main.rs file".to_string()),
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
         ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
-        ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
-        ("client".to_string(), "Frontend client application".to_string()),
+        ("client".to_string(), "Frontend web application (Leptos, Yew, or Dioxus)".to_string()),
+        ("serverless".to_string(), "Serverless function (AWS Lambda, Cloudflare Workers, etc.)".to_string()),
         ("data-science".to_string(), "Data science and machine learning projects".to_string()),
     ];
-    
-    // Track template names we've already added to avoid duplicates
-    let template_names: Vec<String> = templates.iter().map(|(name, _)| name.clone()).collect();
-    
-    // Check for custom templates in the templates directory
-    let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
-    if let Ok(entries) = fs::read_dir(&templates_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(dir_name) = entry.file_name().to_str() {
-                    // Skip templates we've already added or those that are known to be incomplete
-                    if template_names.contains(&dir_name.to_string()) || 
-                       dir_name == "web" || 
-                       !entry.path().join("template.json").exists() {
-                        continue;
-                    }
-                    
-                    // Skip data-science subdirectories in the main list
-                    if dir_name.starts_with("data-science/") {
-                        continue;
-                    }
-                    
-                    // Try to read description from template.json if it exists
-                    let template_json = entry.path().join("template.json");
-                    let description = if template_json.exists() {
-                        if let Ok(content) = fs::read_to_string(&template_json) {
-                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                                if let Some(desc) = json.get("description").and_then(|d| d.as_str()) {
-                                    desc.to_string()
-                                } else {
-                                    format!("Custom template: {}", dir_name)
-                                }
-                            } else {
-                                format!("Custom template: {}", dir_name)
-                            }
-                        } else {
-                            format!("Custom template: {}", dir_name)
-                        }
-                    } else {
-                        format!("Custom template: {}", dir_name)
-                    };
-                    
-                    templates.push((dir_name.to_string(), description));
-                }
-            }
-        }
-    }
     
     Ok(templates)
 }
@@ -150,21 +79,7 @@ pub fn list_data_science_templates() -> Result<Vec<(String, String)>> {
         
         // Machine Learning
         ("data-science/linfa-examples".to_string(), "Machine Learning: Working examples with Linfa 0.7.1 (classification, regression, clustering)".to_string()),
-        
-        // Deep Learning with Burn Framework - Image Processing
-        ("data-science/burn-image-recognition".to_string(), "Burn - Image Recognition: Identify handwritten numbers with MNIST dataset".to_string()),
-        ("data-science/burn-image-classifier".to_string(), "Burn - Image Classifier: Customizable CNN for multi-class image classification".to_string()),
-        
-        // Deep Learning with Burn Framework - Text Processing
-        ("data-science/burn-text-classifier".to_string(), "Burn - Text Classifier: Categorize text into predefined classes".to_string()),
-        ("data-science/burn-text-analyzer".to_string(), "Burn - Text Analyzer: Analyze text sentiment with customizable LSTM model".to_string()),
-        
-        // Deep Learning with Burn Framework - Numerical Data
-        ("data-science/burn-value-prediction".to_string(), "Burn - Value Prediction: Forecast numerical values with regression models".to_string()),
-        ("data-science/burn-data-predictor".to_string(), "Burn - Data Predictor: Advanced regression with customizable architecture".to_string()),
-        
-        // Deep Learning with Burn Framework - Advanced & Experimental
-        ("data-science/burn-net".to_string(), "Burn - Neural Network Playground: Experiment with custom network architectures".to_string()),
+        ("data-science/rustlearn-examples".to_string(), "Machine Learning: Simple ML examples with rustlearn (classification, regression, clustering)".to_string()),
     ])
 }
 
@@ -217,18 +132,23 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
     let mut template_vars = json!({
         "project_name": project_name,
         "project_name_pascal_case": to_pascal_case(project_name),
+        "project_name_snake_case": project_name.replace("-", "_"),
+        "project_name_kebab_case": project_name.replace("_", "-")
     });
     
     // Add user-provided variables
     if let Some(ref vars) = variables {
         if let Some(obj) = vars.as_object() {
             if let Some(obj_mut) = template_vars.as_object_mut() {
-                for (_key, value) in obj {
-                    obj_mut.insert(_key.clone(), value.clone());
+                for (key, value) in obj {
+                    obj_mut.insert(key.clone(), value.clone());
                 }
             }
         }
     }
+    
+    // Debug: Print the template variables
+    println!("Template variables: {}", serde_json::to_string_pretty(&template_vars).unwrap_or_default());
     
     // Handle data science template-specific prompts
     if template_name.starts_with("data-science/") {
@@ -705,6 +625,40 @@ This project was generated using FerrisUp.
         
         // Process template files with variables
         process_template_directory(&template_dir, &target_dir, &template_vars, &mut handlebars)?;
+        
+        // Post-processing: Check for any remaining .template files that weren't processed correctly
+        if let Ok(entries) = fs::read_dir(&target_dir) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    let file_name = entry.file_name();
+                    let file_name_str = file_name.to_string_lossy();
+                    
+                    if path.is_file() && file_name_str.ends_with(".template") {
+                        println!("Post-processing template file: {}", path.display());
+                        
+                        // Read the template file
+                        let content = fs::read_to_string(&path)?;
+                        
+                        // Render with handlebars
+                        let rendered = handlebars.render_template(&content, &template_vars)
+                            .map_err(|e| anyhow!("Failed to render template {}: {}", path.display(), e))?;
+                        
+                        // Create the target path without .template extension
+                        let new_name = file_name_str.trim_end_matches(".template");
+                        let target_path = target_dir.join(new_name);
+                        
+                        // Write the rendered content
+                        fs::write(&target_path, rendered)?;
+                        
+                        // Remove the original .template file
+                        fs::remove_file(&path)?;
+                        
+                        println!("Processed template file: {} -> {}", path.display(), target_path.display());
+                    }
+                }
+            }
+        }
     }
     
     // After processing all files, clean up any files that shouldn't be in the target directory
@@ -852,10 +806,39 @@ This project was generated using FerrisUp.
     // Print successful message
     println!("\n✅ {} project created successfully!", project_name.green());
     
-    if let Some(next_steps) = get_template_next_steps(template_name, project_name, Some(template_vars.clone())) {
-        println!("\n{}", "Next steps:".bold().green());
-        for step in next_steps {
-            println!("- {}", step);
+    // Check for next steps in template.json
+    if let Ok(template_config) = get_template_config(template_name) {
+        if let Some(next_steps) = template_config.get("next_steps").and_then(|s| s.as_array()) {
+            println!("\n{}", "Next steps:".bold().green());
+            for step in next_steps {
+                if let Some(step_str) = step.as_str() {
+                    // Replace {{project_name}} with the actual project name
+                    let step_text = step_str.replace("{{project_name}}", project_name);
+                    println!("- {}", step_text);
+                }
+            }
+        }
+    }
+    
+    // Also check for next steps in .ferrisup_next_steps.json
+    let next_steps_file = target_dir.join(".ferrisup_next_steps.json");
+    if next_steps_file.exists() {
+        if let Ok(content) = fs::read_to_string(&next_steps_file) {
+            if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                if let Some(steps) = json.get("next_steps").and_then(|s| s.as_array()) {
+                    println!("\n{}", "Next steps:".bold().green());
+                    for step in steps {
+                        if let Some(step_str) = step.as_str() {
+                            // Replace {{project_name}} with the actual project name
+                            let step_text = step_str.replace("{{project_name}}", project_name);
+                            println!("- {}", step_text);
+                        }
+                    }
+                    
+                    // Delete the file after reading
+                    let _ = fs::remove_file(&next_steps_file);
+                }
+            }
         }
     }
     
@@ -874,36 +857,79 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
             let file_name = entry.file_name();
             let file_name_str = file_name.to_string_lossy();
             
-            // Determine target path - remove .template extension if present
-            let target_file_name = if file_name_str.ends_with(".template") {
-                file_name_str.replace(".template", "")
+            // Check if this is a template file (has .template extension)
+            let is_template_file = file_name_str.ends_with(".template");
+            
+            // Determine the target path (remove .template extension if present)
+            let target_path = if is_template_file {
+                // For template files, remove the .template extension
+                let new_name = file_name_str.trim_end_matches(".template");
+                let target = dst.join(new_name);
+                println!("Template file will be processed: {} -> {}", path.display(), target.display());
+                target
             } else {
-                file_name_str.to_string()
+                dst.join(&*file_name_str)
             };
             
-            let target_path = dst.join(&target_file_name);
+            println!("Processing {}: {} -> {}", 
+                   if is_template_file { "template file" } else { "regular file" },
+                   path.display(), 
+                   target_path.display());
             
-            // Process files that need template variable substitution
-            if path.extension().map_or(false, |ext| 
-                ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
-                ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
-            ) {
-                // Read template content
-                let template_content = fs::read_to_string(&path)?;
+            // Always process template files, and also process files with specific extensions
+            let should_process = is_template_file || {
+                // For non-template files, check if they have a processable extension
+                let ext = path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                
+                // Check if the file has a processable extension
+                matches!(ext, "rs" | "md" | "toml" | "html" | "css" | "json" | "yml" | "yaml") ||
+                file_name_str == "Cargo.toml" || 
+                file_name_str == "Cargo.lock"
+            };
+            
+            // Debug output
+            println!("Should process: {} (is_template_file: {})", should_process, is_template_file);
+            
+            if should_process {
+                println!("Processing file: {} (is_template: {}) -> {}", path.display(), is_template_file, target_path.display());
+                
+                // Read file content
+                let file_content = fs::read_to_string(&path)
+                    .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))?;
                 
                 // Process conditional blocks
-                let processed_content = process_conditional_blocks(&template_content, template_vars)?;
+                let processed_content = process_conditional_blocks(&file_content, template_vars)?;
                 
-                // Render with handlebars
-                let rendered = handlebars.render_template(&processed_content, template_vars)
-                    .map_err(|e| anyhow!("Failed to render template: {}", e))?;
+                // Check if the file contains template variables
+                let has_template_vars = processed_content.contains("{{") || 
+                                       processed_content.contains("{%") ||
+                                       processed_content.contains("#{") || 
+                                       processed_content.contains("%}");
                 
-                // Write rendered content
-                let mut file = File::create(&target_path)?;
-                file.write_all(rendered.as_bytes())?;
+                let final_content = if has_template_vars {
+                    // If it has template variables, render with Handlebars
+                    handlebars.render_template(&processed_content, template_vars)
+                        .map_err(|e| anyhow!("Failed to render template {}: {}", path.display(), e))?
+                } else {
+                    // If no template variables, use the content as-is
+                    processed_content
+                };
+                
+                // Ensure parent directory exists
+                if let Some(parent) = target_path.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|e| anyhow!("Failed to create directory {}: {}", parent.display(), e))?;
+                }
+                
+                // Write the final content to the target path
+                fs::write(&target_path, final_content)
+                    .map_err(|e| anyhow!("Failed to write file {}: {}", target_path.display(), e))?;
             } else {
                 // Just copy other files without processing
                 fs::copy(&path, &target_path)?;
+                println!("Copied file: {} -> {}", path.display(), target_path.display());
             }
             
             // Set executable bit for .sh files
@@ -921,6 +947,41 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
             
             // Process subdirectory recursively
             process_template_directory(&path, &dst.join(entry.file_name()), template_vars, handlebars)?;
+            
+            // Check for any remaining .template files in the target directory
+            let target_dir = dst.join(entry.file_name());
+            if let Ok(target_entries) = fs::read_dir(&target_dir) {
+                for target_entry in target_entries {
+                    if let Ok(target_entry) = target_entry {
+                        let target_path = target_entry.path();
+                        let target_file_name = target_entry.file_name();
+                        let target_file_str = target_file_name.to_string_lossy();
+                        
+                        if target_path.is_file() && target_file_str.ends_with(".template") {
+                            println!("Processing remaining template file: {}", target_path.display());
+                            
+                            // Read the template file
+                            let content = fs::read_to_string(&target_path)?;
+                            
+                            // Render with handlebars
+                            let rendered = handlebars.render_template(&content, template_vars)
+                                .map_err(|e| anyhow!("Failed to render template {}: {}", target_path.display(), e))?;
+                            
+                            // Create the target path without .template extension
+                            let new_name = target_file_str.trim_end_matches(".template");
+                            let new_target_path = target_dir.join(new_name);
+                            
+                            // Write the rendered content
+                            fs::write(&new_target_path, rendered)?;
+                            
+                            // Remove the original .template file
+                            fs::remove_file(&target_path)?;
+                            
+                            println!("Processed template file: {} -> {}", target_path.display(), new_target_path.display());
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -983,22 +1044,32 @@ fn process_file(
             fs::create_dir_all(parent)?;
         }
         
-        // Process the file based on its extension
-        if source.ends_with(".template") || source.ends_with(".rs") || source.ends_with(".md") || 
-           source.ends_with(".toml") || source.ends_with(".html") || source.ends_with(".css") || 
-           source.ends_with(".json") || target.ends_with("Cargo.toml") {
-            // Read the template content
-            let template_content = fs::read_to_string(&source_path)?;
+        // Determine if we should process this file
+        let should_process = {
+            // Check if it's a template file or has a processable extension
+            let is_template = source.ends_with(".template") || target.ends_with(".template");
+            let has_processable_extension = [
+                ".rs", ".md", ".toml", ".html", 
+                ".css", ".json", ".yml", ".yaml"
+            ].iter().any(|ext| source.ends_with(ext) || target.ends_with(ext));
             
-            // Process conditional blocks manually before rendering with Handlebars
-            let processed_content = process_conditional_blocks(&template_content, template_vars)?;
+            is_template || has_processable_extension || target.ends_with("Cargo.toml")
+        };
+        
+        if should_process {
+            // Read the file content
+            let file_content = fs::read_to_string(&source_path)
+                .map_err(|e| anyhow!("Failed to read file {}: {}", source_path.display(), e))?;
             
-            // Render the template with variables using Handlebars
-            let rendered = handlebars.render_template(&processed_content, template_vars)?;
+            // Process conditional blocks
+            let processed_content = process_conditional_blocks(&file_content, template_vars)?;
             
-            // Write the rendered content to the target file
-            let mut file = File::create(&target_path)?;
-            file.write_all(rendered.as_bytes())?;
+            // Render with handlebars
+            let rendered = handlebars.render_template(&processed_content, template_vars)
+                .map_err(|e| anyhow!("Failed to render template {}: {}", source_path.display(), e))?;
+            
+            // Write rendered content to the target path
+            fs::write(&target_path, rendered)?
         } else {
             // Just copy the file
             fs::copy(&source_path, &target_path)?;

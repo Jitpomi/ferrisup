@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Element, HtmlElement, Window};
+use web_sys::{Document, Element, HtmlElement};
 use wasm_bindgen::JsCast;
-use js_sys::{Date, Math, Object};
+use js_sys::{Date, Math};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator.
 #[cfg(feature = "wee_alloc")]
@@ -24,6 +24,7 @@ struct Card {
     title: String,
     description: String,
     icon: String,
+    #[allow(dead_code)]
     link: String,
 }
 

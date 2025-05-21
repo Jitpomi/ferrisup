@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{Element, HtmlElement, Window, Document};
+use web_sys::{Element, HtmlElement, Window, Document, ShadowRootInit};
 use wasm_bindgen::JsCast;
 use js_sys::Function;
 
@@ -86,7 +86,7 @@ impl RustComponent {
             .dyn_into::<HtmlElement>()?;
         
         // Attach a shadow DOM
-        let shadow_root = element.attach_shadow(&web_sys::ShadowRootInit::new())?;
+        let shadow_root = element.attach_shadow(&ShadowRootInit::new())?;
         
         // Create default properties
         let properties = ComponentProperties {

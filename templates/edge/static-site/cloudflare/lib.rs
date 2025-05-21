@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Element, HtmlElement, Window};
+use web_sys::{Document, HtmlElement, Window};
 use wasm_bindgen::JsCast;
 use js_sys::Date;
 
