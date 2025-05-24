@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
+use std::fs;
+use std::io;
 use std::process::Command;
+use colored::Colorize;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
 use crate::utils::create_directory;
 use serde_json::{self, json, Value};
-use std::fs;
-use std::io;
 use handlebars::Handlebars;
 
 // Helper function to recursively copy directories
@@ -519,26 +520,13 @@ pub fn execute(
                                             template = format!("edge/{}/{}", selected_app_type, selected_provider);
                                             additional_vars = Some(json!(vars_map));
                                             
-                                            // Debug log the actual path we're trying to use
+                                            // Check if the template directory exists
                                             let full_template_path = format!("{}/templates/{}", env!("CARGO_MANIFEST_DIR"), template);
                                             println!("Using template: {}", template);
-                                            println!("Full template path: {}", full_template_path);
                                             
                                             // Check if the directory exists
                                             if !Path::new(&full_template_path).exists() {
-                                                println!("⚠️ Warning: Template directory does not exist at {}", full_template_path);
-                                                return Err(anyhow!("Template directory not found"));
-                                            } else {
-                                                println!("✅ Template directory exists");
-                                                // List files in the directory for debugging
-                                                if let Ok(entries) = fs::read_dir(&full_template_path) {
-                                                    println!("Files in template directory:");
-                                                    for entry in entries {
-                                                        if let Ok(entry) = entry {
-                                                            println!("  - {}", entry.file_name().to_string_lossy());
-                                                        }
-                                                    }
-                                                }
+                                                return Err(anyhow!("Template directory not found: {}", full_template_path));
                                             }
                                             
                                             // Handle the edge template explicitly
@@ -1583,12 +1571,49 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
             fs::write(target_path, rendered)?;
         }
     }
-    
-    // Remove main.rs file in root directory if it exists (should be in src/main.rs)
-    let root_main_rs = app_path.join("main.rs");
-    if root_main_rs.exists() {
-        fs::remove_file(root_main_rs)?;
+    // Read template.json to get next steps
+    let template_json_path = template_dir_path.join("template.json");
+    if template_json_path.exists() {
+        let template_json_content = fs::read_to_string(&template_json_path)?;
+        if let Ok(template_config) = serde_json::from_str::<serde_json::Value>(&template_json_content) {
+            if let Some(next_steps) = template_config.get("next_steps").and_then(|s| s.as_array()) {
+                println!("\n✅ {} project created successfully!", name.green());
+                println!("\n{}", "Next steps:".bold().green());
+                
+                // Create a handlebars registry for processing templates
+                let mut handlebars = Handlebars::new();
+                handlebars.register_escape_fn(handlebars::no_escape);
+                
+                // Create template vars
+                let mut data = serde_json::Map::new();
+                data.insert("project_name".to_string(), json!(name));
+                
+                // Add template variables to the data
+                if let Some(ref vars) = additional_vars {
+                    if let Some(obj) = vars.as_object() {
+                        for (k, v) in obj {
+                            data.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+                
+                // Process each next step
+                for step in next_steps {
+                    if let Some(step_str) = step.as_str() {
+                        // Replace {{project_name}} with the actual project name
+                        let step_text = match handlebars.render_template(step_str, &json!(data)) {
+                            Ok(rendered) => rendered,
+                            Err(_) => step_str.replace("{{project_name}}", name),
+                        };
+                        println!("- {}", step_text);
+                    }
+                }
+                return Ok(());
+            }
+        }
     }
+    
+    println!("\n🎉 Project {} created successfully!", name);
     
     Ok(())
 }
