@@ -83,7 +83,8 @@ pub fn get_all_templates() -> Result<Vec<String>> {
 /// Format: Vec<(name, description)>
 pub fn list_templates() -> Result<Vec<(String, String)>> {
     // Define core templates with descriptions
-    let mut templates = vec![
+    // IMPORTANT: Only include the 8 core templates that are actually available in the new command
+    let templates = vec![
         ("minimal".to_string(), "Simple binary with a single main.rs file".to_string()),
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
@@ -94,52 +95,8 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
         ("edge".to_string(), "Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)".to_string()),
     ];
     
-    // Track template names we've already added to avoid duplicates
-    let template_names: Vec<String> = templates.iter().map(|(name, _)| name.clone()).collect();
-    
-    // Check for custom templates in the templates directory
-    let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
-    if let Ok(entries) = fs::read_dir(&templates_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(dir_name) = entry.file_name().to_str() {
-                    // Skip templates we've already added or those that are known to be incomplete
-                    if template_names.contains(&dir_name.to_string()) || 
-                       dir_name == "web" || 
-                       !entry.path().join("template.json").exists() {
-                        continue;
-                    }
-                    
-                    // Skip data-science subdirectories in the main list
-                    if dir_name.starts_with("data-science/") {
-                        continue;
-                    }
-                    
-                    // Try to read description from template.json if it exists
-                    let template_json = entry.path().join("template.json");
-                    let description = if template_json.exists() {
-                        if let Ok(content) = fs::read_to_string(&template_json) {
-                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                                if let Some(desc) = json.get("description").and_then(|d| d.as_str()) {
-                                    desc.to_string()
-                                } else {
-                                    format!("Custom template: {}", dir_name)
-                                }
-                            } else {
-                                format!("Custom template: {}", dir_name)
-                            }
-                        } else {
-                            format!("Custom template: {}", dir_name)
-                        }
-                    } else {
-                        format!("Custom template: {}", dir_name)
-                    };
-                    
-                    templates.push((dir_name.to_string(), description));
-                }
-            }
-        }
-    }
+    // Return only the core templates without discovering additional ones
+    // This ensures the list matches exactly what's shown in the new command
     
     Ok(templates)
 }
