@@ -29,12 +29,12 @@
       "anyhow = \"1.0\""
     ]
   },
-  "next_steps": {
-    "default": [
-      "cd {{project_name}}",
-      "cargo test",
-      "cargo doc --open",
-      "# Add your library functionality to src/lib.rs"
-    ]
-  }
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo test",
+    "cargo doc --open",
+    "# Edit src/lib.rs to add your library functionality",
+    "# Add dependencies to Cargo.toml as needed",
+    "# Build for release: cargo build --release"
+  ]
 }
