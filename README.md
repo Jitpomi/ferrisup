@@ -224,6 +224,18 @@ ferrisup dependency analyze [--path PATH]
 
 - `--path`: Path to the project (defaults to current directory)
 
+### `unused-features`
+
+Find unused features in your Cargo dependencies to optimize your project.
+
+```bash
+ferrisup unused-features [--path PATH]
+```
+
+- `--path`: Path to the project (defaults to current directory)
+
+This command identifies features that are enabled in your dependencies but not actually used in your code, helping you reduce compile times and binary sizes.
+
 ## Workspace Management
 
 > **Coming Soon:** Comprehensive workspace management capabilities are planned for future releases. The basic functionality is available, but advanced features are still in development.

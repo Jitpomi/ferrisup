@@ -103,6 +103,11 @@ fn main() -> Result<()> {
             println!("{}", "Managing dependencies".green().bold());
             commands::dependency::execute(args)
         }
+        #[cfg(not(feature = "workspace_test"))]
+        Some(commands::Commands::UnusedFeatures { path }) => {
+            println!("{}", "Finding unused features in dependencies".green().bold());
+            commands::unused_features::execute(path.as_deref())
+        }
         None => {
             println!("{}", "No command specified, using interactive mode".yellow());
             // Just show help for now

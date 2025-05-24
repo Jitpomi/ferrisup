@@ -9,6 +9,7 @@ pub mod workspace;
 pub mod component;
 pub mod dependency;
 pub mod frameworks;
+pub mod unused_features;
 
 // Re-export the Commands enum for the CLI
 use clap::Subcommand;
@@ -113,4 +114,12 @@ pub enum Commands {
     /// Manage project dependencies
     #[cfg(not(feature = "workspace_test"))]
     Dependency(dependency::DependencyArgs),
+
+    /// Find unused features in Cargo dependencies
+    #[cfg(not(feature = "workspace_test"))]
+    UnusedFeatures {
+        /// Path to the project (optional, will use current directory if not provided)
+        #[arg(short, long)]
+        path: Option<String>,
+    },
 }
