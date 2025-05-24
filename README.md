@@ -226,13 +226,19 @@ ferrisup dependency analyze [--path PATH]
 
 ### `unused-features`
 
-Find unused features in your Cargo dependencies to optimize your project.
+Find and remove unused features in your Cargo dependencies to optimize your project. This command helps reduce compile times and binary sizes by identifying features that are enabled but not actually used.
 
 ```bash
 ferrisup unused-features [--path PATH]
 ```
 
 - `--path`: Path to the project (defaults to current directory)
+
+The command will:
+1. Check if the `unused-features` tool is installed (and install it if needed)
+2. Analyze your project for unused features in dependencies
+3. Display a list of unused features grouped by dependency
+4. Provide specific recommendations for removing them from your Cargo.toml
 
 This command identifies features that are enabled in your dependencies but not actually used in your code, helping you reduce compile times and binary sizes.
 
