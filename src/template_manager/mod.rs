@@ -923,16 +923,20 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
                 // For template files, remove the .template extension
                 let new_name = file_name_str.trim_end_matches(".template");
                 let target = dst.join(new_name);
-                println!("Template file will be processed: {} -> {}", path.display(), target.display());
+                if env::var("FERRISUP_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true" {
+                    println!("Template file will be processed: {} -> {}", path.display(), target.display());
+                }
                 target
             } else {
                 dst.join(&*file_name_str)
             };
             
-            println!("Processing {}: {} -> {}", 
-                   if is_template_file { "template file" } else { "regular file" },
-                   path.display(), 
-                   target_path.display());
+            if env::var("FERRISUP_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true" {
+                println!("Processing {}: {} -> {}", 
+                       if is_template_file { "template file" } else { "regular file" },
+                       path.display(), 
+                       target_path.display());
+            }
             
             // Always process template files, and also process files with specific extensions
             let should_process = is_template_file || {
@@ -947,11 +951,15 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
                 file_name_str == "Cargo.lock"
             };
             
-            // Debug output
-            println!("Should process: {} (is_template_file: {})", should_process, is_template_file);
+            // Debug output only if verbose mode is enabled
+            if env::var("FERRISUP_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true" {
+                println!("Should process: {} (is_template_file: {})", should_process, is_template_file);
+            }
             
             if should_process {
-                println!("Processing file: {} (is_template: {}) -> {}", path.display(), is_template_file, target_path.display());
+                if env::var("FERRISUP_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true" {
+                    println!("Processing file: {} (is_template: {}) -> {}", path.display(), is_template_file, target_path.display());
+                }
                 
                 // Read file content
                 let file_content = fs::read_to_string(&path)
@@ -987,7 +995,9 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
             } else {
                 // Just copy other files without processing
                 fs::copy(&path, &target_path)?;
-                println!("Copied file: {} -> {}", path.display(), target_path.display());
+                if env::var("FERRISUP_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true" {
+                    println!("Copied file: {} -> {}", path.display(), target_path.display());
+                }
             }
             
             // Set executable bit for .sh files
