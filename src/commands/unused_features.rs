@@ -58,19 +58,61 @@ pub fn execute(path: Option<&str>) -> Result<()> {
         .output()?;
     
     if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
         
-        if stdout.trim().is_empty() {
-            println!("{}", "✅ No unused features found!".green());
-        } else {
+        // Check if the output contains information about pruning features
+        if stderr.contains("Prune") {
             println!("{}", "Found unused features:".yellow());
-            println!("{}", stdout);
+            
+            // Parse and display the unused features from the log output
+            let log_lines: Vec<&str> = stderr.lines().collect();
+            let mut current_dependency = "";
+            let mut unused_features = Vec::new();
+            
+            for line in log_lines {
+                if line.contains("==== Dependency") {
+                    // Extract dependency name
+                    if let Some(dep_name) = line.split("'")
+                        .nth(1) {
+                        current_dependency = dep_name;
+                        println!("{}", format!("\nDependency: {}", current_dependency).yellow().bold());
+                    }
+                } else if line.contains("Prune") && line.contains("feature flag from") {
+                    // Extract feature name
+                    if let Some(feature_name) = line.split("'")
+                        .nth(1) {
+                        println!("  - {}", feature_name);
+                        unused_features.push((current_dependency, feature_name));
+                    }
+                }
+            }
             
             println!("\n{}", "Recommendations:".green());
             println!("- Review the unused features and consider removing them from your Cargo.toml");
             println!("- For each dependency with unused features, update it like this:");
-            println!("  {} = {{ version = \"0.1\", features = [\"needed-feature\"] }} # Remove unused features", "dependency".italic());
-            println!("- Run 'cargo unused-features' again after making changes to verify");
+            
+            // Group by dependency
+            let mut deps = std::collections::HashMap::new();
+            for (dep, feature) in unused_features {
+                deps.entry(dep).or_insert_with(Vec::new).push(feature);
+            }
+            
+            // Print example for each dependency
+            for (dep, features) in deps {
+                println!("  {} = {{ version = \"x.y\", features = [] }} # Removed: {}", 
+                         dep.italic(), 
+                         features.join(", "));
+            }
+            
+            println!("- Run 'ferrisup unused-features' again after making changes to verify");
+            
+            // Clean up any report file if it exists
+            let report_path = target_path.join("report.json");
+            if report_path.exists() {
+                let _ = std::fs::remove_file(&report_path);
+            }
+        } else {
+            println!("{}", "✅ No unused features found!".green());
         }
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
