@@ -61,6 +61,9 @@ desktop.ini
 *.log
 /logs/
 
+# Ignore tool-generated reports
+report.json
+
 # AI models and data (typically large files)
 /ai/models/
 /ai/datasets/
