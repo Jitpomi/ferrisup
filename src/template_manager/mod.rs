@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -797,7 +796,7 @@ This project was generated using FerrisUp.
             let mut handlebars = Handlebars::new();
             
             // Add helper functions for conditional logic
-            handlebars.register_helper("eq", Box::new(|h: &Helper, _: &Handlebars, ctx: &Context, _: &mut RenderContext, out: &mut dyn Output| -> Result<(), RenderError> {
+            handlebars.register_helper("eq", Box::new(|h: &Helper, _: &Handlebars, _ctx: &Context, _: &mut RenderContext, out: &mut dyn Output| -> Result<(), RenderError> {
                 let param1 = h.param(0).ok_or_else(|| RenderError::new("Missing parameter 1"))?.value();
                 let param2 = h.param(1).ok_or_else(|| RenderError::new("Missing parameter 2"))?.value();
                 out.write(if param1 == param2 { "true" } else { "false" })?;
