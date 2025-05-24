@@ -14,7 +14,12 @@ use polars::prelude::JsonWriter;
 use polars::prelude::JsonFormat;
 
 {{#if (eq visualization "yes")}}
+// Visualization imports
 use plotters::prelude::*;
+use plotters::style::Color;
+{{else}}
+// Import only what's needed for non-visualization mode
+use plotters::style::Color;
 {{/if}}
 
 #[derive(Parser)]
