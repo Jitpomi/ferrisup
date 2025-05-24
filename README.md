@@ -1,3 +1,5 @@
+![FerrisUp - A powerful Rust project bootstrapping tool](img.png)
+
 # FerrisUp CLI
 
 A powerful Rust project bootstrapping tool - Start Anywhere, Scale Anywhere
