@@ -4,7 +4,7 @@
   "type": "binary",
   "files": [
     {
-      "source": "main.rs",
+      "source": "src/main.rs",
       "target": "src/main.rs"
     },
     {
