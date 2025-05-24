@@ -51,9 +51,9 @@ pub fn execute(path: Option<&str>) -> Result<()> {
 
     println!("{}", "Analyzing unused features in your project...".blue());
     
-    // Run cargo-unused-features
-    let output = Command::new("cargo")
-        .args(["unused-features"])
+    // Run unused-features binary with the analyze subcommand
+    let output = Command::new("unused-features")
+        .arg("analyze")
         .current_dir(&target_path)
         .output()?;
     
@@ -80,10 +80,10 @@ pub fn execute(path: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// Check if cargo-unused-features is installed
+/// Check if unused-features binary is installed
 fn is_cargo_unused_features_installed() -> bool {
-    let output = Command::new("cargo")
-        .args(["unused-features", "--version"])
+    let output = Command::new("unused-features")
+        .arg("--help")
         .output();
     
     match output {
