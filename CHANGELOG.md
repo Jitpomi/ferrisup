@@ -5,6 +5,26 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-05-24
+
+### Added
+- New `unused-features` command to help optimize Rust projects by identifying and removing unused features in dependencies
+  - Automatically installs the required `cargo-unused-features` tool if not present
+  - Analyzes project dependencies for unused features
+  - Provides clear, formatted output of unused features grouped by dependency
+  - Generates specific recommendations for removing unused features from Cargo.toml
+
+### Changed
+- Improved template handling for better user experience:
+  - Enhanced serverless templates with clearer next steps and better AWS Lambda environment variable documentation
+  - Improved edge templates with more concise output and better post-creation guidance
+  - Reduced verbosity in template output to focus on important information
+
+### Fixed
+- Fixed unused imports in Poem template to eliminate warnings
+- Fixed directory structure in minimal template by moving main.rs from root to src directory
+- Improved error handling in template processing
+
 ## [0.1.7] - 2025-03-28
 
 ### Added
