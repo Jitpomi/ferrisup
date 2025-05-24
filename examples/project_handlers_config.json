@@ -52,7 +52,7 @@
     {
       "name": "Data Science",
       "description": "Data science and machine learning projects",
-      "templates": ["data-science", "burn", "linfa", "polars-cli"],
+      "templates": ["data-science", "linfa", "polars-cli"],
       "template_variables": {
         "data_format": {
           "mapping": {

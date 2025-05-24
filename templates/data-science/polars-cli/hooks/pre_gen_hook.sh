@@ -10,7 +10,7 @@ DATA_SOURCE="${data_source}"
 TEMPLATE_DIR="$(dirname "$0")/.."
 cd "$TEMPLATE_DIR"
 
-echo "Pre-generation hook: Updating next_steps for $DATA_SOURCE"
+# Silently update next_steps for $DATA_SOURCE
 
 # Create a temporary file
 TEMP_FILE=$(mktemp)
@@ -31,7 +31,7 @@ update_next_steps() {
   
   # Replace the template.json file with the updated one
   mv "$TEMP_FILE" "template.json"
-  echo "Updated next_steps for $format format using $next_steps_file"
+  # Silently updated next_steps for $format format
 }
 
 # Select the appropriate next steps file based on the data source

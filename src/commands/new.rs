@@ -572,67 +572,55 @@ pub fn execute(
             return Err(anyhow!("Edge template configuration not found"));
         }
     } else {
-        // Skip options handling for templates we're handling manually
-        if template != "server" && template != "serverless" {
-            // Check if the template has options that need user input
-            if let Some(options) = template_config.get("options").and_then(|o| o.as_array()) {
+        // Skip options handling for templates we're handling manually or data science templates
+        if template != "server" && template != "serverless" && !template.starts_with("data-science/") {
+            // Check if the template has prompts that need user input
+            if let Some(prompts) = template_config.get("prompts").and_then(|p| p.as_array()) {
+                println!("\n📊 Data Science Project Configuration\n");
+                
                 let mut vars = serde_json::Map::new();
                 
-                for option in options {
-                    if let (Some(name), Some(desc), Some(option_type)) = (
-                        option.get("name").and_then(|n| n.as_str()),
-                        option.get("description").and_then(|d| d.as_str()),
-                        option.get("type").and_then(|t| t.as_str())
+                for prompt in prompts {
+                    if let (Some(name), Some(question), Some(options)) = (
+                        prompt.get("name").and_then(|n| n.as_str()),
+                        prompt.get("question").and_then(|q| q.as_str()),
+                        prompt.get("options").and_then(|o| o.as_array())
                     ) {
-                        if option_type == "select" && option.get("options").is_some() {
-                            let option_values: Vec<&str> = option.get("options")
-                                .and_then(|o| o.as_array())
-                                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
-                                .unwrap_or_default();
+                        let option_values: Vec<&str> = options
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect();
+                        
+                        if !option_values.is_empty() {
+                            let default_idx = prompt.get("default")
+                                .and_then(|d| d.as_str())
+                                .and_then(|d| option_values.iter().position(|&v| v == d))
+                                .unwrap_or(0);
                             
-                            if !option_values.is_empty() {
-                                let default_idx = option.get("default")
-                                    .and_then(|d| d.as_str())
-                                    .and_then(|d| option_values.iter().position(|&v| v == d))
-                                    .unwrap_or(0);
-                                
-                                let selection = Select::new()
-                                    .with_prompt(desc)
-                                    .items(&option_values)
-                                    .default(default_idx)
-                                    .interact()?;
-                                
-                                let selected_value = option_values[selection];
-                                vars.insert(name.to_string(), json!(selected_value));
-                                
-                                // If there's a help message for this option, display it
-                                if let Some(help_messages) = template_config.get("help") {
-                                    if let Some(help_message) = help_messages.get(selected_value).and_then(|m| m.as_str()) {
-                                        println!("ℹ️  {}", help_message);
-                                    }
-                                }
-                                
-                                // If we're selecting a static server, and it's not "none", display guidance
-                                if name == "static_server" && selected_value != "none" {
-                                    println!("📝 Using {} as static file server. Run `{} . --port 8080` to start.", 
-                                        selected_value, selected_value);
-                                }
-                                
-                                // Echo selection
-                                println!("Using {} as the {}", selected_value, name);
-                            }
-                        } else if option_type == "input" {
-                            let default = option.get("default").and_then(|d| d.as_str()).unwrap_or("");
-                            
-                            let input = Input::<String>::new()
-                                .with_prompt(desc)
-                                .default(default.to_string())
+                            let selection = Select::new()
+                                .with_prompt(question)
+                                .items(&option_values)
+                                .default(default_idx)
                                 .interact()?;
                             
-                            vars.insert(name.to_string(), json!(input));
+                            let selected_value = option_values[selection];
+                            vars.insert(name.to_string(), json!(selected_value));
                             
-                            // Echo input
-                            println!("Using {} as the {}", input, name);
+                            // Print the selection
+                            println!("\n📊 {} {}: {}", 
+                                match name {
+                                    "data_source" => "What type of data will you be working with?",
+                                    "analysis_type" => "What type of analysis do you plan to perform?",
+                                    "visualization" => "Do you need data visualization capabilities?",
+                                    _ => question
+                                },
+                                selected_value,
+                                if name == "visualization" && selected_value == "yes" {
+                                    "\n📈 Visualization support will be added to your project."
+                                } else {
+                                    ""
+                                }
+                            );
                         }
                     }
                 }
@@ -873,8 +861,7 @@ npx create-tauri-app {}
         // Using a simpler approach to avoid UI rendering issues
         let framework_options = vec![
             "Data Analysis with Polars",
-            "Machine Learning with Linfa",
-            "Deep Learning with Burn"
+            "Machine Learning with Linfa"
         ];
         
         // Create a selection without additional prompt text to avoid duplication
@@ -895,119 +882,6 @@ npx create-tauri-app {}
                 // Linfa selected
                 template = "data-science/linfa-examples".to_string();
                 println!("🔍 Selected: Machine Learning with Linfa");
-            },
-            2 => {
-                // Burn selected - show task categories
-                // Using a simpler approach for category selection
-                let burn_categories = vec![
-                    "Image Processing",
-                    "Text Processing",
-                    "Numerical Data",
-                    "Advanced & Experimental"
-                ];
-                
-                let category_selection = Select::new()
-                    .with_prompt("🧠 Select a Deep Learning task category")
-                    .default(0)
-                    .items(&burn_categories)
-                    .interact()?;
-                
-                // Define the tasks and their corresponding template paths for each category
-                let (category_prompt, tasks, template_paths) = match category_selection {
-                    0 => {
-                        // First present the image processing task categories
-                        let image_categories = vec![
-                            "Image Classification",
-                            // Future categories (commented out until implemented)
-                            // "Image Generation (Coming Soon)",
-                            // "Image Segmentation (Coming Soon)",
-                            // "Image Detection (Coming Soon)"
-                        ];
-                        
-                        println!("🖼️ Select an Image Processing task:");
-                        let image_category = Select::new()
-                            .items(&image_categories)
-                            .default(0)
-                            .interact()?;
-                        
-                        // Based on the selected category, show appropriate options
-                        match image_category {
-                            0 => {
-                                // Image Classification options
-                                (
-                                    "📊 Select an Image Classification model",
-                                    vec![
-                                        "MNIST Digit Recognition (Simple)",
-                                        "General Image Classifier (CIFAR-10/Custom)"
-                                    ],
-                                    vec![
-                                        "data-science/burn-image-recognition",
-                                        "data-science/burn-image-classifier"
-                                    ]
-                                )
-                            },
-                            // Add other image categories in the future
-                            _ => (
-                                "📊 Select an Image Classification model",
-                                vec!["MNIST Digit Recognition (Simple)"],
-                                vec!["data-science/burn-image-recognition"]
-                            )
-                        }
-                    },
-                    1 => (
-                        "📝 Select a Text Processing task",
-                        vec![
-                            "Text Classifier",
-                            "Text Analyzer (Sentiment Analysis)"
-                        ],
-                        vec![
-                            "data-science/burn-text-classifier",
-                            "data-science/burn-text-analyzer"
-                        ]
-                    ),
-                    2 => (
-                        "📊 Select a Numerical Data task",
-                        vec![
-                            "Value Prediction",
-                            "Data Predictor (Advanced Regression)"
-                        ],
-                        vec![
-                            "data-science/burn-value-prediction",
-                            "data-science/burn-data-predictor"
-                        ]
-                    ),
-                    3 => (
-                        "⚙️ Select an Advanced or Experimental task",
-                        vec![
-                            "Neural Network Playground"
-                        ],
-                        vec![
-                            "data-science/burn-net"
-                        ]
-                    ),
-                    _ => (
-                        "🖼️ Select an Image Classification model",
-                        vec!["MNIST Digit Recognition (Simple)"],
-                        vec!["data-science/burn-image-recognition"]
-                    ),
-                };
-                
-                // Show task selection and get user choice
-                let task_selection = Select::new()
-                    .with_prompt(category_prompt)
-                    .default(0)
-                    .items(&tasks)
-                    .interact()?;
-                
-                // Set the template path based on the task selection
-                template = if task_selection < template_paths.len() {
-                    template_paths[task_selection].to_string()
-                } else {
-                    // Fallback to the first template if selection is out of bounds
-                    template_paths[0].to_string()
-                };
-                
-                println!("🧠 Selected: {}", tasks[task_selection]);
             },
             _ => {
                 // Fallback
@@ -1215,8 +1089,71 @@ npx create-tauri-app {}
         let template_path = format!("client/leptos/{}", template);
         template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
     } else {
-        // For other templates, use as is
-        template_manager::apply_template(&template, app_path, &name, additional_vars.clone())?;
+        // For data science templates, handle the prompts directly
+        if template.starts_with("data-science/") {
+            // Get the template configuration to access prompts
+            let template_config = template_manager::get_template_config(&template)?;
+            
+            println!("\n📊 Data Science Project Configuration\n");
+            
+            // Create a map to store the user's selections
+            let mut template_vars = serde_json::Map::new();
+            
+            // Process prompts if they exist
+            if let Some(prompts) = template_config.get("prompts").and_then(|p| p.as_array()) {
+                for prompt in prompts {
+                    if let (Some(name), Some(question), Some(options)) = (
+                        prompt.get("name").and_then(|n| n.as_str()),
+                        prompt.get("question").and_then(|q| q.as_str()),
+                        prompt.get("options").and_then(|o| o.as_array())
+                    ) {
+                        let option_values: Vec<&str> = options
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect();
+                        
+                        if !option_values.is_empty() {
+                            let default_idx = prompt.get("default")
+                                .and_then(|d| d.as_str())
+                                .and_then(|d| option_values.iter().position(|&v| v == d))
+                                .unwrap_or(0);
+                            
+                            // Create the selection prompt
+                            let selection = Select::new()
+                                .with_prompt(question)
+                                .items(&option_values)
+                                .default(default_idx)
+                                .interact()?;
+                            
+                            let selected_value = option_values[selection];
+                            template_vars.insert(name.to_string(), json!(selected_value));
+                        }
+                    }
+                }
+            }
+            
+            // Add any additional variables that might have been set earlier
+            if let Some(ref additional) = additional_vars {
+                if let Some(obj) = additional.as_object() {
+                    for (k, v) in obj {
+                        if !template_vars.contains_key(k) {
+                            template_vars.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+            }
+            
+            // Debug output only when in verbose mode
+            if std::env::var("FERRISUP_VERBOSE").is_ok() {
+                println!("Template variables: {}", json!(template_vars));
+            }
+            
+            // Apply the template with the user's selections
+            template_manager::apply_template(&template, app_path, &name, Some(json!(template_vars)))?;
+        } else {
+            // For non-data-science templates, use the original approach
+            template_manager::apply_template(&template, app_path, &name, additional_vars)?;
+        }
     }
 
     // Initialize git repository if requested

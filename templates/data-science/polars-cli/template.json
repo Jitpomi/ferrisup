@@ -44,7 +44,8 @@
     },
     {
       "source": "README.md.template",
-      "target": "README.md"
+      "target": "README.md",
+      "template": true
     },
     {
       "source": "hooks/pre_gen_hook.sh",

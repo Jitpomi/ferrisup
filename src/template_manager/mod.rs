@@ -1,15 +1,17 @@
 use anyhow::{Result, anyhow};
+use std::collections::{BTreeMap, HashMap};
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Write, BufRead};
 use std::path::{Path, PathBuf};
-use serde_json::{Value, json, Map};
+use std::process::Command;
 use std::sync::{Arc, RwLock};
-use lazy_static::lazy_static;
-use handlebars::Handlebars;
+use serde_json::{Value, json, Map};
+use handlebars::{Handlebars, Helper, Context, RenderContext, Output, RenderError};
 use colored::Colorize;
 use dialoguer::Select;
-use std::process::Command;
+use lazy_static::lazy_static;
 use walkdir::WalkDir;
 use regex::Regex;
 use std::os::unix::fs::PermissionsExt;
@@ -147,39 +149,19 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
         }
     }
     
-    // Debug: Print the template variables
-    println!("Template variables: {}", serde_json::to_string_pretty(&template_vars).unwrap_or_default());
+    // Debug output only when in verbose mode
+    if std::env::var("FERRISUP_VERBOSE").is_ok() {
+        println!("Template variables: {}", serde_json::to_string_pretty(&template_vars).unwrap_or_default());
+    }
     
-    // Handle data science template-specific prompts
+    // Skip data science template-specific prompts as they're now handled in the new.rs file
     if template_name.starts_with("data-science/") {
+        // We'll use the variables passed from new.rs instead of asking again
+        // This avoids duplicate prompts
         let mut additional_vars = Map::new();
         
-        // Common data science questions
-        println!("\n{}", "📊 Data Science Project Configuration".bold().green());
-        
-        if template_name == "data-science/polars-cli" {
-            println!("\n{}", "Polars DataFrame Analysis Configuration:".bold());
-            
-            let data_source = prompt_with_options(
-                "What type of data will you be working with?",
-                &["CSV files", "Parquet files", "JSON data"]
-            )?;
-            additional_vars.insert("data_source".to_string(), json!(data_source));
-            
-            let analysis_type = prompt_with_options(
-                "What type of analysis do you plan to perform?",
-                &["Exploratory data analysis", "Data cleaning & transformation", "Statistical analysis", "Time series analysis", "Custom analysis"]
-            )?;
-            additional_vars.insert("analysis_type".to_string(), json!(analysis_type));
-            
-            let visualization = prompt_with_default(
-                "Do you need data visualization capabilities?",
-                "yes"
-            )?;
-            additional_vars.insert("visualization".to_string(), json!(visualization.to_lowercase()));
-            
-            println!("\n✅ Polars DataFrame project configured successfully!");
-        } else if template_name == "data-science/linfa-examples" {
+        // Special handling for linfa-examples which has unique prompts
+        if template_name == "data-science/linfa-examples" {
             println!("\n{}", "Linfa Machine Learning Examples Configuration:".bold());
             
             // Focus only on data source, which is the meaningful distinction
@@ -810,11 +792,88 @@ This project was generated using FerrisUp.
     if let Ok(template_config) = get_template_config(template_name) {
         if let Some(next_steps) = template_config.get("next_steps").and_then(|s| s.as_array()) {
             println!("\n{}", "Next steps:".bold().green());
+            
+            // Create a handlebars registry for processing templates
+            let mut handlebars = Handlebars::new();
+            
+            // Add helper functions for conditional logic
+            handlebars.register_helper("eq", Box::new(|h: &Helper, _: &Handlebars, ctx: &Context, _: &mut RenderContext, out: &mut dyn Output| -> Result<(), RenderError> {
+                let param1 = h.param(0).ok_or_else(|| RenderError::new("Missing parameter 1"))?.value();
+                let param2 = h.param(1).ok_or_else(|| RenderError::new("Missing parameter 2"))?.value();
+                out.write(if param1 == param2 { "true" } else { "false" })?;
+                Ok(())
+            }));
+            
+            // Convert variables to a format handlebars can use
+            let mut data = serde_json::Map::new();
+            data.insert("project_name".to_string(), json!(project_name));
+            
+            // Add template variables to the data
+            if let Some(ref vars) = variables {
+                if let Some(obj) = vars.as_object() {
+                    for (k, v) in obj {
+                        data.insert(k.clone(), v.clone());
+                    }
+                }
+                
+                // Process data_format based on data_source if needed
+                let data_format = if let Some(data_source) = data.get("data_source") {
+                    if let Some(source) = data_source.as_str() {
+                        match source {
+                            "CSV files" => "csv",
+                            "JSON data" => "json",
+                            "Parquet files" => "parquet",
+                            _ => "csv"
+                        }
+                    } else {
+                        "csv"
+                    }
+                } else {
+                    "csv"
+                };
+                
+                // Always set data_format directly
+                data.insert("data_format".to_string(), json!(data_format));
+            }
+            
+            // Process each next step
             for step in next_steps {
-                if let Some(step_str) = step.as_str() {
-                    // Replace {{project_name}} with the actual project name
-                    let step_text = step_str.replace("{{project_name}}", project_name);
-                    println!("- {}", step_text);
+                if let Some(step_template) = step.as_str() {
+                        // First, handle direct substitutions for critical variables
+                    let mut step_str = step_template.to_string();
+                    
+                    // Always replace project_name
+                    step_str = step_str.replace("{{project_name}}", project_name);
+                    
+                    // Handle data_format variable directly
+                    if step_str.contains("{{data_format}}") {
+                        // Get the data source from the variables
+                        let data_source = variables.as_ref()
+                            .and_then(|v| v.get("data_source"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("CSV files");
+                        
+                        // Map data source to file extension
+                        let extension = match data_source {
+                            "CSV files" => "csv",
+                            "JSON data" => "json",
+                            "Parquet files" => "parquet",
+                            _ => "csv"
+                        };
+                        
+                        step_str = step_str.replace("{{data_format}}", extension);
+                    }
+                    
+                    // Now try handlebars for any remaining variables
+                    match handlebars.render_template(&step_str, &json!(data)) {
+                        Ok(rendered) => {
+                            println!("- {}", rendered);
+                        },
+                        Err(_) => {
+                            // If handlebars fails, just use our direct substitutions
+                            println!("- {}", step_str);
+                        }
+                    }
                 }
             }
         }
@@ -1086,97 +1145,63 @@ fn process_file(
     
     Ok(())
 }
-
-/// Process conditional blocks in template content
 fn process_conditional_blocks(content: &str, variables: &Value) -> Result<String> {
     let mut result = content.to_string();
     
-    // Get the cloud provider from variables
-    let cloud_provider = if let Some(provider) = variables.get("cloud_provider").and_then(|p| p.as_str()) {
-        provider
-    } else {
-        return Ok(result);
-    };
-    
-    // Process {{#if (eq cloud_provider "aws")}} blocks
-    let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
-    
-    for provider in providers {
-        let start_tag = format!("{{{{#if (eq cloud_provider \"{}\")}}}}", provider);
-        let end_tag = "{{/if}}";
+    // Process conditional blocks for cloud_provider
+    if let Some(cloud_provider) = variables.get("cloud_provider").and_then(|p| p.as_str()) {
+        // Process {{#if (eq cloud_provider "aws")}} blocks
+        let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
         
-        // Find all blocks for this provider
-        let mut start_idx = 0;
-        while let Some(block_start) = result[start_idx..].find(&start_tag) {
-            let block_start = start_idx + block_start;
+        for provider in providers {
+            // Use a simpler approach to avoid format string issues
+            let mut start_tag = String::from("{{#if (eq cloud_provider \"");
+            start_tag.push_str(provider);
+            start_tag.push_str("\")}}");
+            let end_tag = "{{/if}}";
             
-            // Find the matching end tag
-            if let Some(block_end) = result[block_start..].find(end_tag) {
-                let block_end = block_start + block_end + end_tag.len();
+            // Find all blocks for this provider
+            let mut start_idx = 0;
+            while let Some(block_start) = result[start_idx..].find(&start_tag) {
+                let block_start = start_idx + block_start;
                 
-                // If this is the selected provider, keep the content but remove the tags
-                if provider == cloud_provider {
-                    let content_start = block_start + start_tag.len();
-                    let content_end = block_end - end_tag.len();
+                // Find the matching end tag
+                if let Some(block_end) = result[block_start..].find(end_tag) {
+                    let block_end = block_start + block_end + end_tag.len();
                     
-                    // Create a new string with the content but without the tags
-                    let new_result = format!(
-                        "{}{}{}",
-                        &result[0..block_start],
-                        &result[content_start..content_end],
-                        &result[block_end..]
-                    );
-                    
-                    result = new_result;
-                    
-                    // Adjust the start index for the next search
-                    start_idx = block_start + (content_end - content_start);
-                } else {
-                    // This is not the selected provider, remove the entire block
-                    let new_result = format!(
-                        "{}{}",
-                        &result[0..block_start],
-                        &result[block_end..]
-                    );
-                    
-                    result = new_result;
-                    
-                    // Adjust the start index for the next search
-                    start_idx = block_start;
-                }
-            } else {
-                // No matching end tag found, move past this start tag
-                start_idx = block_start + start_tag.len();
-            }
-        }
-    }
-    
-    Ok(result)
-}
-
-/// Apply transformations to content based on the selected variable value
-#[allow(dead_code)]
-fn apply_transformations(content: &str, transformations: &[Value], variables: &Value) -> Result<String> {
-    let mut result = content.to_string();
-    
-    for transformation in transformations {
-        if let Some(pattern) = transformation.get("pattern").and_then(|p| p.as_str()) {
-            if let Some(replacement_value) = transformation.get("replacement") {
-                // If replacement is an object, it may contain variable references
-                if let Some(replacement_obj) = replacement_value.as_object() {
-                    // Check for variable matches in the replacement object
-                    if let Some(vars) = variables.as_object() {
-                        for (_var_name, _var_value) in vars {
-                            if let Some(replacement) = replacement_obj.get(_var_name) {
-                                if let Some(replacement_str) = replacement.as_str() {
-                                    result = result.replace(pattern, replacement_str);
-                                }
-                            }
-                        }
+                    // If this is the selected provider, keep the content but remove the tags
+                    if provider == cloud_provider {
+                        let content_start = block_start + start_tag.len();
+                        let content_end = block_end - end_tag.len();
+                        
+                        // Create a new string with the content but without the tags
+                        let new_result = format!(
+                            "{}{}{}",
+                            &result[0..block_start],
+                            &result[content_start..content_end],
+                            &result[block_end..]
+                        );
+                        
+                        result = new_result;
+                        
+                        // Adjust the start index for the next search
+                        start_idx = block_start + (content_end - content_start);
+                    } else {
+                        // This is not the selected provider, remove the entire block
+                        let new_result = format!(
+                            "{}{}",
+                            &result[0..block_start],
+                            &result[block_end..]
+                        );
+                        
+                        result = new_result;
+                        
+                        // Adjust the start index for the next search
+                        start_idx = block_start;
                     }
-                } else if let Some(replacement_str) = replacement_value.as_str() {
-                    // Direct string replacement
-                    result = result.replace(pattern, replacement_str);
+                } else {
+                    // No matching end tag found, break the loop
+                    break;
                 }
             }
         }
