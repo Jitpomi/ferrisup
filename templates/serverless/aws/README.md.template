@@ -32,12 +32,26 @@ To test your AWS Lambda function locally:
    cargo install cargo-lambda
    ```
 
-2. Run the function locally:
+2. Set required environment variables for local testing:
+   ```bash
+   export AWS_LAMBDA_FUNCTION_NAME=test-function
+   # Optional: Set other AWS environment variables if needed
+   # export AWS_REGION=us-west-2
+   # export AWS_ACCESS_KEY_ID=your-access-key
+   # export AWS_SECRET_ACCESS_KEY=your-secret-key
+   ```
+
+3. Run the function locally:
    ```bash
    cargo lambda watch
    ```
 
-3. Make HTTP requests to your function:
+   Alternatively, you can run it directly with cargo:
+   ```bash
+   cargo run
+   ```
+
+4. Make HTTP requests to your function:
    ```bash
    curl -X POST "http://localhost:9000/lambda-url/{{project_name}}" -d '{"name": "world"}'
    ```

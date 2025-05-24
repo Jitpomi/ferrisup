@@ -144,50 +144,10 @@
       ]
     }
   ],
-  "next_steps": {
-    "default": [
-      "cd {{project_name}}",
-      "cargo build",
-      "cargo run"
-    ],
-    "conditional": [
-      {
-        "when": "cloud_provider == \"aws\"",
-        "steps": [
-          "# Install cargo-lambda: cargo install cargo-lambda",
-          "# Test locally: cargo lambda watch",
-          "# Deploy: cargo lambda deploy"
-        ]
-      },
-      {
-        "when": "cloud_provider == \"gcp\"",
-        "steps": [
-          "# Build: docker build -t gcr.io/your-project/function .",
-          "# Deploy: gcloud functions deploy function-name --runtime=rust --trigger-http"
-        ]
-      },
-      {
-        "when": "cloud_provider == \"azure\"",
-        "steps": [
-          "# Install Azure Functions Core Tools",
-          "# Test locally: func start",
-          "# Deploy: func azure functionapp publish your-function-app"
-        ]
-      },
-      {
-        "when": "cloud_provider == \"vercel\"",
-        "steps": [
-          "# Install Vercel CLI: npm i -g vercel",
-          "# Deploy: vercel"
-        ]
-      },
-      {
-        "when": "cloud_provider == \"netlify\"",
-        "steps": [
-          "# Install Netlify CLI: npm i -g netlify-cli",
-          "# Deploy: netlify deploy"
-        ]
-      }
-    ]
-  }
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Set environment variables (see README.md)",
+    "cargo run",
+    "# See README.md for deployment instructions"
+  ]
 }
