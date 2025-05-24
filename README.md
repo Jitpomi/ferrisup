@@ -2,6 +2,8 @@
 
 A powerful Rust project bootstrapping tool - Start Anywhere, Scale Anywhere
 
+> **Note:** FerrisUp is under active development. While the core templates are fully functional, some advanced features described in this README are still in development and will be included in upcoming versions.
+
 ## Overview
 
 FerrisUp CLI is a versatile command-line tool for creating and managing Rust projects with flexible templates. Like Create React App for React, FerrisUp makes it easy to start new Rust projects with the right structure and dependencies.
@@ -57,14 +59,12 @@ ferrisup list
 Current templates include:
 - `minimal` - Simple binary with a single main.rs file
 - `library` - Rust library crate with a lib.rs file
-- `full-stack` - Complete application with client, server, and shared libraries
-- `gen-ai` - AI-focused project with inference and model components
-- `edge-app` - WebAssembly-based application for edge computing
 - `embedded` - Embedded systems firmware for microcontrollers
-- `serverless` - Serverless functions for cloud deployment
-- `iot-device` - IoT device firmware with connectivity features
-- `ml-pipeline` - Machine learning data processing pipeline
-- `data-science` - Data science project with analysis tools
+- `server` - Web server with API endpoints (Axum, Actix, or Poem)
+- `client` - Frontend web application (Leptos, Yew, or Dioxus)
+- `serverless` - Serverless function (AWS Lambda, Cloudflare Workers, etc.)
+- `data-science` - Data science and machine learning projects
+- `edge` - Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)
 
 ## Usage
 
@@ -111,6 +111,8 @@ ferrisup list
 
 ### `scale`
 
+> **Coming Soon:** Enterprise scaling features are planned for future releases.
+
 Interactively scale a project with custom components.
 
 ```bash
@@ -128,6 +130,8 @@ ferrisup preview [--template TEMPLATE_NAME]
 - `--template`: Template to preview
 
 ### `component`
+
+> **Coming Soon:** Advanced component management is planned for future releases.
 
 Manage project components (add/remove).
 
@@ -163,6 +167,8 @@ ferrisup workspace [--action ACTION] [--path PATH]
 - `--path`: Path to the workspace
 
 ### `dependency`
+
+> **In Development:** Dependency management features are currently in development. Basic functionality is available, but advanced features are planned for future releases.
 
 Manage project dependencies with smart features.
 
@@ -220,7 +226,9 @@ ferrisup dependency analyze [--path PATH]
 
 ## Workspace Management
 
-FerrisUp provides comprehensive workspace management capabilities through the `workspace` command:
+> **Coming Soon:** Comprehensive workspace management capabilities are planned for future releases. The basic functionality is available, but advanced features are still in development.
+
+FerrisUp provides workspace management capabilities through the `workspace` command:
 
 ### Initialize a Workspace
 
@@ -296,13 +304,25 @@ FerrisUp supports both new and old template formats, ensuring backward compatibi
 
 ### Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome and encourage contributions from the community! If you believe in the project and would like to help make FerrisUp even better, please consider contributing.
+
+**How to Contribute:**
 
 1. Fork the repository
 2. Create your feature branch: `git checkout -b feature/amazing-feature`
 3. Commit your changes: `git commit -m 'Add some amazing feature'`
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
+
+**Priority Areas for Contribution:**
+
+- Enhancing the `transform` command to fully support project transformation between templates
+- Implementing comprehensive `scale` functionality for enterprise deployments
+- Expanding the `component` and `workspace` management features
+- Improving the dependency management system
+- Adding new templates or enhancing existing ones
+
+For major contributions or if you'd like to discuss implementation details before starting work, please email us at dev@jitpomi.com.
 
 ## Workflow
 
@@ -518,6 +538,8 @@ FerrisUp truly embodies the "start anywhere, scale anywhere" philosophy with its
 
 ### Transformation
 
+> **In Development:** The transformation feature is currently in active development. Basic transformation capabilities are available, but the full functionality described below is planned for future releases.
+
 ```bash
 # Start with a minimal project
 ferrisup new my_project
@@ -535,11 +557,11 @@ ferrisup transform --project=my_project --template=full-stack
 ferrisup scale --project=my_project
 ```
 
-This transformation feature intelligently:
-- Converts binaries to libraries when appropriate
-- Preserves your existing code
-- Adds only the components you need
-- Updates your workspace configuration
+When fully implemented, this transformation feature will intelligently:
+- Convert binaries to libraries when appropriate
+- Preserve your existing code
+- Add only the components you need
+- Update your workspace configuration
 
 ## Project Structure
 
@@ -643,6 +665,8 @@ FerrisUp will automatically generate the appropriate code and connections for ea
 
 ## From Zero to Production
 
+> **Note:** The full transformation and scaling capabilities described below are partially implemented in the current version, with complete functionality planned for future releases.
+
 FerrisUp allows your project to evolve naturally:
 
 1. Start with a minimal hello world app
@@ -664,3 +688,42 @@ Your app can remain as simple as needed or grow to any scale imaginable, all wit
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Project Status
+
+FerrisUp is currently in active development. Here's the current status of various features:
+
+### Fully Implemented Features
+- Core templates (minimal, library, server, data-science, edge, embedded, serverless)
+- Basic project creation with the `new` command
+- Template listing with the `list` command
+- Template preview with the `preview` command
+
+### Features That Need Work
+- **Transform Command**: Currently supports basic transformation but needs work on:
+  - Intelligent conversion between project types
+  - Preserving existing code during transformation
+  - Handling complex project structures
+
+- **Scale Command**: Requires implementation of:
+  - Docker configuration generation
+  - Kubernetes manifest creation
+  - CI/CD pipeline setup
+  - Cloud deployment templates
+
+- **Component Management**: Needs enhancement for:
+  - Dynamic component addition/removal
+  - Component dependency resolution
+  - Cross-component integration
+
+- **Workspace Management**: Basic functionality exists but needs work on:
+  - Workspace optimization
+  - Smart dependency management across workspace members
+  - Workspace-aware build configurations
+
+- **Dependency Management**: Requires implementation of:
+  - Smart feature suggestions
+  - Vulnerability analysis
+  - Dependency graph visualization
+
+We welcome contributions to help make these advanced features a reality! If you're interested in contributing, please see the Contributing section above or email us at dev@jitpomi.com.

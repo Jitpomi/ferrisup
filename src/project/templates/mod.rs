@@ -46,9 +46,10 @@ pub fn get_all_templates() -> Result<Vec<String>> {
         "library".to_string(),
         "embedded".to_string(),
         "server".to_string(),
-        "serverless".to_string(),
         "client".to_string(),
+        "serverless".to_string(),
         "data-science".to_string(),
+        "edge".to_string(),
     ];
     
     // Check for custom templates in the templates directory
@@ -87,9 +88,10 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
         ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
-        ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
-        ("client".to_string(), "Frontend client application".to_string()),
+        ("client".to_string(), "Frontend web application (Leptos, Yew, or Dioxus)".to_string()),
+        ("serverless".to_string(), "Serverless function (AWS Lambda, Cloudflare Workers, etc.)".to_string()),
         ("data-science".to_string(), "Data science and machine learning projects".to_string()),
+        ("edge".to_string(), "Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)".to_string()),
     ];
     
     // Track template names we've already added to avoid duplicates
