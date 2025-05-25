@@ -1,4 +1,4 @@
-![FerrisUp - A powerful Rust project bootstrapping tool](img.png)
+![FerrisUp - A powerful Rust project bootstrapping tool](https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png)
 
 # FerrisUp CLI
 
