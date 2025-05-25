@@ -1,13 +1,13 @@
 [package]
 name = "ferrisup"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2021"
 description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
 authors = ["Jitpomi <info@jitpomi.com>"]
 license = "MIT"
 repository = "https://github.com/Jitpomi/ferrisup"
 documentation = "https://github.com/Jitpomi/ferrisup#readme"
-readme = "src/README.md"
+readme = "README.simple.md"
 homepage = "https://github.com/Jitpomi/ferrisup"
 keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
