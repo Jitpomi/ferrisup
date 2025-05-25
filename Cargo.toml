@@ -11,6 +11,7 @@ readme = "README.md"
 homepage = "https://github.com/Jitpomi/ferrisup"
 keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
+readme-image = "img.png"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
