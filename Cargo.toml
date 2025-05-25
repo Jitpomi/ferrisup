@@ -1,6 +1,6 @@
 [package]
 name = "ferrisup"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
 authors = ["Jitpomi <info@jitpomi.com>"]
@@ -11,7 +11,8 @@ readme = "README.md"
 homepage = "https://github.com/Jitpomi/ferrisup"
 keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
-readme-image = "img.png"
+# This is the image that will be displayed on crates.io
+readme-image = ["img.png"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
