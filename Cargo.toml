@@ -13,6 +13,16 @@ keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
 # This is the image that will be displayed on crates.io
 readme-image = ["img.png"]
+# Explicitly include these files in the published package
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "img.png",
+    "templates/**/*",
+]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
