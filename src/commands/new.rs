@@ -945,36 +945,80 @@ npx create-tauri-app {}
             template = framework_selected.to_string();
         }
     } else if template == "data-science" {
-        // For data science templates, first prompt for the ML framework
-        // Using a simpler approach to avoid UI rendering issues
-        let framework_options = vec![
-            "Data Analysis with Polars",
-            "Machine Learning with Linfa"
-        ];
-        
-        // Create a selection without additional prompt text to avoid duplication
-        let selection = Select::new()
-            .with_prompt("📊 Select a Data Science approach")
-            .default(0)
-            .items(&framework_options)
-            .interact()?;
+        // For data science templates, check if framework is provided via command line
+        if let Some(fw) = framework {
+            match fw.to_lowercase().as_str() {
+                "polars" => {
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars");
+                },
+                "linfa" => {
+                    template = "data-science/linfa-examples".to_string();
+                    println!("🔍 Selected: Machine Learning with Linfa");
+                },
+                _ => {
+                    println!("Warning: Provided framework '{}' is not valid for data-science components", fw);
+                    println!("Valid options are: polars, linfa");
+                    
+                    // If invalid framework is provided, fall back to interactive selection
+                    let framework_options = vec![
+                        "Data Analysis with Polars",
+                        "Machine Learning with Linfa"
+                    ];
+                    
+                    let selection = Select::new()
+                        .with_prompt("📊 Select a Data Science approach")
+                        .default(0)
+                        .items(&framework_options)
+                        .interact()?;
+                        
+                    match selection {
+                        0 => {
+                            template = "data-science/polars-cli".to_string();
+                            println!("📈 Selected: Data Analysis with Polars");
+                        },
+                        1 => {
+                            template = "data-science/linfa-examples".to_string();
+                            println!("🔍 Selected: Machine Learning with Linfa");
+                        },
+                        _ => {
+                            template = "data-science/polars-cli".to_string();
+                            println!("📈 Selected: Data Analysis with Polars (default)");
+                        }
+                    }
+                }
+            }
+        } else {
+            // No framework provided, use interactive selection
+            let framework_options = vec![
+                "Data Analysis with Polars",
+                "Machine Learning with Linfa"
+            ];
             
-        // Based on framework selection, show appropriate templates
-        match selection {
-            0 => {
-                // Polars selected
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars");
-            },
-            1 => {
-                // Linfa selected
-                template = "data-science/linfa-examples".to_string();
-                println!("🔍 Selected: Machine Learning with Linfa");
-            },
-            _ => {
-                // Fallback
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars (default)");
+            // Create a selection without additional prompt text to avoid duplication
+            let selection = Select::new()
+                .with_prompt("📊 Select a Data Science approach")
+                .default(0)
+                .items(&framework_options)
+                .interact()?;
+                
+            // Based on framework selection, show appropriate templates
+            match selection {
+                0 => {
+                    // Polars selected
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars");
+                },
+                1 => {
+                    // Linfa selected
+                    template = "data-science/linfa-examples".to_string();
+                    println!("🔍 Selected: Machine Learning with Linfa");
+                },
+                _ => {
+                    // Fallback
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars (default)");
+                }
             }
         }
         
