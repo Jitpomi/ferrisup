@@ -36,7 +36,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
 // Main execute function to handle Leptos project creation
 pub fn execute(
     name: Option<&str>,
-    template: Option<&str>,
+    component_type: Option<&str>,
     git: bool,
     build: bool,
     no_interactive: bool,
@@ -50,7 +50,7 @@ pub fn execute(
                 return Err(anyhow!("Project name is required in non-interactive mode"));
             }
             Input::<String>::new()
-                .with_prompt("Project name")
+                .with_prompt("Component name")
                 .interact()?
         }
     };
@@ -59,12 +59,12 @@ pub fn execute(
     let app_path = Path::new(&name);
     create_directory(app_path)?;
 
-    // Get template
-    let mut template = match template {
+    // Get component type
+    let mut template = match component_type {
         Some(template) => template.to_string(),
         None => {
             if no_interactive {
-                return Err(anyhow!("Template is required in non-interactive mode"));
+                return Err(anyhow!("Component type is required in non-interactive mode"));
             }
             
             let templates_with_desc = template_manager::list_templates()?;
@@ -99,7 +99,7 @@ pub fn execute(
                 .collect();
             
             let selection = Select::new()
-                .with_prompt("Select a template")
+                .with_prompt("Select a component type")
                 .items(&template_items)
                 .default(0)
                 .interact()?;

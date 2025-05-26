@@ -39,7 +39,7 @@ fn main() -> Result<()> {
 
     // Match the CLI command and execute
     match cli.command {
-        Some(commands::Commands::New { name, template, project_type, git, build, no_interactive }) => {
+        Some(commands::Commands::New { name, component_type, project_type, git, build, no_interactive }) => {
             match &name {
                 Some(n) => println!(
                     "{} {} {} {}",
@@ -55,7 +55,7 @@ fn main() -> Result<()> {
                     "project".green().bold()
                 )
             }
-            commands::new::execute(name.as_deref(), template.as_deref(), git, build, no_interactive, project_type.as_deref())
+            commands::new::execute(name.as_deref(), component_type.as_deref(), git, build, no_interactive, project_type.as_deref())
         }
         Some(commands::Commands::Transform { project, template }) => {
             match &project {
