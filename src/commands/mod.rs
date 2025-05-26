@@ -25,6 +25,18 @@ pub enum Commands {
         /// Component type to use (optional, will prompt if not provided)
         #[arg(short, long)]
         component_type: Option<String>,
+        
+        /// Framework to use for client, server, or embedded components
+        #[arg(long)]
+        framework: Option<String>,
+        
+        /// Cloud provider for serverless components
+        #[arg(long)]
+        provider: Option<String>,
+        
+        /// Application type for edge components
+        #[arg(long)]
+        application_type: Option<String>,
 
         /// Project type for framework-specific options (e.g., desktop, web, mobile for Dioxus)
         #[arg(short, long)]
