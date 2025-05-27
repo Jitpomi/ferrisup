@@ -33,10 +33,13 @@ fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
 // This ensures we're always using the most up-to-date project creation methods
 // and reduces maintenance burden.
 
-// Main execute function to handle Leptos project creation
+// Main execute function to handle project creation
 pub fn execute(
     name: Option<&str>,
-    template: Option<&str>,
+    component_type: Option<&str>,
+    framework: Option<&str>,
+    provider: Option<&str>,
+    application_type: Option<&str>,
     git: bool,
     build: bool,
     no_interactive: bool,
@@ -50,7 +53,7 @@ pub fn execute(
                 return Err(anyhow!("Project name is required in non-interactive mode"));
             }
             Input::<String>::new()
-                .with_prompt("Project name")
+                .with_prompt("Component name")
                 .interact()?
         }
     };
@@ -59,12 +62,12 @@ pub fn execute(
     let app_path = Path::new(&name);
     create_directory(app_path)?;
 
-    // Get template
-    let mut template = match template {
+    // Get component type
+    let mut template = match component_type {
         Some(template) => template.to_string(),
         None => {
             if no_interactive {
-                return Err(anyhow!("Template is required in non-interactive mode"));
+                return Err(anyhow!("Component type is required in non-interactive mode"));
             }
             
             let templates_with_desc = template_manager::list_templates()?;
@@ -99,7 +102,7 @@ pub fn execute(
                 .collect();
             
             let selection = Select::new()
-                .with_prompt("Select a template")
+                .with_prompt("Select a component type")
                 .items(&template_items)
                 .default(0)
                 .interact()?;
@@ -119,13 +122,32 @@ pub fn execute(
         // Server template handling
         let framework_options = ["axum", "actix", "poem"];
         
-        let selection = Select::new()
-            .with_prompt("Which web framework would you like to use?")
-            .items(&framework_options)
-            .default(0)
-            .interact()?;
-            
-        let framework_selected = framework_options[selection];
+        // Use the framework parameter if provided, otherwise prompt for selection
+        let framework_selected = if let Some(fw) = framework {
+            if framework_options.contains(&fw) {
+                fw.to_string()
+            } else {
+                println!("Warning: Provided framework '{}' is not valid for server components", fw);
+                println!("Valid options are: axum, actix, poem");
+                
+                let selection = Select::new()
+                    .with_prompt("Which web framework would you like to use?")
+                    .items(&framework_options)
+                    .default(0)
+                    .interact()?;
+                    
+                framework_options[selection].to_string()
+            }
+        } else {
+            let selection = Select::new()
+                .with_prompt("Which web framework would you like to use?")
+                .items(&framework_options)
+                .default(0)
+                .interact()?;
+                
+            framework_options[selection].to_string()
+        };
+        
         println!("Using {} as the server_framework", framework_selected);
         
         // We completely bypass the normal template processing for server templates
@@ -362,9 +384,42 @@ pub fn execute(
         // Skip the rest of the template handling code
         return Ok(());
     } else if template == "serverless" {
-        // Use the template manager for serverless template
-        // This will prompt for the cloud provider based on template.json options
-        template_manager::apply_template(&template, app_path, &name, None)?;
+        // Get cloud provider for serverless function
+        let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
+        
+        // Use the provider parameter if provided, otherwise prompt for selection
+        let selected_provider = if let Some(prov) = provider {
+            if providers.contains(&prov) {
+                println!("Using {} as the cloud provider for your serverless function", prov);
+                prov.to_string()
+            } else {
+                println!("Warning: Provided provider '{}' is not valid for serverless components", prov);
+                println!("Valid options are: aws, gcp, azure, vercel, netlify");
+                
+                let selection = Select::new()
+                    .with_prompt("Which cloud provider would you like to target for your serverless function?")
+                    .items(&providers)
+                    .default(0)
+                    .interact()?;
+                    
+                providers[selection].to_string()
+            }
+        } else {
+            let selection = Select::new()
+                .with_prompt("Which cloud provider would you like to target for your serverless function?")
+                .items(&providers)
+                .default(0)
+                .interact()?;
+                
+            providers[selection].to_string()
+        };
+        
+        // Create additional variables with the selected provider
+        let mut vars = serde_json::Map::new();
+        vars.insert("cloud_provider".to_string(), json!(selected_provider));
+        
+        // Use the template manager for serverless template with the selected provider
+        template_manager::apply_template(&template, app_path, &name, Some(serde_json::Value::Object(vars)))?;
         
         // Clean up provider-specific directories that weren't selected
         let providers = ["aws", "gcp", "azure", "vercel", "netlify"];
@@ -452,18 +507,39 @@ pub fn execute(
                         
                         println!("Edge computing applications allow you to run Rust code close to your users.");
                             
-                        // Let user select application type
-                        let app_type_selection = Select::new()
-                            .with_prompt("Select edge application type")
-                            .items(&app_type_display)
-                            .default(0)
-                            .interact()?;
-                            
-                        let selected_app_type = app_type_options[app_type_selection];
+                        // Use the application_type parameter if provided, otherwise prompt for selection
+                        let selected_app_type = if let Some(app_type) = application_type {
+                            if app_type_options.contains(&app_type) {
+                                println!("Using {} as the edge application type", app_type);
+                                app_type.to_string()
+                            } else {
+                                println!("Warning: Provided application type '{}' is not valid for edge components", app_type);
+                                println!("Valid options are: {}", app_type_options.join(", "));
+                                
+                                // Let user select application type
+                                let app_type_selection = Select::new()
+                                    .with_prompt("Select edge application type")
+                                    .items(&app_type_display)
+                                    .default(0)
+                                    .interact()?;
+                                    
+                                app_type_options[app_type_selection].to_string()
+                            }
+                        } else {
+                            // Let user select application type
+                            let app_type_selection = Select::new()
+                                .with_prompt("Select edge application type")
+                                .items(&app_type_display)
+                                .default(0)
+                                .interact()?;
+                                
+                            app_type_options[app_type_selection].to_string()
+                        };
+                        
                         println!("Selected application type: {}", selected_app_type);
                         
                         // Second level: Get provider options for the selected type
-                        let provider_field = match selected_app_type {
+                        let provider_field = match selected_app_type.as_str() {
                             "static-site" => "static_site_provider",
                             "api-function" => "api_function_provider",
                             "web-component" => "web_component_type",
@@ -512,12 +588,17 @@ pub fn execute(
                                 vars_map.insert("edge_type".to_string(), json!(selected_app_type));
                                 vars_map.insert(provider_field.to_string(), json!(selected_provider));
                                 
+                                // Clone the selected_app_type for later use
+                                let app_type_clone = selected_app_type.clone();
+                                // No need to clone a &str reference
+                                let provider_clone = selected_provider;
+                                
                                 // Check if there's a redirect in the template config
                                 if let Some(redirect) = edge_template_json.get("redirect") {
-                                    if let Some(app_redirect) = redirect.get(selected_app_type) {
-                                        if let Some(_provider_redirect) = app_redirect.get(selected_provider) {
+                                    if let Some(app_redirect) = redirect.get(&selected_app_type) {
+                                        if let Some(_provider_redirect) = app_redirect.get(&selected_provider) {
                                             // We found a redirect configuration, use it to determine the template
-                                            template = format!("edge/{}/{}", selected_app_type, selected_provider);
+                                            template = format!("edge/{}/{}", app_type_clone, provider_clone);
                                             additional_vars = Some(json!(vars_map));
                                             
                                             // Check if the template directory exists
@@ -631,13 +712,32 @@ pub fn execute(
         
         // Get client framework
         let frameworks = vec!["dioxus", "tauri", "leptos"];
-        let selection = Select::new()
-            .with_prompt("Select Rust client framework")
-            .items(&frameworks)
-            .default(0)
-            .interact()?;
-            
-        let framework_selected = frameworks[selection];
+        
+        // Use the framework parameter if provided, otherwise prompt for selection
+        let framework_selected = if let Some(fw) = framework {
+            if frameworks.contains(&fw) {
+                fw.to_string()
+            } else {
+                println!("Warning: Provided framework '{}' is not valid for client components", fw);
+                println!("Valid options are: dioxus, tauri, leptos");
+                
+                let selection = Select::new()
+                    .with_prompt("Select Rust client framework")
+                    .items(&frameworks)
+                    .default(0)
+                    .interact()?;
+                    
+                frameworks[selection].to_string()
+            }
+        } else {
+            let selection = Select::new()
+                .with_prompt("Select Rust client framework")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+                
+            frameworks[selection].to_string()
+        };
         
         // For Leptos, prompt for specific template type
         if framework_selected == "leptos" {
@@ -845,36 +945,80 @@ npx create-tauri-app {}
             template = framework_selected.to_string();
         }
     } else if template == "data-science" {
-        // For data science templates, first prompt for the ML framework
-        // Using a simpler approach to avoid UI rendering issues
-        let framework_options = vec![
-            "Data Analysis with Polars",
-            "Machine Learning with Linfa"
-        ];
-        
-        // Create a selection without additional prompt text to avoid duplication
-        let selection = Select::new()
-            .with_prompt("📊 Select a Data Science approach")
-            .default(0)
-            .items(&framework_options)
-            .interact()?;
+        // For data science templates, check if framework is provided via command line
+        if let Some(fw) = framework {
+            match fw.to_lowercase().as_str() {
+                "polars" => {
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars");
+                },
+                "linfa" => {
+                    template = "data-science/linfa-examples".to_string();
+                    println!("🔍 Selected: Machine Learning with Linfa");
+                },
+                _ => {
+                    println!("Warning: Provided framework '{}' is not valid for data-science components", fw);
+                    println!("Valid options are: polars, linfa");
+                    
+                    // If invalid framework is provided, fall back to interactive selection
+                    let framework_options = vec![
+                        "Data Analysis with Polars",
+                        "Machine Learning with Linfa"
+                    ];
+                    
+                    let selection = Select::new()
+                        .with_prompt("📊 Select a Data Science approach")
+                        .default(0)
+                        .items(&framework_options)
+                        .interact()?;
+                        
+                    match selection {
+                        0 => {
+                            template = "data-science/polars-cli".to_string();
+                            println!("📈 Selected: Data Analysis with Polars");
+                        },
+                        1 => {
+                            template = "data-science/linfa-examples".to_string();
+                            println!("🔍 Selected: Machine Learning with Linfa");
+                        },
+                        _ => {
+                            template = "data-science/polars-cli".to_string();
+                            println!("📈 Selected: Data Analysis with Polars (default)");
+                        }
+                    }
+                }
+            }
+        } else {
+            // No framework provided, use interactive selection
+            let framework_options = vec![
+                "Data Analysis with Polars",
+                "Machine Learning with Linfa"
+            ];
             
-        // Based on framework selection, show appropriate templates
-        match selection {
-            0 => {
-                // Polars selected
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars");
-            },
-            1 => {
-                // Linfa selected
-                template = "data-science/linfa-examples".to_string();
-                println!("🔍 Selected: Machine Learning with Linfa");
-            },
-            _ => {
-                // Fallback
-                template = "data-science/polars-cli".to_string();
-                println!("📈 Selected: Data Analysis with Polars (default)");
+            // Create a selection without additional prompt text to avoid duplication
+            let selection = Select::new()
+                .with_prompt("📊 Select a Data Science approach")
+                .default(0)
+                .items(&framework_options)
+                .interact()?;
+                
+            // Based on framework selection, show appropriate templates
+            match selection {
+                0 => {
+                    // Polars selected
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars");
+                },
+                1 => {
+                    // Linfa selected
+                    template = "data-science/linfa-examples".to_string();
+                    println!("🔍 Selected: Machine Learning with Linfa");
+                },
+                _ => {
+                    // Fallback
+                    template = "data-science/polars-cli".to_string();
+                    println!("📈 Selected: Data Analysis with Polars (default)");
+                }
             }
         }
         
@@ -900,16 +1044,85 @@ npx create-tauri-app {}
     if template == "embedded" {
         println!("📦 Creating embedded project for microcontrollers");
         
-        // Check if the user selected Embassy framework from the options
-        let use_embassy = if let Some(vars) = &additional_vars {
-            if let Some(framework) = vars.get("framework").and_then(|f| f.as_str()) {
-                framework == "Yes, use Embassy framework"
+        // Create a variable to store the framework selection for template variables
+        let framework_selection;
+        
+        // Check if the user provided a framework parameter
+        let use_embassy = if let Some(fw) = framework {
+            match fw.to_lowercase().as_str() {
+                "embassy" => {
+                    println!("Using Embassy framework for embedded development");
+                    framework_selection = "Yes, use Embassy framework".to_string();
+                    true
+                },
+                "none" | "standard" => {
+                    println!("Using standard embedded template without a framework");
+                    framework_selection = "No, use standard embedded template".to_string();
+                    false
+                },
+                _ => {
+                    println!("Warning: Provided framework '{}' is not valid for embedded components", fw);
+                    println!("Valid options are: embassy, none");
+                    
+                    // Prompt for framework selection
+                    let frameworks = vec!["No, use standard embedded template", "Yes, use Embassy framework"];
+                    let selection = Select::new()
+                        .with_prompt("Do you want to use an embedded framework?")
+                        .items(&frameworks)
+                        .default(0)
+                        .interact()?;
+                    
+                    framework_selection = frameworks[selection].to_string();
+                    framework_selection == "Yes, use Embassy framework"
+                }
+            }
+        } else if let Some(vars) = &additional_vars {
+            // Fall back to additional_vars if no framework parameter
+            if let Some(framework_option) = vars.get("framework").and_then(|f| f.as_str()) {
+                framework_selection = framework_option.to_string();
+                framework_option == "Yes, use Embassy framework"
             } else {
-                false
+                // Prompt for framework selection
+                let frameworks = vec!["No, use standard embedded template", "Yes, use Embassy framework"];
+                let selection = Select::new()
+                    .with_prompt("Do you want to use an embedded framework?")
+                    .items(&frameworks)
+                    .default(0)
+                    .interact()?;
+                
+                framework_selection = frameworks[selection].to_string();
+                framework_selection == "Yes, use Embassy framework"
             }
         } else {
-            false
+            // Prompt for framework selection
+            let frameworks = vec!["No, use standard embedded template", "Yes, use Embassy framework"];
+            let selection = Select::new()
+                .with_prompt("Do you want to use an embedded framework?")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            framework_selection = frameworks[selection].to_string();
+            framework_selection == "Yes, use Embassy framework"
         };
+        
+        // Create or update additional variables with the framework selection
+        let mut vars_map = if let Some(ref existing_vars) = additional_vars {
+            if let Some(existing_map) = existing_vars.as_object() {
+                // Clone the existing map
+                existing_map.clone()
+            } else {
+                serde_json::Map::new()
+            }
+        } else {
+            serde_json::Map::new()
+        };
+        
+        // Add or update the framework selection
+        vars_map.insert("framework".to_string(), json!(framework_selection));
+        
+        // Update additional_vars with the merged variables
+        additional_vars = Some(json!(vars_map));
         
         if use_embassy {
             // User selected Embassy framework
@@ -1003,12 +1216,48 @@ npx create-tauri-app {}
             // Standard embedded template
             // Get microcontroller target from options
             let mcu_target = if let Some(vars) = &additional_vars {
-                vars.get("mcu_target")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("rp2040")
-                    .to_string() // Clone the string to avoid borrowing issues
+                if vars.get("mcu_target").is_some() {
+                    // If mcu_target is explicitly provided in additional_vars, use it
+                    vars.get("mcu_target")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("rp2040")
+                        .to_string()
+                } else {
+                    // Otherwise prompt for selection
+                    let mcu_targets = vec!["rp2040", "stm32", "esp32", "arduino"];
+                    let selection = Select::new()
+                        .with_prompt("Select microcontroller target")
+                        .items(&mcu_targets)
+                        .default(0)
+                        .interact()?;
+                    
+                    let selected_target = mcu_targets[selection].to_string();
+                    
+                    // Update additional_vars with the selected target
+                    if let Some(ref mut vars_obj) = additional_vars {
+                        if let Some(vars_map) = vars_obj.as_object_mut() {
+                            vars_map.insert("mcu_target".to_string(), json!(selected_target.clone()));
+                        }
+                    }
+                    
+                    selected_target
+                }
             } else {
-                "rp2040".to_string()
+                // No additional_vars, prompt for selection
+                let mcu_targets = vec!["rp2040", "stm32", "esp32", "arduino"];
+                let selection = Select::new()
+                    .with_prompt("Select microcontroller target")
+                    .items(&mcu_targets)
+                    .default(0)
+                    .interact()?;
+                
+                // Create additional_vars with the selected target
+                let selected_target = mcu_targets[selection].to_string();
+                let mut vars_map = serde_json::Map::new();
+                vars_map.insert("mcu_target".to_string(), json!(selected_target.clone()));
+                additional_vars = Some(json!(vars_map));
+                
+                selected_target
             };
             
             println!("Using {} as the microcontroller target", mcu_target);

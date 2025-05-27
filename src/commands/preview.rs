@@ -247,7 +247,7 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
         println!("Using template: {}", selected_template);
         
         // Create a temporary project with the selected template
-        if let Err(e) = crate::commands::new::execute(None, Some(&selected_template), false, false, false, None) {
+        if let Err(e) = crate::commands::new::execute(None, Some(&selected_template), None, None, None, false, false, false, None) {
             return Err(anyhow!("Failed to create preview: {}", e));
         }
     }
