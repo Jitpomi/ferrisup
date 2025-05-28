@@ -1185,6 +1185,39 @@ npx create-tauri-app {}
                 return Err(anyhow!("Failed to create Embassy project"));
             }
             
+            // Check if ESP toolchain is needed (for ESP32 chips)
+            let is_esp_chip = mcu_chip.starts_with("esp");
+            if is_esp_chip {
+                println!("🔍 Checking for ESP Rust toolchain...");
+                
+                // Check if ESP toolchain is installed
+                let esp_check = Command::new("rustup")
+                    .args(["toolchain", "list"])
+                    .output()?;
+                
+                let toolchains = String::from_utf8_lossy(&esp_check.stdout);
+                let esp_installed = toolchains.contains("esp");
+                
+                if !esp_installed {
+                    println!("⚠️ ESP Rust toolchain not found. Installing...");
+                    
+                    // Install ESP toolchain
+                    let install_status = Command::new("rustup")
+                        .args(["toolchain", "install", "esp"])
+                        .status()?;
+                    
+                    if !install_status.success() {
+                        println!("❌ Failed to install ESP toolchain.");
+                        println!("Please install it manually with: rustup toolchain install esp");
+                        println!("See https://esp-rs.github.io/book/installation/index.html for more information.");
+                    } else {
+                        println!("✅ ESP toolchain installed successfully");
+                    }
+                } else {
+                    println!("✅ ESP toolchain is already installed");
+                }
+            }
+            
             // Move the generated project to the target directory
             let project_dir = parent_dir.join(&name);
             if project_dir.exists() {
@@ -1202,10 +1235,24 @@ npx create-tauri-app {}
                 println!("🎉 Embassy project {} created successfully!", name);
                 println!("\nNext steps:");
                 println!("  cd {}", name);
-                println!("  # Build the project");
-                println!("  cargo build --release");
-                println!("  # Run the project");
-                println!("  cargo run --release");
+                
+                // Add ESP-specific instructions if needed
+                if mcu_chip.starts_with("esp") {
+                    println!("\nℹ️ This project uses the ESP Rust toolchain");
+                    println!("  Make sure it's installed with: rustup toolchain install esp");
+                    println!("  For more information: https://esp-rs.github.io/book/installation/index.html");
+                    println!("\n  # Build the project");
+                    println!("  cargo build --release");
+                    println!("  # Flash to device");
+                    println!("  cargo run --release");
+                    println!("\nℹ️ If you see an error about custom toolchain, run:");
+                    println!("  rustup toolchain install esp");
+                } else {
+                    println!("  # Build the project");
+                    println!("  cargo build --release");
+                    println!("  # Run the project");
+                    println!("  cargo run --release");
+                }
                 
                 return Ok(());
             } else {
@@ -1267,7 +1314,7 @@ npx create-tauri-app {}
                 "rp2040" => "rp2040-hal = \"0.9\"\nrp2040-boot2 = \"0.3\"\nusb-device = \"0.2\"\nusbd-serial = \"0.1\"",
                 "stm32" => "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }",
                 "esp32" => "esp32-hal = \"0.16\"\nesp-backtrace = \"0.9\"\nesp-println = \"0.6\"",
-                "arduino" => "arduino-hal = \"0.1\"\navr-device = \"0.5\"\nufmt = \"0.2\"",
+                "arduino" => "arduino-hal = { git = \"https://github.com/rahix/avr-hal\", rev = \"7dfa6d322b9df98b2d98afe0e14a97afe0187ac1\" }\navr-device = \"0.5\"\nufmt = \"0.2\"",
                 _ => "",
             };
             
@@ -1313,8 +1360,29 @@ npx create-tauri-app {}
                     println!("  espflash flash --monitor target/{}/debug/{}", rust_target, name);
                 },
                 "arduino" => {
-                    println!("  cargo install ravedude");
-                    println!("  cargo run --target {}", rust_target);
+                    // Check if the target is installed
+                    let output = Command::new("rustup")
+                        .args(["target", "list", "--installed"])
+                        .output()
+                        .unwrap_or_else(|_| panic!("Failed to execute rustup command"));
+                    
+                    let installed_targets = String::from_utf8_lossy(&output.stdout);
+                    let target_installed = installed_targets.contains(rust_target);
+                    
+                    if !target_installed {
+                        println!("🔍 Checking for {} target...", rust_target);
+                        println!("❌ {} target is not installed", rust_target);
+                    } else {
+                        println!("🔍 Checking for {} target...", rust_target);
+                        println!("✅ {} target is already installed", rust_target);
+                    }
+                    
+                    println!("\nℹ️ Setup instructions for Arduino development:");
+                    println!("  1. Install the AVR target:  rustup target add {}", rust_target);
+                    println!("  2. Install ravedude:       cargo install ravedude");
+                    println!("  3. Build the project:      cargo build --target {}", rust_target);
+                    println!("  4. Flash to Arduino:       cargo run --target {}", rust_target);
+                    println!("\nNote: arduino-hal is sourced from GitHub, not crates.io");
                 },
                 _ => {
                     println!("  cargo build --target {}", rust_target);

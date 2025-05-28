@@ -1,10 +1,11 @@
-use anyhow::{Result, Context};
+use anyhow::{Result, Context, anyhow};
 use colored::Colorize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs;
-use dialoguer::{Confirm, Input, MultiSelect, Select};
-use crate::project::templates::{get_template, list_templates};
-use crate::utils::{create_directory, read_cargo_toml, update_workspace_members};
+// Command import removed (no longer needed)
+use dialoguer::{Confirm, Input, Select};
+use toml_edit::{Document, value, Item, Table};
+use crate::utils::{create_directory, update_workspace_members};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     println!("{}", "FerrisUp Interactive Project Transformer".bold().green());
@@ -79,856 +80,1443 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
         }
     }
     
-    // If template name is not provided, offer interactive selection
-    let selected_template = match template_name {
-        Some(t) => t.to_string(),
-        None => {
-            // Ask about transformation approach
-            println!("\n{}", "Transformation Approach".bold().cyan());
-            let approach_options = vec![
-                "Use a predefined template",
-                "Customize transformation manually",
-            ];
-            
-            let approach_idx = if is_test_mode {
-                0
-            } else {
-                Select::new()
-                    .with_prompt("How would you like to transform your project?")
-                    .items(&approach_options)
-                    .default(0)
-                    .interact()?
-            };
-            
-            if approach_idx == 0 {
-                // Get available templates
-                let templates = list_templates()?;
-                let template_names: Vec<String> = templates.iter().map(|(name, desc)| {
-                    format!("{} - {}", name, desc)
-                }).collect();
-                
-                // Present template options
-                let template_idx = if is_test_mode {
-                    0
-                } else {
-                    Select::new()
-                        .with_prompt("Select a template")
-                        .items(&template_names)
-                        .default(0)
-                        .interact()?
-                };
-                
-                templates[template_idx].0.clone()
-            } else {
-                // Custom transformation
-                // First analyze the current project structure
-                let structure = analyze_project_structure(project_dir)?;
-                
-                println!("\n{}", "Custom Transformation Options".bold().cyan());
-                
-                let component_options = vec![
-                    "Add client applications",
-                    "Add server services",
-                    "Add shared libraries",
-                    "Add AI components",
-                    "Add edge computing",
-                    "Add embedded systems support",
-                    "Convert to workspace structure",
-                ];
-                
-                let selections = if is_test_mode {
-                    vec![0, 1, 2, 3, 4, 5, 6]
-                } else {
-                    MultiSelect::new()
-                        .with_prompt("Select components to add to your project")
-                        .items(&component_options)
-                        .interact()?
-                };
-                
-                // Flag for custom mode
-                if !selections.is_empty() {
-                    // Apply custom transformations
-                    if selections.contains(&6) && !structure.is_workspace {
-                        init_workspace(project_dir, &structure)?;
-                    }
-                    
-                    if selections.contains(&0) {
-                        add_client(project_dir)?;
-                    }
-                    
-                    if selections.contains(&1) {
-                        add_server(project_dir)?;
-                    }
-                    
-                    if selections.contains(&2) {
-                        add_libs(project_dir)?;
-                    }
-                    
-                    if selections.contains(&3) {
-                        add_ai(project_dir)?;
-                    }
-                    
-                    if selections.contains(&4) {
-                        add_edge(project_dir)?;
-                    }
-                    
-                    if selections.contains(&5) {
-                        add_embedded(project_dir)?;
-                    }
-                    
-                    // Print success message
-                    println!("\n{}", "Project transformation complete!".bold().green());
-                    println!("Your project has been customized with the selected components.");
-                    
-                    return Ok(());
-                }
-                
-                // If no custom selections, default to minimal
-                "minimal".to_string()
-            }
-        }
-    };
-    
-    // Get template configuration
-    let _template = get_template(&selected_template)
-        .context(format!("Failed to find template '{}'", selected_template))?;
-    
-    println!("{} {} {} {}", 
-        "Transforming".yellow().bold(), 
-        path_str.yellow(), 
-        "to".yellow().bold(), 
-        selected_template.yellow().bold());
-    
-    // Analyze the current project structure
+    // Analyze project structure
+    println!("{}", "Analyzing project structure...".blue());
     let structure = analyze_project_structure(project_dir)?;
     
-    // Confirm the transformation
-    let confirm_msg = format!(
-        "This will transform your project to a '{}' template. This may modify your project structure and files. Continue?",
-        selected_template
-    );
-    
-    let proceed = if is_test_mode {
-        true
+    // Print detected project type
+    let project_type = if structure.is_workspace {
+        "Workspace"
+    } else if structure.is_binary {
+        "Binary"
     } else {
-        Confirm::new()
-            .with_prompt(&confirm_msg)
-            .default(true)
-            .interact()?
+        "Library"
     };
     
-    if !proceed {
-        println!("{}", "Transformation cancelled.".yellow());
-        return Ok(());
-    }
+    println!("{} {}", "Detected project type:".blue(), project_type.cyan());
     
-    // Transform the project to the selected template
-    match selected_template.as_str() {
-        "full-stack" => transform_to_full_stack(project_dir, &structure)?,
-        "library" => transform_to_library(project_dir, &structure)?,
-        "gen-ai" => transform_to_gen_ai(project_dir, &structure)?,
-        "edge-app" => transform_to_edge_app(project_dir, &structure)?,
-        "embedded" => transform_to_embedded(project_dir, &structure)?,
-        _ => transform_to_template(project_dir, &selected_template, &structure)?,
-    }
-    
-    println!("\n{}", "Project transformation complete!".bold().green());
-    println!("Your project has been transformed to: {}", selected_template.cyan());
-    
-    Ok(())
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-struct ProjectStructure {
-    root_path: PathBuf,
-    project_name: String,
-    _has_database: bool,
-    has_libs: bool,
-    _has_binaries: bool,
-    has_server: bool,
-    has_client: bool,
-    has_ai: bool,
-    has_edge: bool,
-    has_embedded: bool,
-    is_workspace: bool,
-    is_binary: bool,
-    is_library: bool,
-}
-
-fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
-    // Check for workspace
-    let cargo_toml = read_cargo_toml(project_dir)?;
-    let is_workspace = cargo_toml.contains("[workspace]");
-    
-    // Check for directories
-    let has_client = project_dir.join("client").exists();
-    let has_server = project_dir.join("server").exists();
-    let has_database = project_dir.join("database").exists();
-    let has_libs = project_dir.join("libs").exists();
-    let has_binaries = project_dir.join("binaries").exists();
-    let has_ai = project_dir.join("ai").exists();
-    let has_edge = project_dir.join("edge").exists();
-    let has_embedded = project_dir.join("embedded").exists();
-    
-    // Check if it's a binary or library
-    let src_dir = project_dir.join("src");
-    let is_binary = src_dir.join("main.rs").exists();
-    let is_library = src_dir.join("lib.rs").exists();
-    
-    Ok(ProjectStructure {
-        root_path: project_dir.to_path_buf(),
-        project_name: project_dir.file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
-            .to_string(),
-        _has_database: has_database,
-        has_libs,
-        _has_binaries: has_binaries,
-        has_server,
-        has_client,
-        has_ai,
-        has_edge,
-        has_embedded,
-        is_workspace,
-        is_binary,
-        is_library,
-    })
-}
-
-fn transform_to_template(project_dir: &Path, template_name: &str, structure: &ProjectStructure) -> Result<()> {
-    match template_name {
-        "minimal" => {
-            // No transformation needed for minimal template
-            println!("{}", "No transformation needed for minimal template".yellow());
-        },
-        "library" => {
-            transform_to_library(project_dir, structure)?;
-        },
-        "full-stack" => {
-            transform_to_full_stack(project_dir, structure)?;
-        },
-        "gen-ai" => {
-            transform_to_gen_ai(project_dir, structure)?;
-        },
-        "edge-app" => {
-            transform_to_edge_app(project_dir, structure)?;
-        },
-        "embedded" => {
-            transform_to_embedded(project_dir, structure)?;
-        },
-        _ => {
-            println!("{} {}", 
-                "Warning:".yellow().bold(), 
-                format!("Unknown template '{}', applying minimal transformation", template_name).yellow());
-        }
-    }
-    
-    Ok(())
-}
-
-fn transform_to_library(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    if structure.is_library {
-        println!("{}", "Project is already a library".yellow());
-        return Ok(());
-    }
-    
-    if structure.is_binary {
-        // Convert binary to library
-        println!("{}", "Converting binary to library...".blue());
-        
-        // Read main.rs content
-        let main_path = project_dir.join("src").join("main.rs");
-        let main_content = fs::read_to_string(&main_path)
-            .context("Failed to read main.rs")?;
-        
-        // Create lib.rs with adapted content
-        let lib_content = if main_content.contains("fn main()") {
-            // Extract functions and types from main.rs, excluding main()
-            let mut lib_lines = Vec::new();
-            let mut in_main_fn = false;
-            
-            for line in main_content.lines() {
-                if line.contains("fn main()") {
-                    in_main_fn = true;
-                    continue;
-                }
-                
-                if in_main_fn {
-                    if line.trim() == "}" {
-                        in_main_fn = false;
-                    }
-                    continue;
-                }
-                
-                lib_lines.push(line.to_string());
-            }
-            
-            // Add a public function that wraps the main functionality
-            lib_lines.push("".to_string());
-            lib_lines.push("/// Main library function".to_string());
-            lib_lines.push("pub fn run() {".to_string());
-            lib_lines.push("    println!(\"Hello from library!\");".to_string());
-            lib_lines.push("}".to_string());
-            
-            lib_lines.join("\n")
+    // Main transformation loop
+    let mut is_workspace = structure.is_workspace;
+    loop {
+        // Show different options based on whether it's a workspace or not
+        let options = if is_workspace {
+            vec![
+                "Add a component",
+                "Exit",
+            ]
         } else {
-            // If main.rs doesn't have a main function, just use it as lib.rs
-            main_content
+            vec![
+                "Convert project to workspace",
+                "Use current structure",
+                "Exit",
+            ]
         };
         
-        // Write lib.rs
-        fs::write(project_dir.join("src").join("lib.rs"), lib_content)
-            .context("Failed to write lib.rs")?;
-        
-        // Update main.rs to use the library
-        let new_main_content = format!(
-            r#"//! Binary crate that uses the library
-use {}::run;
-
-fn main() {{
-    run();
-}}
-"#,
-            project_dir.file_name()
-                .and_then(|name| name.to_str())
-                .ok_or_else(|| anyhow::anyhow!("Invalid project directory name"))?
-        );
-        
-        fs::write(main_path, new_main_content)
-            .context("Failed to update main.rs")?;
-        
-        // Update Cargo.toml
-        let cargo_toml = read_cargo_toml(project_dir)?;
-        let updated_cargo_toml = if cargo_toml.contains("[lib]") {
-            cargo_toml
+        let option_idx = if is_test_mode {
+            0
         } else {
-            let mut lines = cargo_toml.lines().collect::<Vec<_>>();
-            
-            // Find position to insert [lib] section
-            let mut insert_pos = 0;
-            for (i, line) in lines.iter().enumerate() {
-                if line.starts_with("[dependencies]") {
-                    insert_pos = i;
+            Select::new()
+                .with_prompt("What would you like to do?")
+                .items(&options)
+                .default(0)
+                .interact()?
+        };
+        
+        if is_workspace {
+            match option_idx {
+                0 => {
+                    // Add a component
+                    add_component(project_dir)?;
+                }
+                1 => {
+                    // Exit
+                    println!("{}", "Exiting transformation.".blue());
+                    print_final_next_steps(project_dir)?;
                     break;
                 }
+                _ => unreachable!(),
             }
-            
-            // Insert [lib] section
-            lines.insert(insert_pos, "");
-            lines.insert(insert_pos, "[lib]");
-            lines.insert(insert_pos, "");
-            
-            lines.join("\n")
-        };
-        
-        fs::write(project_dir.join("Cargo.toml"), updated_cargo_toml)
-            .context("Failed to update Cargo.toml")?;
+        } else {
+            match option_idx {
+                0 => {
+                    // Convert to workspace
+                    convert_to_workspace(project_dir)?;
+                    is_workspace = true;
+                    // Continue to the next iteration with workspace options
+                    continue;
+                }
+                1 => {
+                    // Use current structure
+                    println!("{}", "Using current structure.".blue());
+                    add_component_without_workspace(project_dir)?;
+                }
+                2 => {
+                    // Exit
+                    println!("{}", "Exiting transformation.".blue());
+                    break;
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+// Structure to hold project analysis
+#[derive(Debug)]
+struct ProjectStructure {
+    is_workspace: bool,
+    is_binary: bool,
+    project_name: String,
+}
+
+// Function to analyze project structure
+fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
+    let cargo_toml_path = project_dir.join("Cargo.toml");
+    let cargo_toml_content = fs::read_to_string(&cargo_toml_path)?;
+    
+    // Parse Cargo.toml
+    let cargo_doc = cargo_toml_content.parse::<Document>()
+        .context("Failed to parse Cargo.toml as TOML")?;
+    
+    // Check if it's a workspace
+    let is_workspace = cargo_doc.get("workspace").is_some();
+    
+    // Check if it's a binary or library
+    let is_binary = if let Some(_lib) = cargo_doc.get("lib") {
+        false
     } else {
-        // Not a binary, create a basic library
-        create_directory(&project_dir.join("src"))?;
-        
-        fs::write(
-            project_dir.join("src").join("lib.rs"),
-            "pub fn hello() {\n    println!(\"Hello from library!\");\n}\n"
-        )?;
-    }
-    
-    Ok(())
-}
-
-fn transform_to_full_stack(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    // Initialize workspace if needed
-    if !structure.is_workspace {
-        init_workspace(project_dir, structure)?;
-    }
-    
-    // Add client if missing
-    if !structure.has_client {
-        add_client(project_dir)?;
-    }
-    
-    // Add server if missing
-    if !structure.has_server {
-        add_server(project_dir)?;
-    }
-    
-    // Add libs if missing
-    if !structure.has_libs {
-        add_libs(project_dir)?;
-    }
-    
-    // Update workspace members
-    update_workspace_members(project_dir)?;
-    
-    Ok(())
-}
-
-fn transform_to_gen_ai(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    // Initialize workspace if needed
-    if !structure.is_workspace {
-        init_workspace(project_dir, structure)?;
-    }
-    
-    // Add AI components if missing
-    if !structure.has_ai {
-        add_ai(project_dir)?;
-    }
-    
-    // Add libs if missing (for shared code)
-    if !structure.has_libs {
-        add_libs(project_dir)?;
-    }
-    
-    // Update workspace members
-    update_workspace_members(project_dir)?;
-    
-    Ok(())
-}
-
-fn transform_to_edge_app(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    // Initialize workspace if needed
-    if !structure.is_workspace {
-        init_workspace(project_dir, structure)?;
-    }
-    
-    // Add edge components if missing
-    if !structure.has_edge {
-        add_edge(project_dir)?;
-    }
-    
-    // Update workspace members
-    update_workspace_members(project_dir)?;
-    
-    Ok(())
-}
-
-fn transform_to_embedded(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    // Initialize workspace if needed
-    if !structure.is_workspace {
-        init_workspace(project_dir, structure)?;
-    }
-    
-    // Add embedded components if missing
-    if !structure.has_embedded {
-        add_embedded(project_dir)?;
-    }
-    
-    // Update workspace members
-    update_workspace_members(project_dir)?;
-    
-    Ok(())
-}
-
-fn init_workspace(project_dir: &Path, structure: &ProjectStructure) -> Result<()> {
-    println!("{}", "Initializing workspace...".blue());
-    
-    // Read existing Cargo.toml
-    let cargo_toml = read_cargo_toml(project_dir)?;
-    
-    // Extract the package name
-    let package_name = if let Some(name_line) = cargo_toml.lines()
-        .find(|line| line.trim().starts_with("name ="))
-    {
-        name_line.split('=').nth(1)
-            .map(|s| s.trim().trim_matches('"').to_string())
-            .unwrap_or_else(|| {
-                project_dir.file_name()
-                    .and_then(|name| name.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "project".to_string())
-            })
-    } else {
-        project_dir.file_name()
-            .and_then(|name| name.to_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "project".to_string())
+        // Check for bin target or assume binary if no lib section
+        cargo_doc.get("bin").is_some() || !cargo_doc.get("package").is_none()
     };
     
-    // Create workspace Cargo.toml
-    let workspace_toml = r#"[workspace]
+    // Get project name
+    let project_name = if let Some(package) = cargo_doc.get("package") {
+        if let Some(name) = package.get("name") {
+            name.as_str().unwrap_or("unknown").to_string()
+        } else {
+            "unknown".to_string()
+        }
+    } else {
+        "unknown".to_string()
+    };
+    
+    Ok(ProjectStructure {
+        is_workspace,
+        is_binary,
+        project_name,
+    })
+}
+
+// Function to convert a project to a workspace
+fn convert_to_workspace(project_dir: &Path) -> Result<()> {
+    println!("{}", "Converting project to workspace...".blue());
+    
+    // Get project structure
+    let structure = analyze_project_structure(project_dir)?;
+    let project_name = &structure.project_name;
+    
+    // Ensure .ferrisup directory exists
+    let ferrisup_dir = project_dir.join(".ferrisup");
+    create_directory(&ferrisup_dir)?;
+    
+    // Detect component type based on project structure
+    let component_kind = detect_component_type(project_dir)?;
+    
+    // Prompt for component name with default based on component type
+    let component_name = Input::<String>::new()
+        .with_prompt(format!("What would you like to name the first component? [{}]", component_kind))
+        .default(component_kind.to_string())
+        .interact_text()?;
+    
+    // Create component directory and src subdirectory
+    let component_dir = project_dir.join(&component_name);
+    create_directory(&component_dir)?;
+    create_directory(&component_dir.join("src"))?;
+    
+    // Move all project files to component directory except workspace files
+    let entries = fs::read_dir(project_dir)?;
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+        
+        // Skip workspace files and the component directory itself
+        if file_name == "Cargo.toml" || 
+           file_name == "Cargo.lock" || 
+           file_name == ".git" || 
+           file_name == ".ferrisup" ||
+           file_name == component_name {
+            continue;
+        }
+        
+        // Move file or directory to component
+        let target_path = component_dir.join(&file_name);
+        
+        if path.is_dir() {
+            // Copy directory recursively
+            copy_dir_all(&path, &target_path)?;
+            // Remove original after successful copy
+            fs::remove_dir_all(&path)?;
+        } else {
+            // Copy file
+            fs::copy(&path, &target_path)?;
+            // Remove original after successful copy
+            fs::remove_file(&path)?;
+        }
+    }
+    
+    // Just copy the original Cargo.toml to the component directory
+    let original_cargo_path = project_dir.join("Cargo.toml");
+    let component_cargo_path = component_dir.join("Cargo.toml");
+    
+    // Copy the original Cargo.toml to the component directory
+    fs::copy(&original_cargo_path, &component_cargo_path)?;
+    
+    // Update the component Cargo.toml package name
+    let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
+    let mut component_cargo_doc = component_cargo_content.parse::<Document>()
+        .context("Failed to parse component Cargo.toml")?;
+    
+    // Update the package name using the project_name from structure
+    if let Some(package) = component_cargo_doc.get_mut("package") {
+        if let Some(table) = package.as_table_mut() {
+            table.insert("name", value(format!("{0}_{1}", project_name.to_lowercase(), component_name.to_lowercase())));
+        }
+    }
+    
+    // Write updated component Cargo.toml
+    fs::write(component_cargo_path, component_cargo_doc.to_string())?;
+    
+    // Update imports in source files to use the new package name
+    update_source_imports(&component_dir, &project_name.to_lowercase(), &component_name.to_lowercase())?;
+    
+    // Create new Cargo.toml for workspace
+    let workspace_cargo_toml = format!(r#"[workspace]
 members = [
-    "src"
+    "{}"
 ]
 
-[workspace.dependencies]
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "1.0"
-anyhow = "1.0"
-"#.to_string();
-    
-    // Create src directory if it doesn't exist
-    let src_dir = project_dir.join("src");
-    if !src_dir.exists() {
-        create_directory(&src_dir)?;
-    }
-    
-    // Move current code to src directory if needed
-    if structure.is_binary || structure.is_library {
-        // Create package Cargo.toml in src
-        let src_cargo_toml = format!(
-            r#"[package]
-name = "{}"
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
-"#,
-            package_name
-        );
+"#, component_name);
+    
+    fs::write(project_dir.join("Cargo.toml"), workspace_cargo_toml)?;
+    
+    // Update component's Cargo.toml to use project-prefixed package name
+    let component_cargo_path = component_dir.join("Cargo.toml");
+    if component_cargo_path.exists() {
+        let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
+        let mut component_doc = component_cargo_content.parse::<Document>()
+            .context("Failed to parse component Cargo.toml")?;
         
-        fs::write(src_dir.join("Cargo.toml"), src_cargo_toml)?;
+        // Update package name to use project_component format with underscores
+        if let Some(package) = component_doc.get_mut("package") {
+            if let Some(name) = package.get_mut("name") {
+                *name = toml_edit::value(format!("{}_{}", project_name, component_name));
+            }
+        }
         
-        // Update main workspace Cargo.toml
-        fs::write(project_dir.join("Cargo.toml"), workspace_toml)?;
+        // Write updated Cargo.toml
+        fs::write(component_cargo_path, component_doc.to_string())?;
     } else {
-        // Just update the existing Cargo.toml to be a workspace
-        fs::write(project_dir.join("Cargo.toml"), workspace_toml)?;
+        // Create new Cargo.toml for component if it doesn't exist
+        let component_cargo_toml = format!(r#"[package]
+name = "{}_{}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"#, project_name, component_name);
+        
+        fs::write(component_cargo_path, component_cargo_toml)?;
     }
     
-    Ok(())
-}
-
-pub fn add_client(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding client components...".blue());
+    // Detect framework from the original project (for metadata only)
+    let mut detected_framework = None;
+    let src_main_path = component_dir.join("src/main.rs");
+    let src_lib_path = component_dir.join("src/lib.rs");
     
-    let client_dir = project_dir.join("client");
-    create_directory(&client_dir)?;
-    
-    // Create a default Dioxus app
-    let app_name = "app";
-    let app_dir = client_dir.join(app_name);
-    create_directory(&app_dir)?;
-    create_directory(&app_dir.join("src"))?;
-    
-    // Create Cargo.toml for the app
-    let app_cargo_toml = r#"[package]
-name = "app"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-dioxus = "0.4"
-dioxus-web = "0.4"
-"#;
-    
-    fs::write(app_dir.join("Cargo.toml"), app_cargo_toml)?;
-    
-    // Create main.rs with a basic Dioxus app
-    let main_rs = r#"use dioxus::prelude::*;
-
-fn main() {
-    dioxus_web::launch(App);
-}
-
-fn App(cx: Scope) -> Element {
-    cx.render(rsx! {
-        div {
-            style: "text-align: center; padding: 20px;",
-            h1 { "Welcome to Dioxus!" }
-            p { "This is a default app created by FerrisUp" }
-        }
-    })
-}
-"#;
-    
-    fs::write(app_dir.join("src").join("main.rs"), main_rs)?;
-    
-    Ok(())
-}
-
-pub fn add_server(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding server components...".blue());
-    
-    let server_dir = project_dir.join("server");
-    create_directory(&server_dir)?;
-    
-    // Create a default API service
-    let service_name = "api";
-    let service_dir = server_dir.join(service_name);
-    create_directory(&service_dir)?;
-    create_directory(&service_dir.join("src"))?;
-    
-    // Create Cargo.toml for the service
-    let service_cargo_toml = r#"[package]
-name = "api"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-axum = "0.6"
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-"#;
-    
-    fs::write(service_dir.join("Cargo.toml"), service_cargo_toml)?;
-    
-    // Create main.rs with a basic Axum server
-    let main_rs = r#"use axum::{
-    routing::get,
-    Router, Json
-};
-use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-
-#[tokio::main]
-async fn main() {
-    // Build our application with a single route
-    let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
-        .route("/api/hello", get(hello));
-
-    // Run the server
-    println!("Server starting at http://127.0.0.1:3000");
-    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap_or_else(|_| "0.0.0.0:3000".parse().unwrap()))
-        .serve(app.into_make_service())
-        .await
-        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-}
-
-#[derive(Serialize)]
-struct HelloResponse {
-    message: String,
-}
-
-async fn hello() -> Json<HelloResponse> {
-    Json(HelloResponse {
-        message: "Hello from the API!".to_string(),
-    })
-}
-"#;
-    
-    fs::write(service_dir.join("src").join("main.rs"), main_rs)?;
-    
-    Ok(())
-}
-
-pub fn add_libs(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding library components...".blue());
-    
-    let libs_dir = project_dir.join("libs");
-    create_directory(&libs_dir)?;
-    
-    // Create core, models, and utils libraries
-    for lib_name in &["core", "models", "utils"] {
-        let lib_dir = libs_dir.join(lib_name);
-        create_directory(&lib_dir)?;
-        create_directory(&lib_dir.join("src"))?;
-        
-        // Create Cargo.toml for the library
-        let lib_cargo_toml = format!(
-            r#"[package]
-name = "{}"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-serde = {{ version = "1.0", features = ["derive"] }}
-thiserror = "1.0"
-"#,
-            lib_name
-        );
-        
-        fs::write(lib_dir.join("Cargo.toml"), lib_cargo_toml)?;
-        
-        // Create lib.rs with basic code
-        let lib_rs = format!(
-            r#"//! {} library
-
-/// Says hello from the library
-pub fn hello() {{
-    println!("Hello from {} library!");
-}}
-"#,
-            lib_name, lib_name
-        );
-        
-        fs::write(lib_dir.join("src").join("lib.rs"), lib_rs)?;
-    }
-    
-    Ok(())
-}
-
-pub fn add_ai(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding AI components...".blue());
-    
-    let ai_dir = project_dir.join("ai");
-    create_directory(&ai_dir)?;
-    
-    // Create a default AI model
-    let model_name = "inference";
-    let model_dir = ai_dir.join(model_name);
-    create_directory(&model_dir)?;
-    create_directory(&model_dir.join("src"))?;
-    
-    // Create Cargo.toml for the model
-    let model_cargo_toml = r#"[package]
-name = "inference"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-tch = "0.10"
-tract-onnx = "0.19"
-tokenizers = "0.13"
-serde = { version = "1.0", features = ["derive"] }
-anyhow = "1.0"
-"#;
-    
-    fs::write(model_dir.join("Cargo.toml"), model_cargo_toml)?;
-    
-    // Create lib.rs with a basic AI inference model
-    let lib_rs = r#"//! AI Inference Module
-
-use anyhow::Result;
-
-/// AI model for inference
-pub struct Model {
-    name: String,
-}
-
-impl Model {
-    /// Create a new AI model
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
+    // Check both main.rs and lib.rs for framework detection
+    for src_path in &[&src_main_path, &src_lib_path] {
+        if src_path.exists() {
+            let content = fs::read_to_string(src_path)?;
+            
+            // Try to detect the framework from imports (for metadata only)
+            if content.contains("use poem") {
+                detected_framework = Some("poem");
+                break;
+            } else if content.contains("use axum") {
+                detected_framework = Some("axum");
+                break;
+            } else if content.contains("use actix_web") {
+                detected_framework = Some("actix");
+                break;
+            } else if content.contains("use leptos") {
+                detected_framework = Some("leptos");
+                break;
+            } else if content.contains("use dioxus") {
+                detected_framework = Some("dioxus");
+                break;
+            }
         }
     }
     
-    /// Run inference on input
-    pub fn infer(&self, input: &str) -> Result<String> {
-        // This is a placeholder for actual AI inference
-        println!("Running inference with model: {}", self.name);
+    // We're not adding dependencies manually anymore since we've preserved the original ones
+    if let Some(framework) = detected_framework {
+        println!("{} {}", "Detected framework:".blue(), framework.cyan());
+    }
+    
+    // Determine the component type based on the component name and detected framework
+    let template = match component_name.as_str() {
+        "client" => "client",
+        "server" => "server",
+        "shared" => "shared",
+        "edge" => "edge",
+        "serverless" => "serverless",
+        "data-science" => "data-science",
+        "embedded" => "embedded",
+        _ => "server", // Default to server if unknown
+    };
+    
+    // Store transformation metadata
+    store_transformation_metadata(project_dir, &component_name, template, detected_framework)?;
+    
+    // Store component type in component's Cargo.toml metadata
+    store_component_type_in_cargo(&component_dir, template)?;
+    
+    // Fix workspace resolver
+    let workspace_cargo_path = project_dir.join("Cargo.toml");
+    let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
+    let mut workspace_doc = workspace_cargo_content.parse::<Document>()
+        .context("Failed to parse workspace Cargo.toml")?;
+    
+    // Add resolver = "2" to workspace
+    if let Some(workspace) = workspace_doc.get_mut("workspace") {
+        if let Some(table) = workspace.as_table_mut() {
+            if table.get("resolver").is_none() {
+                table.insert("resolver", value("2"));
+            }
+        }
+    }
+    
+    // Write updated workspace Cargo.toml
+    fs::write(workspace_cargo_path, workspace_doc.to_string())?;
+    
+    // Print success message
+    println!("{}", "Project successfully converted to workspace!".green());
+    
+    // Print framework-specific instructions only for reference
+    if let Some(framework) = detected_framework {
+        println!("{} {}", "Detected framework:".blue(), framework.cyan());
+    }
+    
+    Ok(())
+}
+
+// Helper function to recursively copy directories
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
+    if !dst.exists() {
+        fs::create_dir_all(dst)?;
+    }
+    
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
         
-        Ok(format!("AI Response to: {}", input))
+        if ty.is_dir() {
+            copy_dir_all(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_inference() {
-        let model = Model::new("test-model");
-        let result = model.infer("Hello AI").expect("Inference should succeed");
-        assert!(result.contains("Hello AI"));
-    }
-}
-"#;
-    
-    fs::write(model_dir.join("src").join("lib.rs"), lib_rs)?;
     
     Ok(())
 }
 
-pub fn add_edge(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding edge computing components...".blue());
+// Function to add a component to a workspace
+fn add_component(project_dir: &Path) -> Result<()> {
+    // Get project structure
+    let structure = analyze_project_structure(project_dir)?;
+    let project_name = &structure.project_name;
     
-    let edge_dir = project_dir.join("edge");
-    create_directory(&edge_dir)?;
+    // Ensure .ferrisup directory exists
+    let ferrisup_dir = project_dir.join(".ferrisup");
+    create_directory(&ferrisup_dir)?;
     
-    // Create a default edge worker
-    let worker_name = "worker";
-    let worker_dir = edge_dir.join(worker_name);
-    create_directory(&worker_dir)?;
-    create_directory(&worker_dir.join("src"))?;
+    // Ensure .ferrisup directory exists
+    let ferrisup_dir = project_dir.join(".ferrisup");
+    create_directory(&ferrisup_dir)?;
     
-    // Create Cargo.toml for the worker
-    let worker_cargo_toml = r#"[package]
-name = "worker"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
-wasm-bindgen = "0.2"
-js-sys = "0.3"
-web-sys = { version = "0.3", features = [
-    "console", "Document", "Element", "HtmlElement", "Window"
-] }
-wasm-bindgen-futures = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.4"
-"#;
+    // Select component type
+    let component_types = vec![
+        "client - Frontend web application (Leptos, Yew, or Dioxus)",
+        "server - Web server with API endpoints (Axum, Actix, or Poem)",
+        "shared - Shared code between client and server",
+        "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
+        "data-science - Data science and machine learning projects",
+        "embedded - Embedded systems firmware",
+    ];
     
-    fs::write(worker_dir.join("Cargo.toml"), worker_cargo_toml)?;
+    let component_idx = Select::new()
+        .with_prompt("Select component type:")
+        .items(&component_types)
+        .default(0)
+        .interact()?;
     
-    // Create lib.rs with a basic Cloudflare Worker
-    let lib_rs = r#"use wasm_bindgen::prelude::*;
-use web_sys::console;
-
-#[wasm_bindgen]
-pub fn greeting(name: &str) -> String {
-    console::log_1(&"Called from WASM".into());
-    format!("Hello, {}! Welcome to Ferris Edge", name)
-}
-
-#[wasm_bindgen(start)]
-pub fn start() {
-    console::log_1(&"Edge worker initialized".into());
-}
-"#;
+    // Map index to component type
+    let component_type = match component_idx {
+        0 => "client",
+        1 => "server",
+        2 => "shared",
+        3 => "edge",
+        4 => "data-science",
+        5 => "embedded",
+        _ => "client", // Default to client
+    };
     
-    fs::write(worker_dir.join("src").join("lib.rs"), lib_rs)?;
+    // Prompt for component name with default based on component type
+    let component_name = Input::<String>::new()
+        .with_prompt(format!("Component name [{}]", component_type))
+        .default(component_type.to_string())
+        .interact_text()?;
+    
+    // Create component directory
+    let component_dir = project_dir.join(&component_name);
+    
+    // Check if directory already exists
+    if component_dir.exists() {
+        println!("{} {}", 
+            "Error:".red().bold(), 
+            format!("Component directory '{}' already exists", component_name).red());
+        return Ok(());
+    }
+    
+    create_directory(&component_dir)?;
+    
+    // Select framework if applicable
+    let framework = match component_type {
+        "client" => {
+            let frameworks = vec![
+                "leptos - Reactive web framework with fine-grained reactivity",
+                "dioxus - Elegant React-like framework for desktop, web, and mobile",
+                "tauri - Build smaller, faster, and more secure desktop applications",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("leptos"),
+                1 => Some("dioxus"),
+                2 => Some("tauri"),
+                _ => None,
+            }
+        },
+        "server" => {
+            let frameworks = vec![
+                "axum - Ergonomic and modular web framework by Tokio",
+                "actix - Powerful, pragmatic, and extremely fast web framework",
+                "poem - Full-featured and easy-to-use web framework",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("axum"),
+                1 => Some("actix"),
+                2 => Some("poem"),
+                _ => None,
+            }
+        },
+        "edge" => {
+            let providers = vec![
+                "cloudflare - Cloudflare Workers",
+                "vercel - Vercel Edge Functions",
+                "fastly - Fastly Compute@Edge",
+                "aws - AWS Lambda@Edge",
+            ];
+            
+            let provider_idx = Select::new()
+                .with_prompt("Select provider:")
+                .items(&providers)
+                .default(0)
+                .interact()?;
+            
+            match provider_idx {
+                0 => Some("cloudflare"),
+                1 => Some("vercel"),
+                2 => Some("fastly"),
+                3 => Some("aws"),
+                _ => None,
+            }
+        },
+        "data-science" => {
+            let frameworks = vec![
+                "polars - Fast DataFrame library",
+                "linfa - Machine learning framework",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("polars"),
+                1 => Some("linfa"),
+                _ => None,
+            }
+        },
+        _ => None,
+    };
+    
+    // Create the component by directly calling the new command
+    println!("{}", format!("Creating {} component with name: {}", component_type, component_name).blue());
+    
+    // Map component type to template
+    let template = map_component_to_template(component_type);
+    
+    // Call the new command to create the component
+    let result = crate::commands::new::execute(
+        Some(&component_name),
+        Some(template),
+        framework.as_deref(),
+        None,
+        None,
+        false,
+        false,
+        false,
+        None
+    );
+    
+    if let Err(e) = result {
+        println!("{} {}", "Error creating component:".red().bold(), e);
+        return Err(anyhow!("Failed to create component"));
+    }
+    
+    // Display detected framework (we're no longer adding dependencies manually)
+    if let Some(framework_name) = &framework {
+        println!("{} {}", "Using framework:".blue(), framework_name.cyan());
+    }
+    
+    // Store transformation metadata
+    store_transformation_metadata(project_dir, &component_name, template, framework.as_deref())?;
+    
+    // Store component type in component's Cargo.toml metadata
+    store_component_type_in_cargo(&component_dir, template)?;
+    
+    // Update component's Cargo.toml to use project-prefixed package name
+    let component_cargo_path = component_dir.join("Cargo.toml");
+    if component_cargo_path.exists() {
+        let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
+        let mut component_doc = component_cargo_content.parse::<Document>()
+            .context("Failed to parse component Cargo.toml")?;
+        
+        // Update package name to use project_component format with underscores
+        if let Some(package) = component_doc.get_mut("package") {
+            if let Some(name) = package.get_mut("name") {
+                *name = toml_edit::value(format!("{}_{}", project_name, component_name));
+            }
+        }
+        
+        // Write updated Cargo.toml
+        fs::write(component_cargo_path, component_doc.to_string())?;
+    }
+    
+    // Update workspace Cargo.toml to include the new component
+    // Note: The update_workspace_members function will automatically detect and add the component
+    if let Err(e) = update_workspace_members(project_dir) {
+        println!("{} {}", "Warning: Failed to update workspace members:".yellow().bold(), e);
+    }
+    
+    println!("{}", format!("Component '{}' successfully added to workspace!", component_name).green());
     
     Ok(())
 }
 
-pub fn add_embedded(project_dir: &Path) -> Result<()> {
-    println!("{}", "Adding embedded systems components...".blue());
+// Function to add a component without converting to workspace
+fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
+    // Get project structure
+    let structure = analyze_project_structure(project_dir)?;
+    let _project_name = &structure.project_name;
     
-    let embedded_dir = project_dir.join("embedded");
-    create_directory(&embedded_dir)?;
+    // Select component type
+    let component_types = vec![
+        "client - Frontend web application (Leptos, Yew, or Dioxus)",
+        "server - Web server with API endpoints (Axum, Actix, or Poem)",
+        "shared - Shared code between client and server",
+        "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
+        "data-science - Data science and machine learning projects",
+        "embedded - Embedded systems firmware",
+    ];
     
-    // Create a default embedded device
-    let device_name = "device";
-    let device_dir = embedded_dir.join(device_name);
-    create_directory(&device_dir)?;
-    create_directory(&device_dir.join("src"))?;
+    let component_idx = Select::new()
+        .with_prompt("Select component type:")
+        .items(&component_types)
+        .default(0)
+        .interact()?;
     
-    // Create Cargo.toml for the device
-    let device_cargo_toml = r#"[package]
-name = "device"
-version = "0.1.0"
-edition = "2021"
+    // Map index to component type
+    let component_type = match component_idx {
+        0 => "client",
+        1 => "server",
+        2 => "shared",
+        3 => "edge",
+        4 => "data-science",
+        5 => "embedded",
+        _ => "client", // Default to client
+    };
+    
+    // Prompt for component name with default based on component type
+    let component_name = Input::<String>::new()
+        .with_prompt(format!("Component name [{}]", component_type))
+        .default(component_type.to_string())
+        .interact_text()?;
+    
+    // Get parent directory
+    let parent_dir = project_dir.parent().ok_or_else(|| anyhow!("Could not determine parent directory"))?;
+    
+    // Create sibling component directory
+    let component_dir = parent_dir.join(&component_name);
+    
+    // Check if directory already exists
+    if component_dir.exists() {
+        println!("{} {}", 
+            "Error:".red().bold(), 
+            format!("Component directory '{}' already exists", component_name).red());
+        return Ok(());
+    }
+    
+    // Select framework if applicable
+    let framework = match component_type {
+        "client" => {
+            let frameworks = vec![
+                "leptos - Reactive web framework with fine-grained reactivity",
+                "dioxus - Elegant React-like framework for desktop, web, and mobile",
+                "tauri - Build smaller, faster, and more secure desktop applications",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("leptos"),
+                1 => Some("dioxus"),
+                2 => Some("tauri"),
+                _ => None,
+            }
+        },
+        "server" => {
+            let frameworks = vec![
+                "axum - Ergonomic and modular web framework by Tokio",
+                "actix - Powerful, pragmatic, and extremely fast web framework",
+                "poem - Full-featured and easy-to-use web framework",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("axum"),
+                1 => Some("actix"),
+                2 => Some("poem"),
+                _ => None,
+            }
+        },
+        "edge" => {
+            let providers = vec![
+                "cloudflare - Cloudflare Workers",
+                "vercel - Vercel Edge Functions",
+                "fastly - Fastly Compute@Edge",
+                "aws - AWS Lambda@Edge",
+            ];
+            
+            let provider_idx = Select::new()
+                .with_prompt("Select provider:")
+                .items(&providers)
+                .default(0)
+                .interact()?;
+            
+            match provider_idx {
+                0 => Some("cloudflare"),
+                1 => Some("vercel"),
+                2 => Some("fastly"),
+                3 => Some("aws"),
+                _ => None,
+            }
+        },
+        "data-science" => {
+            let frameworks = vec![
+                "polars - Fast DataFrame library",
+                "linfa - Machine learning framework",
+            ];
+            
+            let framework_idx = Select::new()
+                .with_prompt("Select framework:")
+                .items(&frameworks)
+                .default(0)
+                .interact()?;
+            
+            match framework_idx {
+                0 => Some("polars"),
+                1 => Some("linfa"),
+                _ => None,
+            }
+        },
+        _ => None,
+    };
+    
+    // Create the component by directly calling the new command
+    println!("{}", format!("Creating {} component with name: {}", component_type, component_name).blue());
+    
+    // Map component type to template
+    let template = map_component_to_template(component_type);
+    
+    // Change to parent directory
+    let current_dir = std::env::current_dir()?;
+    std::env::set_current_dir(parent_dir)?;
+    
+    // Call the new command to create the component
+    let result = crate::commands::new::execute(
+        Some(&component_name),
+        Some(template),
+        framework.as_deref(),
+        None,
+        None,
+        false,
+        false,
+        false,
+        None
+    );
+    
+    // Change back to original directory
+    std::env::set_current_dir(current_dir)?;
+    
+    if let Err(e) = result {
+        println!("{} {}", "Error creating component:".red().bold(), e);
+        return Err(anyhow!("Failed to create component"));
+    }
+    
+    println!("{}", format!("Component '{}' successfully created as a sibling project!", component_name).green());
+    
+    Ok(())
+}
 
-[dependencies]
-embedded-hal = "0.2"
-panic-halt = "0.2"
-cortex-m = "0.7"
-cortex-m-rt = "0.7"
-
-[[bin]]
-name = "device"
-test = false
-bench = false
-"#;
-    
-    fs::write(device_dir.join("Cargo.toml"), device_cargo_toml)?;
-    
-    // Create main.rs with a basic embedded program
-    let main_rs = r#"//! Basic embedded device program
-#![no_std]
-#![no_main]
-
-use panic_halt as _;
-use cortex_m_rt::entry;
-
-#[entry]
-fn main() -> ! {
-    // Embedded device initialization would go here
-    
-    loop {
-        // Main device loop
+// Helper function to map component type to template
+fn map_component_to_template(component_type: &str) -> &str {
+    match component_type {
+        "client" => "client",
+        "server" => "server",
+        "shared" => "library", // Use library template for shared components
+        "edge" => "edge",
+        "data-science" => "data-science",
+        "embedded" => "embedded",
+        _ => "minimal",
     }
 }
-"#;
+
+// Helper function to update imports in source files
+fn update_source_imports(component_dir: &Path, project_name: &str, component_name: &str) -> Result<()> {
+    // Create the new package name
+    let new_package_name = format!("{0}_{1}", project_name, component_name);
     
-    fs::write(device_dir.join("src").join("main.rs"), main_rs)?;
+    // Walk through all Rust source files in the component directory
+    let src_dir = component_dir.join("src");
+    if !src_dir.exists() {
+        return Ok(());
+    }
     
+    // Process main.rs
+    let main_rs_path = src_dir.join("main.rs");
+    if main_rs_path.exists() {
+        update_imports_in_file(&main_rs_path, project_name, &new_package_name)?;
+    }
+    
+    // Process lib.rs
+    let lib_rs_path = src_dir.join("lib.rs");
+    if lib_rs_path.exists() {
+        update_imports_in_file(&lib_rs_path, project_name, &new_package_name)?;
+    }
+    
+    // Process other Rust files in the src directory
+    process_directory_imports(&src_dir, project_name, &new_package_name)?;
+    
+    Ok(())
+}
+
+// Helper function to update imports in a single file
+fn update_imports_in_file(file_path: &Path, project_name: &str, new_package_name: &str) -> Result<()> {
+    // Read the file content
+    let content = fs::read_to_string(file_path)?;
+    
+    // Only replace exact package name to avoid multiple replacements
+    // For example, replace "use app::*;" with "use app_client::*;"
+    // but not "use app_client::*;" with "use app_client_client::*;"
+    
+    // Use regex to ensure we're only replacing the exact package name
+    let re_import = regex::Regex::new(&format!(r"\buse\s+{}\b", regex::escape(project_name)))
+        .context("Failed to create regex for import")?;
+    let updated_content = re_import.replace_all(&content, format!("use {}", new_package_name));
+    
+    // Write the updated content back to the file
+    fs::write(file_path, updated_content.to_string())?;
+    
+    Ok(())
+}
+
+// Helper function to recursively process all Rust files in a directory
+fn process_directory_imports(dir_path: &Path, project_name: &str, new_package_name: &str) -> Result<()> {
+    if !dir_path.exists() || !dir_path.is_dir() {
+        return Ok(());
+    }
+    
+    for entry in fs::read_dir(dir_path)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_dir() {
+            // Recursively process subdirectories
+            process_directory_imports(&path, project_name, new_package_name)?;
+        } else if path.is_file() {
+            // Process Rust files
+            if let Some(extension) = path.extension() {
+                if extension == "rs" {
+                    update_imports_in_file(&path, project_name, new_package_name)?;
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+// Function to detect component type based on project files
+fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
+    // First, check if there's an explicit component type in the Cargo.toml metadata
+    let cargo_toml = project_dir.join("Cargo.toml");
+    if cargo_toml.exists() {
+        let cargo_content = fs::read_to_string(&cargo_toml)?;
+        let cargo_doc = cargo_content.parse::<Document>().ok();
+        
+        if let Some(doc) = cargo_doc {
+            // Check for ferrisup metadata in Cargo.toml
+            if let Some(package) = doc.get("package") {
+                if let Some(metadata) = package.get("metadata") {
+                    if let Some(ferrisup) = metadata.get("ferrisup") {
+                        if let Some(component_type) = ferrisup.get("component_type") {
+                            if let Some(component_str) = component_type.as_str() {
+                                match component_str {
+                                    "client" => return Ok("client"),
+                                    "server" => return Ok("server"),
+                                    "shared" => return Ok("shared"),
+                                    "edge" => return Ok("edge"),
+                                    "serverless" => return Ok("serverless"),
+                                    "data-science" => return Ok("data-science"),
+                                    "embedded" => return Ok("embedded"),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Check for .ferrisup/metadata.toml - this would have the original component type
+    let metadata_path = project_dir.join(".ferrisup/metadata.toml");
+    if metadata_path.exists() {
+        let metadata_content = fs::read_to_string(&metadata_path)?;
+        let metadata_doc = metadata_content.parse::<Document>().ok();
+        
+        if let Some(doc) = metadata_doc {
+            // Try to get component_type directly
+            if let Some(component_type) = doc.get("component_type") {
+                if let Some(component_str) = component_type.as_str() {
+                    match component_str {
+                        "client" => return Ok("client"),
+                        "server" => return Ok("server"),
+                        "shared" => return Ok("shared"),
+                        "edge" => return Ok("edge"),
+                        "serverless" => return Ok("serverless"),
+                        "data-science" => return Ok("data-science"),
+                        "embedded" => return Ok("embedded"),
+                        _ => {}
+                    }
+                }
+            }
+            
+            // Try to infer from template
+            if let Some(template) = doc.get("template") {
+                if let Some(template_str) = template.as_str() {
+                    if template_str.contains("serverless") {
+                        return Ok("serverless");
+                    } else if template_str.contains("edge") {
+                        return Ok("edge");
+                    } else if template_str.contains("client") {
+                        return Ok("client");
+                    } else if template_str.contains("server") {
+                        return Ok("server");
+                    } else if template_str.contains("shared") {
+                        return Ok("shared");
+                    } else if template_str.contains("data-science") {
+                        return Ok("data-science");
+                    } else if template_str.contains("embedded") {
+                        return Ok("embedded");
+                    }
+                }
+            }
+        }
+        
+        // Fallback to simple string matching if parsing fails
+        if metadata_content.contains("component_type = \"client\"") {
+            return Ok("client");
+        } else if metadata_content.contains("component_type = \"server\"") {
+            return Ok("server");
+        } else if metadata_content.contains("component_type = \"shared\"") {
+            return Ok("shared");
+        } else if metadata_content.contains("component_type = \"edge\"") {
+            return Ok("edge");
+        } else if metadata_content.contains("component_type = \"serverless\"") {
+            return Ok("serverless");
+        } else if metadata_content.contains("component_type = \"data-science\"") {
+            return Ok("data-science");
+        } else if metadata_content.contains("component_type = \"embedded\"") {
+            return Ok("embedded");
+        } else if metadata_content.contains("template = \"client\"") {
+            return Ok("client");
+        } else if metadata_content.contains("template = \"server\"") {
+            return Ok("server");
+        } else if metadata_content.contains("template = \"shared\"") {
+            return Ok("shared");
+        } else if metadata_content.contains("template = \"edge\"") {
+            return Ok("edge");
+        } else if metadata_content.contains("template = \"serverless\"") {
+            return Ok("serverless");
+        } else if metadata_content.contains("template = \"data-science\"") {
+            return Ok("data-science");
+        } else if metadata_content.contains("template = \"embedded\"") {
+            return Ok("embedded");
+        }
+    }
+    
+    // Check for edge-specific files and directories
+    if project_dir.join("workers-site").exists() || 
+       project_dir.join("wrangler.toml").exists() {
+        return Ok("edge");
+    }
+    
+    // Check for Vercel files - could be edge or serverless
+    if project_dir.join("vercel.json").exists() || 
+       project_dir.join(".vercel").exists() {
+        // Check if this is a serverless function by looking at the Cargo.toml
+        let cargo_toml = project_dir.join("Cargo.toml");
+        if cargo_toml.exists() {
+            let cargo_content = fs::read_to_string(&cargo_toml)?;
+            
+            // If it contains serverless keywords, it's a serverless project
+            if cargo_content.contains("lambda") || 
+               cargo_content.contains("aws-lambda") || 
+               cargo_content.contains("aws_lambda") || 
+               cargo_content.contains("serverless") {
+                return Ok("serverless");
+            }
+            
+            // If it contains edge keywords, it's an edge project
+            if cargo_content.contains("wasm") || 
+               cargo_content.contains("static-site") || 
+               cargo_content.contains("edge") {
+                return Ok("edge");
+            }
+        }
+        
+        // Check for serverless directory structure
+        if project_dir.join("api").exists() {
+            return Ok("serverless");
+        }
+        
+        // Check for edge-specific files
+        if project_dir.join("index.html").exists() && project_dir.join("pkg").exists() {
+            return Ok("edge");
+        }
+        
+        // Check metadata files for clues
+        let metadata_path = project_dir.join(".ferrisup/metadata.toml");
+        if metadata_path.exists() {
+            let metadata_content = fs::read_to_string(&metadata_path)?;
+            if metadata_content.contains("static-site") || metadata_content.contains("edge/static") {
+                return Ok("edge");
+            }
+        }
+        
+        // Default to edge for Vercel projects with no serverless indicators
+        return Ok("edge");
+    }
+    
+    // Check for serverless-specific files
+    if project_dir.join("serverless.yml").exists() || 
+       project_dir.join(".aws").exists() || 
+       project_dir.join("template.yaml").exists() || 
+       project_dir.join("template.yml").exists() || 
+       project_dir.join("sam-template.yaml").exists() || 
+       project_dir.join("sam-template.yml").exists() {
+        return Ok("serverless");
+    }
+    
+    // Check for client-specific files and imports
+    let src_dir = project_dir.join("src");
+    let main_rs = src_dir.join("main.rs");
+    let lib_rs = src_dir.join("lib.rs");
+    let index_html = project_dir.join("index.html");
+    let cargo_toml = project_dir.join("Cargo.toml");
+    
+    // Check for frameworks in Cargo.toml
+    if cargo_toml.exists() {
+        let cargo_content = fs::read_to_string(&cargo_toml)?;
+        
+        // Check for serverless frameworks first (higher priority)
+        if cargo_content.contains("lambda") || 
+           cargo_content.contains("aws-lambda") || 
+           cargo_content.contains("aws_lambda") || 
+           cargo_content.contains("serverless") {
+            return Ok("serverless");
+        }
+        
+        // Check for edge frameworks
+        if cargo_content.contains("worker") || 
+           cargo_content.contains("cloudflare") || 
+           cargo_content.contains("fastly") {
+            return Ok("edge");
+        }
+        
+        // Check for Vercel - could be edge or serverless
+        if cargo_content.contains("vercel") {
+            // Look for clues that this is a serverless function
+            if project_dir.join("api").exists() {
+                return Ok("serverless");
+            } else {
+                return Ok("edge");
+            }
+        }
+        
+        // Check for client frameworks
+        if cargo_content.contains("leptos") || 
+           cargo_content.contains("dioxus") || 
+           cargo_content.contains("yew") || 
+           cargo_content.contains("trunk") ||
+           cargo_content.contains("wasm") {
+            return Ok("client");
+        }
+    }
+    
+    // Check for index.html (typical in client projects)
+    if index_html.exists() {
+        return Ok("client");
+    }
+    
+    // Check for imports in source files
+    for rs_file in &[main_rs, lib_rs] {
+        if rs_file.exists() {
+            let content = fs::read_to_string(rs_file)?;
+            
+            // Check for edge frameworks
+            if content.contains("use worker") || 
+               content.contains("use cloudflare") || 
+               content.contains("use vercel") || 
+               content.contains("use fastly") {
+                return Ok("edge");
+            }
+            
+            // Check for serverless frameworks
+            if content.contains("use lambda") || 
+               content.contains("use aws_lambda") || 
+               content.contains("use lambda_runtime") || 
+               content.contains("lambda::handler") || 
+               content.contains("lambda::function") {
+                return Ok("serverless");
+            }
+            
+            // Check for client frameworks
+            if content.contains("use leptos") || 
+               content.contains("use dioxus") || 
+               content.contains("use yew") || 
+               content.contains("wasm_bindgen") {
+                return Ok("client");
+            }
+            
+            // Check for server frameworks
+            if content.contains("use poem") || 
+               content.contains("use axum") || 
+               content.contains("use actix") || 
+               content.contains("use rocket") || 
+               content.contains("use warp") {
+                return Ok("server");
+            }
+        }
+    }
+    
+    // Look for Trunk.toml (client project)
+    if project_dir.join("Trunk.toml").exists() {
+        return Ok("client");
+    }
+    
+    // Check for data-science specific dependencies
+    if cargo_toml.exists() {
+        let cargo_content = fs::read_to_string(&cargo_toml)?;
+        if cargo_content.contains("polars") || 
+           cargo_content.contains("linfa") || 
+           cargo_content.contains("ndarray") {
+            return Ok("data-science");
+        }
+    }
+    
+    // Check for embedded specific dependencies
+    if cargo_toml.exists() {
+        let cargo_content = fs::read_to_string(&cargo_toml)?;
+        if cargo_content.contains("embedded-hal") || 
+           cargo_content.contains("cortex-m") || 
+           cargo_content.contains("stm32") {
+            return Ok("embedded");
+        }
+    }
+    
+    // Check for serverless-related file patterns
+    let src_dir = project_dir.join("src");
+    if src_dir.exists() {
+        let entries = fs::read_dir(src_dir)?;
+        for entry in entries {
+            let entry = entry?;
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            // Look for handler.rs, lambda.rs, or function.rs which are common in serverless projects
+            if file_name == "handler.rs" || file_name == "lambda.rs" || file_name == "function.rs" {
+                return Ok("serverless");
+            }
+        }
+    }
+    
+    // Default to server for binary projects, shared for libraries
+    let structure = analyze_project_structure(project_dir)?;
+    if structure.is_binary {
+        // For binary projects, prefer serverless over server as default if we detect any AWS-related files
+        if project_dir.join(".aws").exists() || 
+           cargo_toml.exists() && fs::read_to_string(&cargo_toml)?.contains("aws") {
+            Ok("serverless")
+        } else {
+            Ok("server")
+        }
+    } else {
+        Ok("shared")
+    }
+}
+
+// Function to store component type in Cargo.toml metadata
+fn store_component_type_in_cargo(component_dir: &Path, component_type: &str) -> Result<()> {
+    let cargo_path = component_dir.join("Cargo.toml");
+    if !cargo_path.exists() {
+        return Ok(());
+    }
+    
+    let cargo_content = fs::read_to_string(&cargo_path)?;
+    let mut doc = cargo_content.parse::<Document>()
+        .context("Failed to parse Cargo.toml")?;
+    
+    // Ensure package section exists
+    if doc.get("package").is_none() {
+        doc.insert("package", Item::Table(Table::new()));
+    }
+    
+    // Get or create metadata section
+    let package = doc["package"].as_table_mut().unwrap();
+    if package.get("metadata").is_none() {
+        package.insert("metadata", Item::Table(Table::new()));
+    }
+    
+    // Get or create ferrisup section in metadata
+    let metadata = package["metadata"].as_table_mut().unwrap();
+    if metadata.get("ferrisup").is_none() {
+        metadata.insert("ferrisup", Item::Table(Table::new()));
+    }
+    
+    // Set component_type in ferrisup metadata
+    let ferrisup = metadata["ferrisup"].as_table_mut().unwrap();
+    ferrisup.insert("component_type", value(component_type));
+    
+    // Write updated Cargo.toml
+    fs::write(cargo_path, doc.to_string())?;
+    
+    Ok(())
+}
+
+// Function to store transformation metadata
+fn store_transformation_metadata(project_dir: &Path, component_name: &str, template: &str, framework: Option<&str>) -> Result<()> {
+    // Ensure .ferrisup directory exists
+    let ferrisup_dir = project_dir.join(".ferrisup");
+    create_directory(&ferrisup_dir)?;
+    
+    let metadata_path = ferrisup_dir.join("metadata.toml");
+    
+    // Create or load existing metadata
+    let metadata_content = if metadata_path.exists() {
+        fs::read_to_string(&metadata_path)?
+    } else {
+        String::new()
+    };
+    
+    let mut doc = if metadata_content.is_empty() {
+        Document::new()
+    } else {
+        metadata_content.parse::<Document>()
+            .context("Failed to parse metadata.toml")?  
+    };
+    
+    // Ensure components table exists
+    if doc.get("components").is_none() {
+        doc.insert("components", Item::Table(Table::new()));
+    }
+    
+    // Add component metadata
+    let components = doc["components"].as_table_mut().unwrap();
+    
+    let mut component_table = Table::new();
+    component_table.insert("template", value(template));
+    
+    // Explicitly store the component_type based on the template or component name
+    let component_type = match template {
+        "client" => "client",
+        "server" => "server",
+        "shared" => "shared",
+        "edge" => "edge",
+        "serverless" => "serverless",
+        "data-science" => "data-science",
+        "embedded" => "embedded",
+        _ => match component_name {
+            "client" => "client",
+            "server" => "server",
+            "shared" => "shared",
+            "edge" => "edge",
+            "serverless" => "serverless",
+            "data-science" => "data-science",
+            "embedded" => "embedded",
+            _ => template, // Default to template name if no match
+        },
+    };
+    component_table.insert("component_type", value(component_type));
+    
+    if let Some(fw) = framework {
+        component_table.insert("framework", value(fw));
+    }
+    component_table.insert("created_at", value(chrono::Local::now().to_rfc3339()));
+    
+    components.insert(component_name, Item::Table(component_table));
+    
+    // Write metadata back to file
+    fs::write(metadata_path, doc.to_string())
+        .context("Failed to write metadata.toml")?;
+    
+    Ok(())
+}
+
+// Function to print final next steps
+fn print_final_next_steps(project_dir: &Path) -> Result<()> {
+    // Get project structure
+    let structure = analyze_project_structure(project_dir)?;
+    
+    if !structure.is_workspace {
+        return Ok(());
+    }
+    
+    // Get workspace members from Cargo.toml
+    let workspace_cargo_path = project_dir.join("Cargo.toml");
+    let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
+    let workspace_doc = workspace_cargo_content.parse::<Document>()
+        .context("Failed to parse workspace Cargo.toml")?;
+    
+    // Extract component names from workspace members
+    let mut component_names = Vec::new();
+    if let Some(workspace) = workspace_doc.get("workspace") {
+        if let Some(members) = workspace.get("members") {
+            if let Some(members_array) = members.as_array() {
+                for member in members_array {
+                    if let Some(member_str) = member.as_str() {
+                        component_names.push(member_str.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    // Get project name for package prefixes - more reliable method for workspaces
+    let mut project_name = structure.project_name.to_lowercase();
+    
+    // If project_name is "unknown", try to determine it from directory name
+    if project_name == "unknown" {
+        if let Some(dir_name) = project_dir.file_name() {
+            if let Some(dir_str) = dir_name.to_str() {
+                project_name = dir_str.to_lowercase();
+            }
+        }
+    }
+    
+    // Also try to get it from metadata if available
+    let metadata_path = project_dir.join(".ferrisup/metadata.toml");
+    if metadata_path.exists() && project_name == "unknown" {
+        if let Ok(metadata_content) = fs::read_to_string(&metadata_path) {
+            if let Ok(metadata_doc) = metadata_content.parse::<Document>() {
+                if let Some(project_metadata) = metadata_doc.get("project") {
+                    if let Some(name) = project_metadata.get("name") {
+                        if let Some(name_str) = name.as_str() {
+                            project_name = name_str.to_lowercase();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    println!("{}", "\nFinal Steps:\n".green().bold());
+    
+    // Print comprehensive build instructions
+    println!("{}", "Building your workspace:".yellow().bold());
+    
+    // 1. Build all components at once
+    println!("{}", "1. To build all components at once:".blue());
+    print!("cd {} && cargo build", project_dir.display());
+    
+    // Add individual component build commands
+    for component in &component_names {
+        print!(" && cargo build -p {0}_{1}", project_name, component);
+    }
+    println!("\n");
+    
+    // 2. Build specific components
+    println!("{}", "2. To build specific components:".blue());
+    for component in &component_names {
+        println!("   cargo build -p {0}_{1}", project_name, component);
+    }
+    println!();
+    
+    // 3. Run specific components
+    println!("{}", "3. To run specific components:".blue());
+    for component in &component_names {
+        println!("   cargo run -p {0}_{1}", project_name, component);
+    }
+    println!();
+    
+    // 4. Test specific components
+    println!("{}", "4. To test specific components:".blue());
+    for component in &component_names {
+        println!("   cargo test -p {0}_{1}", project_name, component);
+    }
+    println!();
+    
+    // 5. Adding dependencies
+    println!("{}", "5. To add dependencies to components:".blue());
+    println!("   cd {}/[component_name] && cargo add [dependency_name]", project_dir.display());
+    println!("   OR");
+    println!("   cargo add [dependency_name] --package {0}_[component_name]", project_name);
+    println!();
+    
+    // 6. Adding more components
+    println!("{}", "6. To add more components in the future:".blue());
+    println!("   cd {} && ferrisup transform", project_dir.display());
+    println!();
+    
+    Ok(())
+}
+
+// Placeholder functions to maintain compatibility with existing code
+#[allow(dead_code)]
+fn transform_to_template(_project_dir: &Path, _template_name: &str, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn transform_to_library(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn transform_to_full_stack(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn transform_to_gen_ai(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn transform_to_edge_app(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn transform_to_embedded(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn init_workspace(_project_dir: &Path, _structure: &ProjectStructure) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_client(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_server(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_libs(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_ai(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_edge(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn add_embedded(_project_dir: &Path) -> Result<()> {
+    println!("This function is deprecated and will be removed in a future version.");
     Ok(())
 }
