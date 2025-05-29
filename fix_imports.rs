@@ -1,3 +1,5 @@
+use std::path::Path;
+
 // Function to fix imports in a newly created component
 fn fix_component_imports(component_dir: &Path, component_name: &str, project_name: &str) -> Result<()> {
     println!("{}", format!("Fixing imports in component: {}", component_name).blue());

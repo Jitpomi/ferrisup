@@ -10,5 +10,6 @@ cargo run -- new test_app server poem
 
 # Try to transform it and add a shared component
 echo "Transforming the app and adding a shared component..."
+# shellcheck disable=SC2164
 cd test_app
 cargo run -- transform
