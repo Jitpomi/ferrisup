@@ -1,6 +1,3 @@
-mod fix_imports;
-mod fix_shared_component;
-
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
