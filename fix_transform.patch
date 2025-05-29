@@ -1,0 +1,17 @@
+--- transform.rs.orig	2025-05-28 08:20:00
++++ transform.rs	2025-05-28 08:20:00
+@@ -598,7 +598,13 @@
+     println!("{}", format!("Creating {} component with name: {}", component_type, component_name).blue());
+     
+     // Map component type to template
+-    let template = map_component_to_template(component_type);
++    // For shared components, we need to explicitly use "library" as the template
++    let template = if component_type == "shared" {
++        "library"
++    } else {
++        map_component_to_template(component_type)
++    };
++    
+     
+     // Print the template being used for debugging
+     println!("{}", format!("Using template: {}", template).blue());

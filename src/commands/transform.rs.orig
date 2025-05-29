@@ -599,13 +599,7 @@ fn add_component(project_dir: &Path) -> Result<()> {
     println!("{}", format!("Creating {} component with name: {}", component_type, component_name).blue());
     
     // Map component type to template
-    // For shared components, we need to explicitly use "library" as the template
-    let template = if component_type == "shared" {
-        "library"
-    } else {
-        map_component_to_template(component_type)
-    };
-    
+    let template = map_component_to_template(component_type);
     
     // Print the template being used for debugging
     println!("{}", format!("Using template: {}", template).blue());
@@ -1645,17 +1639,12 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
     
     println!("{}", "\nFinal Steps:\n".green().bold());
     
-    // 1. Navigate to project directory
-    println!("{}", "1. Navigate to project directory".blue());
-    println!("cd {}", project_dir.display());
-    println!();
-    
     // Print comprehensive build instructions
-    println!("{}", "Working with your components:".yellow().bold());
+    println!("{}", "Building your workspace:".yellow().bold());
     
-    // 2. Build all components at once
-    println!("{}", "2. To build all components at once:".blue());
-    print!("cargo build");
+    // 1. Build all components at once
+    println!("{}", "1. To build all components at once:".blue());
+    print!("cd {} && cargo build", project_dir.display());
     
     // Add individual component build commands
     for component in &component_names {
@@ -1663,37 +1652,37 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
     }
     println!("\n");
     
-    // 3. Build specific components
-    println!("{}", "3. To build specific components:".blue());
+    // 2. Build specific components
+    println!("{}", "2. To build specific components:".blue());
     for component in &component_names {
         println!("   cargo build -p {0}_{1}", project_name, component);
     }
     println!();
     
-    // 4. Run specific components
-    println!("{}", "4. To run specific components:".blue());
+    // 3. Run specific components
+    println!("{}", "3. To run specific components:".blue());
     for component in &component_names {
         println!("   cargo run -p {0}_{1}", project_name, component);
     }
     println!();
     
-    // 5. Test specific components
-    println!("{}", "5. To test specific components:".blue());
+    // 4. Test specific components
+    println!("{}", "4. To test specific components:".blue());
     for component in &component_names {
         println!("   cargo test -p {0}_{1}", project_name, component);
     }
     println!();
     
-    // 6. Adding dependencies
-    println!("{}", "6. To add dependencies to components:".blue());
-    println!("   cd [component_name] && cargo add [dependency_name]");
+    // 5. Adding dependencies
+    println!("{}", "5. To add dependencies to components:".blue());
+    println!("   cd {}/[component_name] && cargo add [dependency_name]", project_dir.display());
     println!("   OR");
     println!("   cargo add [dependency_name] --package {0}_[component_name]", project_name);
     println!();
     
-    // 7. Adding more components
-    println!("{}", "7. To add more components in the future:".blue());
-    println!("   ferrisup transform");
+    // 6. Adding more components
+    println!("{}", "6. To add more components in the future:".blue());
+    println!("   cd {} && ferrisup transform", project_dir.display());
     println!();
     
     Ok(())

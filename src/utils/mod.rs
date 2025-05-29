@@ -145,8 +145,10 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
         if path.is_dir() && path.join("Cargo.toml").exists() {
             let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
             
-            // Skip common directories that might contain multiple crates
-            if !["src", "target", "client", "server", "shared", "libs", "crates"].contains(&dir_name.as_str()) && !existing_members.contains(&dir_name) {
+            // Skip common directories that might contain multiple crates and system directories
+            if ![
+                "src", "target", ".git", ".github", ".ferrisup"
+            ].contains(&dir_name.as_str()) && !existing_members.contains(&dir_name) {
                 crates_to_add.push(dir_name);
             }
         }
