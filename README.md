@@ -34,11 +34,14 @@ cargo install --path .
 ## Quick Start
 
 ```bash
-# Create a new minimal project
+# Create a new project
 ferrisup new my_project
 
-# Create a full-stack project
-ferrisup new my_fullstack --template=full-stack
+# Create a new minimal project
+ferrisup new my_project --component-type minimal
+
+# Create a  leptos client project
+ferrisup new my_client --component-type client --framework leptos
 
 # Create a data science project
 ferrisup new my_data_app --component-type data-science --framework polars
