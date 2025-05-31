@@ -5,6 +5,35 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15] - 2025-05-31
+
+### Added
+- Enhanced transform command with comprehensive workspace management:
+  - Intelligent component type detection when converting projects to workspaces
+  - Default component name suggestions based on component type
+  - Comprehensive file migration when converting to workspaces
+  - Automatic source file reference updating to match new package names
+  - Helpful "Next Steps" guide after workspace transformations
+
+### Changed
+- Improved component creation in transform command:
+  - Now directly uses the `new` command functionality for consistent component creation
+  - Uses the same framework options as the `new` command
+  - Creates components with proper project-prefixed package naming conventions
+  - Maintains consistency between workspace and non-workspace component creation
+- Enhanced metadata storage:
+  - Changed metadata location from `.ferrisup.toml` to `.ferrisup/metadata.toml`
+  - Improved path handling with absolute project root paths
+
+### Fixed
+- Fixed template handling in transform command:
+  - Properly handles all component types and frameworks
+  - Skips template.json files during template application
+  - Uses library template for shared components
+  - Properly handles component creation in both workspace and non-workspace projects
+- Fixed package naming to use underscores instead of hyphens for valid Rust identifiers
+- Fixed duplicate component name prompts in the transform command
+
 ## [0.1.14] - 2025-05-24
 
 ### Fixed
