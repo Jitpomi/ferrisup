@@ -5,7 +5,6 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use comfy_table::{Cell, ContentArrangement, Table};
 use polars::prelude::*;
-use plotters::style::Color;
 use rand::Rng;
 
 // JSON-specific imports

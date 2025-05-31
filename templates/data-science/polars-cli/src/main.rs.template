@@ -9,16 +9,16 @@ use std::fs::File;
 use rand::Rng;
 
 // Data format specific imports
-{{#if (eq data_source "CSV files")}}
+{{#if csv_format}}
 use polars::prelude::CsvReader;
 use polars::prelude::CsvWriter;
 {{/if}}
-{{#if (eq data_source "JSON data")}}
+{{#if json_format}}
 use polars::prelude::JsonReader;
 use polars::prelude::JsonWriter;
 use polars::prelude::JsonFormat;
 {{/if}}
-{{#if (eq data_source "Parquet files")}}
+{{#if parquet_format}}
 use polars::prelude::ParquetReader;
 use polars::prelude::ParquetWriter;
 {{/if}}
@@ -43,15 +43,15 @@ enum Commands {
         file: PathBuf,
         
         /// Format of the data file (auto-detected if not specified)
-        #[arg(short, long, default_value = "")]
+        #[arg(short = 't', long, default_value = "")]
         format: String,
         
         /// Show statistics
-        #[arg(short, long)]
+        #[arg(short = 's', long)]
         statistics: bool,
         
         /// Filter by column=value
-        #[arg(short, long)]
+        #[arg(short = 'c', long)]
         filter_column: Option<String>,
         
         /// Filter value
@@ -90,7 +90,7 @@ enum Commands {
         output: PathBuf,
         
         /// Format of the output file (csv, json, parquet)
-        #[arg(short, long, default_value = "")]
+        #[arg(short = 't', long, default_value = "")]
         format: String,
     },
     
@@ -105,7 +105,7 @@ enum Commands {
         column: String,
         
         /// Format of the data file (auto-detected if not specified)
-        #[arg(short, long, default_value = "")]
+        #[arg(short = 't', long, default_value = "")]
         format: String,
         
         /// Output image file path (PNG)
@@ -142,21 +142,21 @@ fn main() -> Result<()> {
             } else {
                 match file.extension().and_then(|ext| ext.to_str()) {
                     Some("csv") => "csv".to_string(),
-                    {{#if (eq data_source "Parquet files")}}
+                    {{#if parquet_format}}
                     Some("parquet") => "parquet".to_string(),
                     {{/if}}
-                    {{#if (eq data_source "JSON data")}}
+                    {{#if json_format}}
                     Some("json") => "json".to_string(),
                     {{/if}}
                     _ => {
                         // Default to the selected format for this template
-                        {{#if (eq data_source "CSV files")}}
+                        {{#if csv_format}}
                         "csv".to_string()
                         {{else}}
-                        {{#if (eq data_source "Parquet files")}}
+                        {{#if parquet_format}}
                         "parquet".to_string()
                         {{else}}
-                        {{#if (eq data_source "JSON data")}}
+                        {{#if json_format}}
                         "json".to_string()
                         {{else}}
                         "csv".to_string()
@@ -169,7 +169,7 @@ fn main() -> Result<()> {
             
             // Load data based on format
             let df = match format_str.as_str() {
-                {{#if (eq data_source "Parquet files")}}
+                {{#if parquet_format}}
                 "parquet" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
@@ -179,7 +179,7 @@ fn main() -> Result<()> {
                         .with_context(|| format!("Failed to read Parquet file"))?
                 },
                 {{/if}}
-                {{#if (eq data_source "JSON data")}}
+                {{#if json_format}}
                 "json" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;
@@ -340,21 +340,21 @@ fn main() -> Result<()> {
                     } else {
                         match output_path.extension().and_then(|ext| ext.to_str()) {
                             Some("csv") => "csv".to_string(),
-                            {{#if (eq data_source "Parquet files")}}
+                            {{#if parquet_format}}
                             Some("parquet") => "parquet".to_string(),
                             {{/if}}
-                            {{#if (eq data_source "JSON data")}}
+                            {{#if json_format}}
                             Some("json") => "json".to_string(),
                             {{/if}}
                             _ => {
                                 // Default to the selected format for this template
-                                {{#if (eq data_source "CSV files")}}
+                                {{#if csv_format}}
                                 "csv".to_string()
                                 {{else}}
-                                {{#if (eq data_source "Parquet files")}}
+                                {{#if parquet_format}}
                                 "parquet".to_string()
                                 {{else}}
-                                {{#if (eq data_source "JSON data")}}
+                                {{#if json_format}}
                                 "json".to_string()
                                 {{else}}
                                 "csv".to_string()
@@ -371,13 +371,13 @@ fn main() -> Result<()> {
                     
                     // Write to file based on format
                     match format_str.as_str() {
-                        {{#if (eq data_source "Parquet files")}}
+                        {{#if parquet_format}}
                         "parquet" => {
                             let parquet_writer = ParquetWriter::new(&mut output_file);
                             parquet_writer.finish(&mut result_df_mut)?;
                         }
                         {{/if}}
-                        {{#if (eq data_source "JSON data")}}
+                        {{#if json_format}}
                         "json" => {
                             let mut json_writer = JsonWriter::new(&mut output_file);
                             json_writer = json_writer.with_json_format(JsonFormat::Json);
@@ -406,21 +406,21 @@ fn main() -> Result<()> {
             } else {
                 match output.extension().and_then(|ext| ext.to_str()) {
                     Some("csv") => "csv".to_string(),
-                    {{#if (eq data_source "Parquet files")}}
+                    {{#if parquet_format}}
                     Some("parquet") => "parquet".to_string(),
                     {{/if}}
-                    {{#if (eq data_source "JSON data")}}
+                    {{#if json_format}}
                     Some("json") => "json".to_string(),
                     {{/if}}
                     _ => {
                         // Default to the selected format for this template
-                        {{#if (eq data_source "CSV files")}}
+                        {{#if csv_format}}
                         "csv".to_string()
                         {{else}}
-                        {{#if (eq data_source "Parquet files")}}
+                        {{#if parquet_format}}
                         "parquet".to_string()
                         {{else}}
-                        {{#if (eq data_source "JSON data")}}
+                        {{#if json_format}}
                         "json".to_string()
                         {{else}}
                         "csv".to_string()
@@ -486,13 +486,13 @@ fn main() -> Result<()> {
             
             // Write to file based on format
             match format_str.as_str() {
-                {{#if (eq data_source "Parquet files")}}
+                {{#if parquet_format}}
                 "parquet" => {
                     let parquet_writer = ParquetWriter::new(&mut file);
                     parquet_writer.finish(&mut df.clone())?;
                 }
                 {{/if}}
-                {{#if (eq data_source "JSON data")}}
+                {{#if json_format}}
                 "json" => {
                     let mut json_writer = JsonWriter::new(&mut file);
                     json_writer = json_writer.with_json_format(JsonFormat::Json);
@@ -519,21 +519,21 @@ fn main() -> Result<()> {
             } else {
                 match file.extension().and_then(|ext| ext.to_str()) {
                     Some("csv") => "csv".to_string(),
-                    {{#if (eq data_source "Parquet files")}}
+                    {{#if parquet_format}}
                     Some("parquet") => "parquet".to_string(),
                     {{/if}}
-                    {{#if (eq data_source "JSON data")}}
+                    {{#if json_format}}
                     Some("json") => "json".to_string(),
                     {{/if}}
                     _ => {
                         // Default to the selected format for this template
-                        {{#if (eq data_source "CSV files")}}
+                        {{#if csv_format}}
                         "csv".to_string()
                         {{else}}
-                        {{#if (eq data_source "Parquet files")}}
+                        {{#if parquet_format}}
                         "parquet".to_string()
                         {{else}}
-                        {{#if (eq data_source "JSON data")}}
+                        {{#if json_format}}
                         "json".to_string()
                         {{else}}
                         "csv".to_string()
@@ -546,7 +546,7 @@ fn main() -> Result<()> {
             
             // Load data based on format
             let df = match format_str.as_str() {
-                {{#if (eq data_source "Parquet files")}}
+                {{#if parquet_format}}
                 "parquet" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open Parquet file: {}", file.display()))?;
@@ -556,7 +556,7 @@ fn main() -> Result<()> {
                         .with_context(|| format!("Failed to read Parquet file"))?
                 },
                 {{/if}}
-                {{#if (eq data_source "JSON data")}}
+                {{#if json_format}}
                 "json" => {
                     let file = File::open(file)
                         .with_context(|| format!("Failed to open JSON file: {}", file.display()))?;

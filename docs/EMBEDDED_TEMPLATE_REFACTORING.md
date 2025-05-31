@@ -87,8 +87,7 @@ The template.json would use conditional file inclusion rather than transformatio
           "target": "Cargo.toml"
         }
       ]
-    },
-    // Similar entries for stm32 and arduino
+    }
   ]
 }
 ```

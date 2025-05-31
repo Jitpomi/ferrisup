@@ -10,6 +10,7 @@ pub mod component;
 pub mod dependency;
 pub mod frameworks;
 pub mod unused_features;
+pub mod import_fixer;
 
 // Re-export the Commands enum for the CLI
 use clap::Subcommand;
