@@ -233,13 +233,9 @@ FerrisUp is currently in active development. Here's the current status of variou
 - Unused features detection
 
 ### Features In Development
-- Additional client framework integrations (more Tauri and Dioxus templates)
-- Enhanced edge computing templates for more providers
-- Improved embedded systems support
-- Visual Studio Code and JetBrains IDE extensions
-- Project visualization tools
-- Dependency update management
-- Performance optimization tools beyond unused-features
+- Scale command for deployment
+- Database components
+- Machine learning components
 
 ## License
 
