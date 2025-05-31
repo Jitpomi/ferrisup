@@ -5,6 +5,17 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] - 2025-05-31
+
+### Changed
+- Updated Quick Start examples in README to better demonstrate component types and frameworks:
+  - Added example for creating a minimal project with `--component-type minimal`
+  - Added example for creating a Leptos client project with framework specification
+  - Improved clarity of examples to match current command structure
+
+### Removed
+- Deleted unused example file: `examples/project_handlers_config.json`
+
 ## [0.1.16] - 2025-05-31
 
 ### Changed
