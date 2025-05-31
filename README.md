@@ -95,17 +95,39 @@ ferrisup new [PROJECT_NAME] [--component-type TYPE] [--application-type APPLICAT
 
 ### `transform`
 
-Transform an existing project into a different structure or add components.
+Transform an existing project into a different structure or add components. This command enables the "Start Anywhere, Scale Anywhere" philosophy by allowing you to evolve your project structure as your needs grow.
 
 ```bash
 ferrisup transform [--project PATH]
 ```
 
-The transform command provides an interactive menu to:
-- Convert a single-crate project to a workspace
-- Add components to a workspace (client, server, shared, etc.)
-- Scale a project without converting to a workspace
-- Update project metadata
+The transform command provides an interactive menu with the following capabilities:
+
+- **Convert to Workspace**: Transform a single-crate project into a Rust workspace
+  - Intelligently detects the component type of your existing project
+  - Uses the component type as the default name suggestion
+  - Properly moves all project files to the first component
+  - Updates package names to use project-prefixed format (e.g., `projectname_componentname`)
+  - Automatically updates source file references to match the new package names
+
+- **Add Components**: Add new components to an existing workspace
+  - Supports all component types (client, server, shared, edge, etc.)
+  - Uses the same framework options as the `new` command
+  - Creates components with proper package naming conventions
+  - Directly uses the `new` command functionality for consistent component creation
+  - Updates the workspace Cargo.toml automatically
+
+- **Add Components Without Workspace**: Add related components without converting to a workspace
+  - Creates sibling component projects in the same parent directory
+  - Maintains the same component selection experience as the workspace version
+  - Preserves the original project structure
+
+- **Update Metadata**: Manage project configuration stored in `.ferrisup/metadata.toml`
+
+- **Next Steps Guide**: Provides clear instructions after transformation
+  - Shows commands to build all components at once
+  - Explains how to run specific components
+  - Offers guidance on adding dependencies
 
 ### `list`
 
@@ -211,11 +233,13 @@ FerrisUp is currently in active development. Here's the current status of variou
 - Unused features detection
 
 ### Features In Development
-- Enhanced transform capabilities for more complex project structures
-- Scale command for enterprise deployments
-- Advanced component management
-- Comprehensive workspace optimization
-- Smart dependency management
+- Additional client framework integrations (more Tauri and Dioxus templates)
+- Enhanced edge computing templates for more providers
+- Improved embedded systems support
+- Visual Studio Code and JetBrains IDE extensions
+- Project visualization tools
+- Dependency update management
+- Performance optimization tools beyond unused-features
 
 ## License
 
