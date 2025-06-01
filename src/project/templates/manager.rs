@@ -771,30 +771,44 @@ pub fn get_templates_dir() -> Result<PathBuf> {
 /// Update Cargo.toml with template dependencies
 fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> {
     let cargo_path = project_dir.join("Cargo.toml");
-    if !cargo_path.exists() {
+    if !cargo_path.exists() || dependencies.is_empty() {
         return Ok(());  // Nothing to update
     }
     
-    let mut content = fs::read_to_string(&cargo_path)?;
+    // Instead of complex parsing, let's use a simpler approach:
+    // 1. First write the dependencies to a temporary Cargo.toml file
+    // 2. Then use cargo add to add each dependency to the main Cargo.toml
     
-    // Find the [dependencies] section
-    if let Some(deps_idx) = content.find("[dependencies]") {
-        // Find the end of the section (next section or end of file)
-        let section_end = content[deps_idx..].find("\n[").map_or(content.len(), |i| deps_idx + i);
-        
-        // Insert dependencies at the end of the section
-        let mut new_content = content[..section_end].to_string();
-        for dep in dependencies {
-            new_content.push_str("\n");
-            new_content.push_str(dep);
-        }
-        new_content.push_str(&content[section_end..]);
-        
-        // Write back to Cargo.toml
-        fs::write(&cargo_path, new_content)?;
+    // Create a temporary directory
+    let temp_dir = tempfile::tempdir()?;
+    let temp_cargo_path = temp_dir.path().join("Cargo.toml");
+    
+    // Create a minimal Cargo.toml with the dependencies
+    let mut temp_cargo_content = String::from("[package]\nname = \"temp\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n");
+    for dep in dependencies {
+        temp_cargo_content.push_str(dep);
+        temp_cargo_content.push_str("\n");
     }
     
-    Ok(())
+    // Write the temporary Cargo.toml
+    fs::write(&temp_cargo_path, temp_cargo_content)?;
+    
+    // Parse the temporary Cargo.toml to extract dependencies in the format we need
+    let doc = fs::read_to_string(&temp_cargo_path)?
+        .parse::<toml_edit::Document>()
+        .context("Failed to parse temporary Cargo.toml")?;
+    
+    if let Some(deps) = doc.get("dependencies") {
+        // Use our extract_dependencies function to get the dependencies in the right format
+        let deps_to_add = crate::utils::extract_dependencies(deps)?;
+        
+        // Use our enhanced utility function to add the dependencies to the actual Cargo.toml
+        if !deps_to_add.is_empty() {
+            crate::utils::update_cargo_with_dependencies(&cargo_path, deps_to_add)?
+        }
+    }
+    
+    Ok()
 }
 
 /// Get dependencies for a template based on variables

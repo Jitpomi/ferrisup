@@ -4,7 +4,7 @@ use dialoguer::{Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 use std::fs;
 
-use crate::utils::{create_directory, read_cargo_toml, update_workspace_members, write_cargo_toml_content};
+use crate::utils::{create_directory, read_cargo_toml, update_cargo_with_dependencies, update_workspace_members, write_cargo_toml_content};
 
 /// Execute the workspace command to manage Cargo workspaces
 pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
@@ -428,22 +428,27 @@ fn optimize_workspace(project_dir: &Path) -> Result<()> {
     
     // Check if workspace.dependencies exists and add if not
     if !cargo_content.contains("[workspace.dependencies]") {
-        // Add workspace.dependencies section
+        // Add workspace.dependencies section header only
         let updated_content = format!(
-            r#"{}
-
+            r#"{}\n
 [workspace.dependencies]
 # Common dependencies for workspace members
-anyhow = "1.0"
-serde = {{ version = "1.0", features = ["derive"] }}
-log = "0.4"
 "#,
             cargo_content
         );
         
-        // Write updated Cargo.toml
+        // Write updated Cargo.toml with just the section header
         write_cargo_toml_content(project_dir, &updated_content)?;
         
+        // Now add common dependencies using our utility function
+        let common_deps = vec![
+            ("anyhow".to_string(), "1.0".to_string(), None),
+            ("serde".to_string(), "1.0".to_string(), Some(vec!["derive".to_string()])),
+            ("log".to_string(), "0.4".to_string(), None)
+        ];
+        
+        let cargo_path = project_dir.join("Cargo.toml");
+        update_cargo_with_dependencies(&cargo_path, common_deps)?;
         improvements.push("✓ Added [workspace.dependencies] section".to_string());
     }
     

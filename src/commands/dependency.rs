@@ -5,6 +5,7 @@ use dialoguer::{Confirm, Input, MultiSelect};
 use std::path::PathBuf;
 use std::fs;
 use std::process::Command;
+use crate::utils::update_cargo_with_dependencies;
 
 #[derive(Debug, Args)]
 pub struct DependencyArgs {
@@ -48,6 +49,10 @@ pub struct AddArgs {
     /// Path to the project (defaults to current directory)
     #[arg(short, long)]
     pub path: Option<PathBuf>,
+    
+    /// Disable interactive prompts
+    #[arg(long)]
+    pub no_interactive: bool,
 }
 
 #[derive(Debug, Args)]
@@ -116,55 +121,47 @@ pub fn add_dependencies(args: AddArgs) -> Result<()> {
     if dependencies.is_empty() {
         return Err(anyhow::anyhow!("No dependencies specified"));
     }
+
+    // Process each dependency
+    let mut dependencies_to_add = Vec::new();
     
-    // For each dependency, prompt for features if not provided
-    for dependency in &dependencies {
-        let mut cargo_add_args = vec!["add", dependency];
+    for dependency in dependencies {
+        let version = args.version.clone().unwrap_or_else(|| "*".to_string());
+        let mut features_option: Option<Vec<String>> = None;
         
-        // Handle dev dependencies
-        if args.dev {
-            cargo_add_args.push("--dev");
+        // Handle features if provided via command line
+        if let Some(features_str) = &args.features {
+            let features: Vec<String> = features_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+                
+            if !features.is_empty() {
+                features_option = Some(features);
+            }
+        } 
+        // If no features provided via command line, suggest popular features
+        else if !args.no_interactive {
+            // Get suggested features for this dependency
+            let features = suggest_features_interactive(&dependency)?;
+            if !features.is_empty() {
+                features_option = Some(features);
+            }
         }
         
-        // Handle features
-        if let Some(features) = &args.features {
-            cargo_add_args.push("--features");
-            cargo_add_args.push(features);
-        } else {
-            // Suggest popular features for common crates
-            suggest_features(dependency, &mut cargo_add_args)?;
-        }
-        
-        // Handle version
-        if let Some(version) = &args.version {
-            cargo_add_args.push("--version");
-            cargo_add_args.push(version);
-        }
-        
-        // Run cargo add
-        println!("{} {}", "Adding dependency:".green(), dependency);
-        
-        let output = Command::new("cargo")
-            .args(&cargo_add_args)
-            .current_dir(&project_dir)
-            .output()
-            .context(format!("Failed to add dependency {}", dependency))?;
-        
-        if !output.status.success() {
-            let error = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("Failed to add dependency {}: {}", dependency, error));
-        }
-        
-        println!("{} {}", "Successfully added:".green(), dependency);
+        dependencies_to_add.push((dependency, version, features_option));
     }
-    
+
+    // Use our enhanced utility function
+    update_cargo_with_dependencies(&cargo_toml_path, dependencies_to_add)?;
+
     Ok(())
 }
 
-/// Suggest popular features for common crates
-fn suggest_features(dependency: &str, cargo_add_args: &mut Vec<&str>) -> Result<()> {
-    // Map of common crates and their popular features
-    let features_map = match dependency {
+/// Get a map of popular features for common crates
+fn get_popular_features(dependency: &str) -> Option<Vec<&'static str>> {
+    match dependency {
         "tokio" => Some(vec!["full", "rt", "rt-multi-thread", "macros", "io-util", "time"]),
         "serde" => Some(vec!["derive"]),
         "reqwest" => Some(vec!["json", "blocking", "rustls-tls", "cookies", "gzip"]),
@@ -173,9 +170,14 @@ fn suggest_features(dependency: &str, cargo_add_args: &mut Vec<&str>) -> Result<
         "sqlx" => Some(vec!["runtime-tokio-rustls", "postgres", "mysql", "sqlite", "macros"]),
         "clap" => Some(vec!["derive", "cargo", "env", "wrap_help"]),
         _ => None,
-    };
+    }
+}
+
+/// Interactive feature selection for a dependency
+fn suggest_features_interactive(dependency: &str) -> Result<Vec<String>> {
+    let mut selected_features = Vec::new();
     
-    if let Some(suggested_features) = features_map {
+    if let Some(suggested_features) = get_popular_features(dependency) {
         println!("Suggested features for {}:", dependency.green());
         
         let selections = MultiSelect::new()
@@ -183,19 +185,13 @@ fn suggest_features(dependency: &str, cargo_add_args: &mut Vec<&str>) -> Result<
             .interact()?;
         
         if !selections.is_empty() {
-            let selected_features = selections.iter()
-                .map(|&i| suggested_features[i])
-                .collect::<Vec<_>>()
-                .join(",");
-            
-            cargo_add_args.push("--features");
-            // Create a static string to avoid the lifetime issue
-            let features_str = Box::leak(selected_features.into_boxed_str());
-            cargo_add_args.push(features_str);
+            selected_features = selections.iter()
+                .map(|&i| suggested_features[i].to_string())
+                .collect();
         }
     }
     
-    Ok(())
+    Ok(selected_features)
 }
 
 /// Remove dependencies from a project

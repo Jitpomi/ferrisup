@@ -148,6 +148,58 @@ Preview a template without creating any files.
 ferrisup preview [--template TEMPLATE_NAME]
 ```
 
+### `dependency`
+
+Manage dependencies in your Rust project with interactive features.
+
+```bash
+# Add dependencies with interactive feature suggestions
+ferrisup dependency add [DEPENDENCIES...] [OPTIONS]
+
+# Remove dependencies
+ferrisup dependency remove [DEPENDENCIES...] [OPTIONS]
+
+# Update dependencies
+ferrisup dependency update [DEPENDENCIES...] [OPTIONS]
+```
+
+Options for `dependency add`:
+- `--version, -v`: Specify a version constraint (defaults to "*")
+- `--features, -f`: Specify features to enable (comma separated)
+- `--dev, -d`: Add as a development dependency
+- `--path, -p`: Specify project path (defaults to current directory)
+- `--no-interactive`: Disable interactive prompts
+
+### `component`
+
+Manage project components (add/remove/list) with the same component types available in the `new` and `transform` commands.
+
+```bash
+# Add a component to your project (interactive)
+ferrisup component --action add
+
+# Add a specific component type
+ferrisup component --action add --component-type client
+
+# List components in a project
+ferrisup component --action list
+
+# Remove a component (interactive)
+ferrisup component --action remove
+```
+
+Options:
+- `--action, -a`: Specify action to perform (add, remove, list)
+- `--component-type, -c`: Specify component type (client, server, shared, edge, data-science, embedded)
+- `--project, -p`: Specify project path (defaults to current directory)
+
+The component command uses the same component creation logic as the transform command, ensuring consistency across FerrisUp. When adding components, it provides the same interactive menus and framework selection options as the `new` and `transform` commands.
+
+The `add` command provides interactive feature suggestions for common crates:
+- When adding popular crates like `tokio`, `serde`, or `reqwest`, FerrisUp will suggest commonly used features
+- You can select features interactively or specify them directly with the `--features` flag
+- This helps you choose the right features without needing to know all options in advance
+
 ### `unused-features`
 
 Find and remove unused features in your Cargo dependencies to optimize your project.

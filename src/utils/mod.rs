@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
-use colored::*;
+use anyhow::{anyhow, Context, Result};
+use colored::Colorize;
 use walkdir::WalkDir;
 use toml;
+use toml_edit::Item;
 
 pub fn create_directory(path: &Path) -> Result<()> {
     if !path.exists() {
@@ -238,5 +239,111 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
         "to".green(),
         dst.display());
     
+    Ok(())
+}
+
+// Helper function to extract dependencies from a TOML table
+#[allow(dead_code)]
+pub fn extract_dependencies(deps_table: &Item) -> Result<Vec<(String, String, Option<Vec<String>>)>> {
+    let mut dependencies = Vec::new();
+
+    if let Some(deps_table) = deps_table.as_table() {
+        for (name, value) in deps_table.iter() {
+            if let Some(version) = value.as_str() {
+                // Simple version string without features
+                dependencies.push((name.to_string(), version.to_string(), None));
+            } else if let Some(table) = value.as_table() {
+                if let Some(version) = table.get("version").and_then(|v| v.as_str()) {
+                    // Check for features
+                    let mut features = Vec::new();
+                    if let Some(features_value) = table.get("features").and_then(|f| f.as_array()) {
+                        for feature in features_value {
+                            if let Some(feature_str) = feature.as_str() {
+                                features.push(feature_str.to_string());
+                            }
+                        }
+                    }
+                    
+                    let features_option = if features.is_empty() { None } else { Some(features) };
+                    dependencies.push((name.to_string(), version.to_string(), features_option));
+                }
+            }
+        }
+    }
+
+    Ok(dependencies)
+}
+
+// Helper function to update Cargo.toml with dependencies using cargo add
+#[allow(dead_code)]
+pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>) -> Result<()> {
+    // Get the project directory (parent of the Cargo.toml file)
+    let project_dir = cargo_path.parent().ok_or_else(|| anyhow!("Could not determine project directory"))?;
+    
+    // Save current directory to return to it after
+    let current_dir = std::env::current_dir()?;
+    
+    // Change to project directory to run cargo add
+    std::env::set_current_dir(project_dir)?;
+    
+    for (name, version, features) in dependencies {
+        // Build cargo add command
+        let mut cmd = std::process::Command::new("cargo");
+        cmd.arg("add").arg(&name);
+        
+        // Add version if it's not "*"
+        if version != "*" {
+            cmd.arg("--vers").arg(&version);
+        }
+        
+        // Add features if provided
+        if let Some(feat_list) = features {
+            if !feat_list.is_empty() {
+                let features_str = feat_list.join(",");
+                cmd.arg("--features").arg(features_str);
+            }
+        }
+        
+        // Run the command
+        let output = cmd.output()
+            .context(format!("Failed to add dependency: {}", name))?;
+        
+        if !output.status.success() {
+            println!("{} {}", 
+                "Warning:".yellow().bold(), 
+                format!("Failed to add dependency: {}", name).yellow());
+            
+            // Print error message if available
+            if let Ok(err) = String::from_utf8(output.stderr) {
+                if !err.is_empty() {
+                    println!("{}", err);
+                }
+            }
+        }
+    }
+    
+    // Change back to original directory
+    std::env::set_current_dir(current_dir)?;
+    
+    Ok(())
+}
+
+// Helper function to copy directory contents
+#[allow(dead_code)]
+pub fn copy_dir_contents(from: &Path, to: &Path) -> Result<()> {
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let from_path = entry.path();
+        let to_path = to.join(entry.file_name());
+
+        if file_type.is_dir() {
+            create_directory(&to_path)?;
+            copy_dir_contents(&from_path, &to_path)?;
+        } else {
+            fs::copy(&from_path, &to_path)?;
+        }
+    }
+
     Ok(())
 }
