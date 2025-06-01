@@ -81,14 +81,14 @@ pub enum Commands {
         template: Option<String>,
     },
 
-    /// Manage project components (add/remove)
+    /// Manage project components (add/remove/list) with consistent component types
     #[cfg(not(feature = "workspace_test"))]
     Component {
         /// Action to perform: add, remove, or list
         #[arg(short, long)]
         action: Option<String>,
 
-        /// Component type: client, server, database, ai, edge, embedded, etc.
+        /// Component type: client, server, shared, edge, data-science, embedded
         #[arg(short, long)]
         component_type: Option<String>,
 
