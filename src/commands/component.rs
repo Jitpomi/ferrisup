@@ -63,43 +63,13 @@ pub fn execute(action: Option<&str>, component_type: Option<&str>, project_path:
 
 /// Add a component to an existing project
 fn add_component(project_dir: &Path, component_type: Option<&str>) -> Result<()> {
-    // Get component type
-    let component = if let Some(ctype) = component_type {
-        ctype.to_string()
-    } else {
-        let component_types = [
-            "client - Frontend web application (Leptos, Yew, or Dioxus)",
-            "server - Web server with API endpoints (Axum, Actix, or Poem)",
-            "shared - Shared code between client and server",
-            "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
-            "data-science - Data science and machine learning projects",
-            "embedded - Embedded systems firmware",
-        ];
-        
-        let selection = Select::new()
-            .with_prompt("Select component type to add")
-            .items(&component_types)
-            .default(0)
-            .interact()?;
-        
-        // Map index to component type
-        match selection {
-            0 => "client",
-            1 => "server",
-            2 => "shared",
-            3 => "edge",
-            4 => "data-science",
-            5 => "embedded",
-            _ => "client", // Default to client
-        }.to_string()
-    };
-    
     // Get workspace structure
     let cargo_content = read_cargo_toml(project_dir)?;
     let is_workspace = cargo_content.contains("[workspace]");
     
-    // Instead of using our own component creation logic, use the transform command's
-    // component creation logic to ensure consistency across commands
+    // The menu shown should be based on whether the project is a workspace
+    // If component_type is provided, we'll pass it to the appropriate transform function
+    // Otherwise, the transform function will handle the component type selection
     
     // Save current directory
     let current_dir = std::env::current_dir()?;
@@ -107,11 +77,16 @@ fn add_component(project_dir: &Path, component_type: Option<&str>) -> Result<()>
     // Change to project directory
     std::env::set_current_dir(project_dir)?;
     
+    // Store the component type for success message
+    let component_name = component_type.unwrap_or("new").to_string();
+    
     // Call the appropriate transform command function based on workspace status
+    // This ensures we get the correct menu based on whether it's a workspace
     let result = if is_workspace {
-        // For workspace projects, we need to temporarily change to the workspace root
+        // For workspace projects - shows all component types
         crate::commands::transform::add_component(project_dir)
     } else {
+        // For non-workspace projects - shows only module-compatible components
         crate::commands::transform::add_component_without_workspace(project_dir)
     };
     
@@ -131,7 +106,7 @@ fn add_component(project_dir: &Path, component_type: Option<&str>) -> Result<()>
     
     println!("{} {} {}", 
         "Successfully added".green(),
-        component.green(),
+        component_name.green(),
         "component".green());
     
     Ok(())
