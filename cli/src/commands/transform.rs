@@ -271,6 +271,16 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     create_directory(&component_dir)?;
     create_directory(&component_dir.join("src"))?;
 
+    // Define key files that should be preserved at the root
+    let key_files = vec![
+        ".gitignore",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSE.md",
+        "LICENSE.txt"
+    ];
+    
     // Move all project files to component directory except workspace files
     let entries = fs::read_dir(project_dir)?;
     for entry in entries {
@@ -297,10 +307,19 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
             // Remove original after successful copy
             fs::remove_dir_all(&path)?;
         } else {
-            // Copy file
+            // Check if it's a key file that should be preserved at the root
+            let is_key_file = key_files.iter().any(|key| *key == file_name);
+            
+            // Copy file to component directory
             fs::copy(&path, &target_path)?;
-            // Remove original after successful copy
-            fs::remove_file(&path)?;
+            
+            // Only remove from root if it's not a key file
+            if !is_key_file {
+                fs::remove_file(&path)?;
+                println!("{} {}", "Moved:".blue(), file_name);
+            } else {
+                println!("{} {} {}", "Preserved key file".green(), file_name, "at root".green());
+            }
         }
     }
 
@@ -311,38 +330,73 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     // Copy the original Cargo.toml to the component directory
     fs::copy(&original_cargo_path, &component_cargo_path)?;
 
-    // Update the component Cargo.toml package name
+    // Read the component Cargo.toml
     let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
     let mut component_cargo_doc = component_cargo_content
         .parse::<Document>()
         .context("Failed to parse component Cargo.toml")?;
-
+        
+    // Store the original package name before changing it
+    let original_package_name = if let Some(package) = component_cargo_doc.get("package") {
+        if let Some(name) = package.get("name") {
+            name.as_str().unwrap_or("").to_string()
+        } else {
+            project_name.to_string()
+        }
+    } else {
+        project_name.to_string()
+    };
+    
+    // Extract profile sections if they exist to move to workspace root
+    let profile_section = component_cargo_doc.get("profile").cloned();
+    if profile_section.is_some() {
+        // Remove profile section from component Cargo.toml
+        component_cargo_doc.remove("profile");
+        println!("{}", "Moving profile configurations to workspace root".green());
+    }
+    
+    // Check if the component has multiple binaries
+    let has_multiple_binaries = component_dir.join("src/bin").exists() && 
+                                component_dir.join("src/main.rs").exists();
+    
     // Update the package name using the project_name from structure
     if let Some(package) = component_cargo_doc.get_mut("package") {
         if let Some(table) = package.as_table_mut() {
-            table.insert(
-                "name",
-                value(format!(
-                    "{0}_{1}",
-                    project_name.to_lowercase(),
-                    component_name.to_lowercase()
-                )),
-            );
+            // Store the original name for reference
+            let original_name = table.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(); // Convert to owned String to avoid borrowing issues
+            
+            // Keep the original package name instead of changing it
+            // This preserves backward compatibility
+            println!("{} {}", "Preserving original package name:".green(), original_name);
+            
+            // Add default-run if multiple binaries are detected
+            if has_multiple_binaries {
+                table.insert("default-run", value(&original_name));
+                println!("{} {}", "Added default-run setting for:".green(), original_name);
+            }
         }
     }
 
     // Write updated component Cargo.toml
     fs::write(component_cargo_path, component_cargo_doc.to_string())?;
 
-    // Update imports in source files to use the new package name
-    update_source_imports(
-        &component_dir,
-        &project_name.to_lowercase(),
-        &component_name.to_lowercase(),
-    )?;
+    // Update imports in source files only if the package name was changed
+    // In our improved version, we're preserving the original name, so this might not be needed
+    // But we'll keep it for backward compatibility with existing behavior
+    if original_package_name != format!("{0}_{1}", project_name.to_lowercase(), component_name.to_lowercase()) {
+        update_source_imports(
+            &component_dir,
+            &original_package_name,
+            &original_package_name,  // Use the same name to effectively skip renaming
+        )?;
+        println!("{}", "Preserved original import paths in source files".green());
+    }
 
     // Create new Cargo.toml for workspace
-    let workspace_cargo_toml = format!(
+    let mut workspace_cargo_toml = format!(
         r#"[workspace]
 members = [
     "{}"
@@ -354,6 +408,12 @@ edition = "2021"
 "#,
         component_name
     );
+    
+    // Add profile section to workspace Cargo.toml if it was extracted
+    if let Some(profile_section) = profile_section {
+        workspace_cargo_toml.push_str("\n");
+        workspace_cargo_toml.push_str(&profile_section.to_string());
+    }
 
     fs::write(project_dir.join("Cargo.toml"), workspace_cargo_toml)?;
 
