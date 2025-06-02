@@ -310,12 +310,67 @@ The existing configuration system (`ferrisup config`) has the foundation for pow
 - **Project Defaults**: Set default component types, frameworks, and other project settings
 - **Profile Support**: Create and switch between different configuration profiles for different types of projects
 
+### Scaling and Deployment Enhancements
+
+- **Enhanced Cloud Integration**: Streamlined deployment workflows for existing cloud providers
+- **Advanced Container Orchestration**: Extended Kubernetes support with service mesh integration
+- **Multi-Cloud Management**: Tools for managing deployments across multiple cloud providers
+- **Serverless Enhancement**: Advanced triggers, event processing, and cold start optimization
+- **Infrastructure as Code**: Terraform and Pulumi integration for infrastructure provisioning
+- **Multi-Region Deployment**: Tools for deploying applications across multiple regions with replication
+
+### Database Components and Integration
+
+- **Advanced Schema Management**: Enhanced database migration tools with versioning and rollback
+- **Cross-Database Compatibility**: Tools for working with multiple database types in the same project
+- **Database Performance Optimization**: Query optimization and indexing recommendations
+- **Advanced Data Modeling**: Smart entity relationship mapping and code generation
+- **Database Replication**: Support for master-slave configurations and read replicas
+- **Time-Series Database Support**: Integration with specialized time-series databases
+- **Graph Database Templates**: Support for graph databases like Neo4j and Amazon Neptune
+
+### Embedded Systems and IoT Enhancements
+
+- **Ariel OS Integration**: Collaboration with Ariel OS for batteries-included Embassy support
+- **OTA Update Infrastructure**: Support for over-the-air updates for embedded devices
+- **Embedded Debugging**: Integrated probe support for hardware debugging
+- **Cross-Platform Embedded UI**: Dioxus integration for embedded UIs
+- **Real-Time Operating System Templates**: Enhanced RTOS support for time-critical applications
+
+### Network Automation and Mesh Networking
+
+- **WireGuard Mesh Networking**: Multi-region mesh network configuration and deployment
+- **Network Automation Tools**: Integration with network automation frameworks
+- **Service Mesh Configuration**: Automatic service mesh setup for distributed applications
+- **P2P Communication**: Peer-to-peer communication infrastructure for distributed applications
+- **Network Monitoring**: Built-in monitoring and observability for network components
+
+### Bare Metal and Self-Hosted Deployment
+
+- **PXE/iPXE Boot Support**: Bare metal deployment via network boot
+- **Colocation Server Deployment**: Streamlined deployment to self-hosted infrastructure
+- **Unified Deployment Pipeline**: Single pipeline for cloud, bare metal, and hybrid deployments
+- **Hardware-Optimized Configurations**: Performance tuning based on specific hardware
+- **Cross-Environment Compatibility**: Deploy the same application across different infrastructure types
+
+### CI/CD and Deployment Automation
+
+- **One-Click Deployment**: Simplified deployment of Dioxus/Axum backend and database stacks
+- **GitHub Actions Integration**: Built-in workflow templates for common CI/CD scenarios
+- **Database Schema Migration**: Automated schema migration handling during deployments
+- **Environment Management**: Development, staging, and production environment configuration
+- **Deployment Rollbacks**: Automated rollback mechanisms for failed deployments
+- **Deployment Metrics**: Performance and resource utilization tracking for deployments
+
 ### Additional Planned Features
 
-- Improved template management with version control
-- More component types and frameworks
-- Enhanced dependency management
-- Project analysis and optimization tools
+- **Improved Template Management**: Version control and community template sharing
+- **More Component Types and Frameworks**: Support for emerging Rust frameworks
+- **Enhanced Dependency Management**: Smart dependency resolution and conflict detection
+- **Project Analysis and Optimization Tools**: Performance analysis and optimization suggestions
+- **Testing Framework Integration**: Built-in testing templates and test generation
+- **Documentation Generation**: Automatic documentation generation for projects
+- **Internationalization Support**: Tools for building multi-language applications
 
 ## License
 
