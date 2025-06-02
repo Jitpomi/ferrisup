@@ -293,9 +293,26 @@ FerrisUp is currently in active development. Here's the current status of variou
 - Unused features detection
 
 ### Features In Development
-- Scale command for deployment
-- Database components
-- Machine learning components
+
+The following features are prioritized for the next releases as we work toward version 1.0:
+
+#### Core Functionality Improvements
+- **Configuration System Integration**: Properly integrate the existing config command with the rest of the application
+- **Component Command Refinement**: Further align component command behavior with transform and new commands
+- **CLI Help Text Enhancements**: Improve help text clarity and examples throughout the application
+- **Error Handling Improvements**: More user-friendly error messages and recovery suggestions
+
+#### Developer Experience
+- **Interactive Template Preview**: Preview templates before project creation
+- **Project Scaffolding Wizard**: Step-by-step guided project creation for beginners
+- **Template Customization**: Allow users to customize templates during project creation
+- **Dependency Version Management**: Smart handling of dependency version conflicts
+
+#### Stability and Testing
+- **Integration Test Suite**: Comprehensive test coverage for all commands
+- **Cross-Platform Validation**: Ensure consistent behavior across operating systems
+- **Template Validation**: Automated testing of all template combinations
+- **Performance Optimization**: Reduce startup and execution time
 
 ## Future Work
 
