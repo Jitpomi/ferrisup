@@ -5,6 +5,91 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2025-06-01
+
+### Key Milestones
+- **Unified Component Creation**: Centralized component creation logic for consistent behavior
+- **Standardized Dependency Management**: Single consistent approach across all commands
+- **Improved User Experience**: Clearer menus, better prompts, and more intuitive workflows
+- **Comprehensive Roadmap**: Detailed plan for both immediate and long-term development
+
+### Added
+- Comprehensive Future Work section in README with detailed roadmap:
+  - Configuration system integration plans for future versions
+  - Scaling and deployment enhancements
+  - Database components and integration
+  - Embedded systems and IoT enhancements based on user feedback
+  - Network automation and mesh networking
+  - Bare metal and self-hosted deployment
+  - CI/CD and deployment automation
+- Enhanced Features in Development section with clear priorities for version 1.0:
+  - Core functionality improvements
+  - Developer experience enhancements
+  - Stability and testing priorities
+- Example usage patterns for component command:
+  ```bash
+  # Add a component to a project
+  ferrisup component --action add
+  
+  # List all components in a project
+  ferrisup component --action list
+  
+  # Add a component to a specific project
+  ferrisup component --action add --project /path/to/project
+  ```
+
+### Changed
+- Refactored component command to properly delegate to transform command functions:
+  - Workspace-aware component creation using the appropriate transform functions
+  - Consistent component type selection based on project structure
+  - Improved user experience with clearer prompts and messages
+- Standardized dependency management across the codebase:
+  - Unified dependency handling in all commands
+  - Consistent approach to adding and managing dependencies
+  - Improved documentation for dependency command
+  - Example usage:
+    ```bash
+    # Add a dependency to a project
+    ferrisup dependency add serde --features derive
+    
+    # Add multiple dependencies at once
+    ferrisup dependency add tokio axum tower
+    
+    # Add a development dependency
+    ferrisup dependency add --dev tracing
+    
+    # Check for unused features in dependencies
+    ferrisup unused-features
+    ```
+- Updated CLI help texts and documentation for consistency across commands
+- Improved component command documentation in README
+- Documented config command functionality for future integration
+
+### Fixed
+- Fixed component selection flow to avoid showing unintended secondary menus
+- Fixed type mismatch errors in component command arguments
+- Fixed dependency command to ensure consistent behavior with other commands
+- Removed legacy component creation code for better maintainability
+- Fixed inconsistencies in component type handling between workspace and non-workspace projects
+
+### Investigated
+- Analyzed configuration system implementation and documented findings
+- Determined that config command is functional but needs better integration
+- Identified potential future benefits of the configuration system
+- Prioritized config integration for future versions in the roadmap
+- Current config command functionality:
+  ```bash
+  # Export current configuration to a file
+  ferrisup config --export --path config.json
+  
+  # Import configuration from a file
+  ferrisup config --import config.json
+  
+  # Interactive configuration management
+  ferrisup config
+  ```
+- Future integration will enable persistent user preferences and template customization
+
 ## [0.1.17] - 2025-05-31
 
 ### Changed

@@ -293,7 +293,7 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
         
         // Add version if it's not "*"
         if version != "*" {
-            cmd.arg("--vers").arg(&version);
+            cmd.arg("--version").arg(&version);
         }
         
         // Add features if provided
