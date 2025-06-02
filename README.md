@@ -195,6 +195,11 @@ Options:
 
 The component command uses the same component creation logic as the transform command, ensuring consistency across FerrisUp. When adding components, it provides the same interactive menus and framework selection options as the `new` and `transform` commands.
 
+**Workspace vs. Non-Workspace Projects:**
+- In workspace projects, all component types are available: client, server, shared, edge, data-science, and embedded
+- In non-workspace projects, only module-compatible components are available: shared and minimal
+- The command automatically detects your project structure and shows the appropriate options
+
 The `add` command provides interactive feature suggestions for common crates:
 - When adding popular crates like `tokio`, `serde`, or `reqwest`, FerrisUp will suggest commonly used features
 - You can select features interactively or specify them directly with the `--features` flag
