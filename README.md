@@ -297,6 +297,26 @@ FerrisUp is currently in active development. Here's the current status of variou
 - Database components
 - Machine learning components
 
+## Future Work
+
+The following features and improvements are planned for future releases of FerrisUp:
+
+### Configuration System Integration
+
+The existing configuration system (`ferrisup config`) has the foundation for powerful user preference management but needs further integration:
+
+- **Persistent User Preferences**: Allow users to set default values for common flags (git initialization, build after creation, interactive mode)
+- **Template Directory Management**: Streamline custom template usage with configurable template directories
+- **Project Defaults**: Set default component types, frameworks, and other project settings
+- **Profile Support**: Create and switch between different configuration profiles for different types of projects
+
+### Additional Planned Features
+
+- Improved template management with version control
+- More component types and frameworks
+- Enhanced dependency management
+- Project analysis and optimization tools
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
