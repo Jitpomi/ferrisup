@@ -170,6 +170,11 @@ Options for `dependency add`:
 - `--path, -p`: Specify project path (defaults to current directory)
 - `--no-interactive`: Disable interactive prompts
 
+**Smart Dependency Management:**
+- When adding a dependency with `--dev` that already exists in main dependencies, it will be automatically moved to dev-dependencies
+- When adding a dependency without `--dev` that already exists in dev-dependencies, it will be automatically moved to main dependencies
+- Clear output messages inform you when dependencies are being moved between sections
+
 ### `component`
 
 Manage project components (add/remove/list) with the same component types available in the `new` and `transform` commands.
