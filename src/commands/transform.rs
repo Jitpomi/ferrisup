@@ -990,7 +990,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     // Update project's Cargo.toml with dependencies
     let project_cargo_path = project_dir.join("Cargo.toml");
     if project_cargo_path.exists() && !dependencies_to_add.is_empty() {
-        update_cargo_with_dependencies(&project_cargo_path, dependencies_to_add)?;
+        update_cargo_with_dependencies(&project_cargo_path, dependencies_to_add, false)?;
     }
 
     // Update main.rs or lib.rs to include the new module

@@ -68,7 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed component selection flow to avoid showing unintended secondary menus
 - Fixed type mismatch errors in component command arguments
-- Fixed dependency command to ensure consistent behavior with other commands
+- Fixed dependency command to ensure consistent behavior with other commands:
+  - Corrected dependency command to use `--version` flag instead of incorrect `--vers` flag
+  - Fixed `--dev` flag to properly add dependencies to dev-dependencies section
+  - Enhanced dependency management to properly handle moving dependencies between regular and dev sections
+  - Added `--force` flag to ensure proper overwriting when changing dependency types
 - Removed legacy component creation code for better maintainability
 - Fixed inconsistencies in component type handling between workspace and non-workspace projects
 

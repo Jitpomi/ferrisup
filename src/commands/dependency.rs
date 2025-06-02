@@ -96,7 +96,11 @@ pub fn execute(args: DependencyArgs) -> Result<()> {
 
 /// Add dependencies to a project
 pub fn add_dependencies(args: AddArgs) -> Result<()> {
-    let project_dir = args.path.unwrap_or_else(|| PathBuf::from("."));
+    // Get project directory
+    let project_dir = match &args.path {
+        Some(path) => path.clone(),
+        None => PathBuf::from(".")
+    };
     
     // Verify this is a Rust project
     let cargo_toml_path = project_dir.join("Cargo.toml");
@@ -115,13 +119,59 @@ pub fn add_dependencies(args: AddArgs) -> Result<()> {
             .filter(|s| !s.is_empty())
             .collect()
     } else {
-        args.dependencies
+        args.dependencies.clone()
     };
     
     if dependencies.is_empty() {
         return Err(anyhow::anyhow!("No dependencies specified"));
     }
 
+    // Check if we need to handle dependencies that exist in the wrong section
+    let cargo_content = fs::read_to_string(&cargo_toml_path)
+        .context("Failed to read Cargo.toml")?;
+    let cargo_toml: toml::Value = toml::from_str(&cargo_content)
+        .context("Failed to parse Cargo.toml as valid TOML")?;
+    
+    // Check for dependencies in the wrong section
+    let section_to_check = if args.dev { "dependencies" } else { "dev-dependencies" };
+    let target_section = if args.dev { "dev-dependencies" } else { "dependencies" };
+    let section_flag = if section_to_check == "dev-dependencies" { "--dev" } else { "" };
+    
+    if let Some(deps_table) = cargo_toml.get(section_to_check) {
+        if let Some(deps_table) = deps_table.as_table() {
+            for dependency in &dependencies {
+                if deps_table.contains_key(dependency) {
+                    println!("{} {} {} {}", 
+                        "Moving".yellow(), 
+                        dependency.bold(), 
+                        format!("from {} to", section_to_check).yellow(),
+                        target_section.yellow());
+                    
+                    // First remove the dependency from the wrong section
+                    let mut remove_cmd = std::process::Command::new("cargo");
+                    remove_cmd.current_dir(&project_dir);
+                    
+                    // Add the appropriate section flag if needed
+                    if !section_flag.is_empty() {
+                        remove_cmd.args(["remove", dependency, section_flag]);
+                    } else {
+                        remove_cmd.args(["remove", dependency]);
+                    }
+                    
+                    let output = remove_cmd.output()
+                        .context(format!("Failed to remove dependency {} from {}", dependency, section_to_check))?;
+                    
+                    if !output.status.success() {
+                        let error = String::from_utf8_lossy(&output.stderr);
+                        println!("{} {}", 
+                            "Warning:".yellow().bold(), 
+                            format!("Failed to remove dependency {} from {}: {}", dependency, section_to_check, error).yellow());
+                    }
+                }
+            }
+        }
+    }
+    
     // Process each dependency
     let mut dependencies_to_add = Vec::new();
     
@@ -152,10 +202,10 @@ pub fn add_dependencies(args: AddArgs) -> Result<()> {
         
         dependencies_to_add.push((dependency, version, features_option));
     }
-
+    
     // Use our enhanced utility function
-    update_cargo_with_dependencies(&cargo_toml_path, dependencies_to_add)?;
-
+    update_cargo_with_dependencies(&cargo_toml_path, dependencies_to_add, args.dev)?;
+    
     Ok(())
 }
 

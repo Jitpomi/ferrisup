@@ -448,7 +448,7 @@ fn optimize_workspace(project_dir: &Path) -> Result<()> {
         ];
         
         let cargo_path = project_dir.join("Cargo.toml");
-        update_cargo_with_dependencies(&cargo_path, common_deps)?;
+        update_cargo_with_dependencies(&cargo_path, common_deps, false)?;
         improvements.push("✓ Added [workspace.dependencies] section".to_string());
     }
     

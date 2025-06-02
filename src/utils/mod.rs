@@ -276,7 +276,7 @@ pub fn extract_dependencies(deps_table: &Item) -> Result<Vec<(String, String, Op
 
 // Helper function to update Cargo.toml with dependencies using cargo add
 #[allow(dead_code)]
-pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>) -> Result<()> {
+pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>, dev: bool) -> Result<()> {
     // Get the project directory (parent of the Cargo.toml file)
     let project_dir = cargo_path.parent().ok_or_else(|| anyhow!("Could not determine project directory"))?;
     
@@ -290,6 +290,11 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
         // Build cargo add command
         let mut cmd = std::process::Command::new("cargo");
         cmd.arg("add").arg(&name);
+        
+        // Add as development dependency if dev flag is set
+        if dev {
+            cmd.arg("--dev");
+        }
         
         // Add version if it's not "*"
         if version != "*" {

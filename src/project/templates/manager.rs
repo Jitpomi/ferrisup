@@ -804,7 +804,7 @@ fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> 
         
         // Use our enhanced utility function to add the dependencies to the actual Cargo.toml
         if !deps_to_add.is_empty() {
-            crate::utils::update_cargo_with_dependencies(&cargo_path, deps_to_add)?
+            crate::utils::update_cargo_with_dependencies(&cargo_path, deps_to_add, false)?
         }
     }
     
