@@ -121,6 +121,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Default component name suggestions based on component type
   - Comprehensive file migration when converting to workspaces
   - Automatic source file reference updating to match new package names
+  - Preservation of key files (.gitignore, README.md, CHANGELOG.md) at root during workspace transformation
+  - Maintenance of original package name for backward compatibility
+  - Addition of default-run setting when multiple binaries are detected
+  - Migration of profile configurations to workspace root for consistent builds
   - Helpful "Next Steps" guide after workspace transformations
 
 ### Changed
