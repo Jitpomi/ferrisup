@@ -1,0 +1,10 @@
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/debug/deps/libconst_serialize-5f904d62aa73e29c.rmeta: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md
+
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/debug/deps/libconst_serialize-5f904d62aa73e29c.rlib: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md
+
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/debug/deps/const_serialize-5f904d62aa73e29c.d: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md
+
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md:

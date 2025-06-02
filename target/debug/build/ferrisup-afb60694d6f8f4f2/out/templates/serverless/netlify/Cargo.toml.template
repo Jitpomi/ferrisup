@@ -1,0 +1,20 @@
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.36", features = ["macros", "rt-multi-thread"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Netlify Functions dependencies
+netlify_lambda_http = "0.5"
+aws_lambda_events = "0.12"
+
+[dev-dependencies]
+http = "0.2"

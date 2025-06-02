@@ -1,0 +1,8 @@
+[build]
+target = "avr-unknown-gnu-atmega328"
+
+[target.avr-unknown-gnu-atmega328]
+runner = "ravedude uno"
+
+[unstable]
+build-std = ["core"]

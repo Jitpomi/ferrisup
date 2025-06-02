@@ -1,0 +1,61 @@
+// A minimal, no_std compatible WebAssembly module
+#![cfg_attr(not(test), no_std)]
+
+use core::panic::PanicInfo;
+use wasm_bindgen::prelude::*;
+
+// When building for WebAssembly, we need to provide our own panic handler
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+/// Simple macro for logging to the console (when available)
+macro_rules! console_log {
+    ($($t:tt)*) => {
+        #[cfg(feature = "logging")]
+        log(&format!($($t)*))
+    }
+}
+
+#[wasm_bindgen]
+pub struct {{project_name_pascal_case}} {
+    value: u32,
+}
+
+#[wasm_bindgen]
+impl {{project_name_pascal_case}} {
+    /// Create a new instance
+    pub fn new() -> Self {
+        Self { value: 0 }
+    }
+    
+    /// Increment the value
+    pub fn increment(&mut self) -> u32 {
+        self.value += 1;
+        self.value
+    }
+    
+    /// Get the current value
+    pub fn value(&self) -> u32 {
+        self.value
+    }
+    
+    /// Process data with minimal overhead
+    pub fn process(&self, input: u32) -> u32 {
+        input.saturating_add(self.value)
+    }
+}
+
+// This is the entry point for our WASM module
+#[wasm_bindgen(start)]
+pub fn start() {
+    // Minimal initialization
+}

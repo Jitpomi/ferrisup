@@ -1,0 +1,16 @@
+[build]
+  command = "cargo build --release"
+  functions = "netlify/functions"
+  publish = "public"
+
+[build.environment]
+  RUSTUP_TOOLCHAIN = "stable"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200

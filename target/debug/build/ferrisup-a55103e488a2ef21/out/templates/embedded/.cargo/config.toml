@@ -1,0 +1,32 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# Uncomment the line below to use hardware floating point
+# rustflags = ["-C", "target-float-abi=hard"]
+
+# For Cortex-M targets
+[target.thumbv6m-none-eabi]    # Cortex-M0, Cortex-M0+
+[target.thumbv7m-none-eabi]    # Cortex-M3
+[target.thumbv7em-none-eabi]   # Cortex-M4, Cortex-M7 (no FPU)
+[target.thumbv7em-none-eabihf] # Cortex-M4F, Cortex-M7F (with FPU)
+[target.thumbv8m.base-none-eabi]   # Cortex-M23
+[target.thumbv8m.main-none-eabi]   # Cortex-M33 (no FPU)
+[target.thumbv8m.main-none-eabihf] # Cortex-M33 (with FPU)
+
+# For Raspberry Pi Pico (RP2040)
+[target.thumbv6m-none-eabi]
+runner = "probe-run --chip RP2040"
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+  "-C", "link-arg=--nmagic",
+]
+
+# For ESP32
+[target.xtensa-esp32-none-elf]
+linker = "ldproxy"
+rustflags = [
+  "-C", "link-arg=-Tlinkall.x",
+  "-C", "link-arg=-nostartfiles",
+]
+
+# For AVR (Arduino)
+[target.avr-unknown-gnu-atmega328]
+runner = "ravedude uno"

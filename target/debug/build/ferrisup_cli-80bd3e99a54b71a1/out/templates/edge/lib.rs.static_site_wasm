@@ -1,0 +1,84 @@
+use wasm_bindgen::prelude::*;
+
+// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator.
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+/// Simple macro for logging to the browser console
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format!($($t)*)))
+}
+
+#[cfg(feature = "leptos")]
+mod leptos_app {
+    use leptos::*;
+    use wasm_bindgen::prelude::*;
+
+    #[component]
+    fn App() -> impl IntoView {
+        let (count, set_count) = create_signal(0);
+        
+        view! {
+            <div>
+                <h1>"{{project_name_pascal_case}} App"</h1>
+                <p>"Count: " {count}</p>
+                <button on:click=move |_| set_count.update(|n| *n += 1)>
+                    "Increment"
+                </button>
+            </div>
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn mount_app(target: &str) {
+        console_log!("Mounting Leptos app to {}", target);
+        leptos::mount_to_body(App);
+    }
+}
+
+#[cfg(feature = "sycamore")]
+mod sycamore_app {
+    use sycamore::prelude::*;
+    use wasm_bindgen::prelude::*;
+
+    #[component]
+    fn App<G: Html>() -> View<G> {
+        let count = create_signal(0);
+        
+        view! {
+            div {
+                h1 { "{{project_name_pascal_case}} App" }
+                p { "Count: " (count.get()) }
+                button(on:click=|_| count.set(*count.get() + 1)) { "Increment" }
+            }
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn mount_app(target: &str) {
+        super::console_log!("Mounting Sycamore app to {}", target);
+        let root = web_sys::window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .get_element_by_id(target)
+            .unwrap();
+        
+        sycamore::render_to(|cx| App::<sycamore::web::SsrNode>::new(cx), &root);
+    }
+}
+
+// This is like the "main" function for our WASM module
+#[wasm_bindgen(start)]
+pub fn start() {
+    // Print a message to the browser console
+    console_log!("{{project_name_pascal_case}} application initialized");
+}

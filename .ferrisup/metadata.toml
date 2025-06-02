@@ -1,0 +1,12 @@
+[components]
+
+[components.cli]
+template = "server"
+component_type = "server"
+created_at = "2025-06-01T22:57:25.700882-06:00"
+
+[components.site]
+template = "client"
+component_type = "client"
+framework = "dioxus"
+created_at = "2025-06-01T22:58:05.500003-06:00"

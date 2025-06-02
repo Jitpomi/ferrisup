@@ -1,0 +1,26 @@
+name = "{{project_name}}"
+main = "build/worker/shim.mjs"
+compatibility_date = "2025-04-19"
+
+# Configure environment variables
+[vars]
+ENVIRONMENT = "development"
+
+# Configure build
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+[build.upload]
+format = "modules"
+dir = "build/worker"
+main = "shim.mjs"
+
+# Uncomment to add KV namespaces
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "xxxx" # Replace with your KV namespace ID
+
+# Example of how to define routes
+# [[routes]]
+# pattern = "example.com/*"
+# zone_id = "your-zone-id"

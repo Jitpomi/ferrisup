@@ -1,0 +1,34 @@
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.69.0" # Specifying the Rust version for compatibility
+description = "A Cloudflare Workers API built with Rust and WebAssembly"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Worker crate and dependencies
+worker = "0.0.15"
+
+# Supporting libraries
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+console_error_panic_hook = "0.1.7"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Pin specific versions of transitive dependencies to ensure compatibility with Rust 1.69.0
+litemap = "=0.7.0"
+bumpalo = "=3.12.0"
+
+# IMPORTANT: This template works best with Rust 1.69.0 due to dependency compatibility issues
+# If you encounter errors, try: 
+# rustup install 1.69.0
+# rustup override set 1.69.0
+# See README for more details
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1

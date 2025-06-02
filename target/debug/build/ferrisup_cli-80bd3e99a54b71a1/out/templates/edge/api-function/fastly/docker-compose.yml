@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+      # Mount Fastly credentials if they exist
+      - ${HOME}/.fastly:/root/.fastly
+    ports:
+      - "7676:7676"  # Expose port for Fastly Compute@Edge local server
+    environment:
+      - RUST_BACKTRACE=1
+    command: bash -c "sleep infinity"  # Keep container running

@@ -1,0 +1,23 @@
+# This file describes a Fastly Compute@Edge package. To learn more visit:
+# https://developer.fastly.com/reference/fastly-toml/
+
+authors = ["FerrisUp <ferrisup@example.com>"]
+description = "A Rust application for Fastly Compute@Edge"
+language = "rust"
+manifest_version = 2
+name = "{{project_name}}"
+service_id = ""
+
+[scripts]
+  build = "cargo build --bin {{project_name}} --release --target wasm32-wasi"
+
+[local_server]
+  [local_server.backends]
+    # Define backends for local development if needed
+
+[setup]
+  # Specify backend hostnames if needed
+  # Example:
+  # [setup.backends]
+  #   [setup.backends.api]
+  #     url = "https://api.example.com"

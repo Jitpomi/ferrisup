@@ -1,0 +1,32 @@
+{
+  "name": "minimal",
+  "description": "A minimal Rust project with a simple main.rs file",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "dependencies": {
+    "default": []
+  },
+  "dev-dependencies": {
+    "default": []
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo run",
+    "# Edit src/main.rs to add your own code",
+    "# Add dependencies to Cargo.toml as needed",
+    "# Build for release: cargo build --release"
+  ]
+}

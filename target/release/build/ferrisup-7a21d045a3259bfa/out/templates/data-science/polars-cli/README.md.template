@@ -1,0 +1,122 @@
+# {{project_name}}
+
+A data analysis CLI application using Polars (similar to pandas in Python)
+
+## Features
+
+- Fast data processing with Polars (Rust implementation similar to pandas)
+- Command-line interface for data analysis
+- Support for data files (CSV, JSON, Parquet)
+- Statistical analysis capabilities
+{{#if (eq visualization "yes")}}
+- Data visualization with Plotters
+{{/if}}
+- Sample data generation
+
+## Installation
+
+```bash
+cargo build --release
+```
+
+The binary will be available at `target/release/{{project_name}}`.
+
+## Usage
+
+### Generating Sample Data
+
+The project includes a script to generate sample data files for testing:
+
+```bash
+cd data
+./download_sample_data.sh
+```
+
+This will create:
+- example_data.{{data_format}} - A {{data_format}} file with employee records
+
+### Analyzing Data
+
+```bash
+# Basic usage
+cargo run -- analyze -f data/example_data.{{data_format}}
+
+# Filtering data
+cargo run -- analyze -f data/example_data.{{data_format}} -c department -v Engineering
+
+# Grouping and aggregation
+cargo run -- analyze -f data/example_data.{{data_format}} -g department -a salary -u mean
+
+# Statistical analysis
+cargo run -- analyze -f data/example_data.{{data_format}} -s
+```
+
+### Generating Sample Data
+
+```bash
+# Generate 100 rows of sample data
+cargo run -- generate -r 100 -o data/my_data.{{data_format}}
+```
+
+## Command-Line Arguments
+
+### Analyze Command
+
+- `-f, --file <FILE>`: Path to the data file
+- `-t, --format <FORMAT>`: File format (csv, json, parquet) [default: {{data_format}}]
+- `-c, --filter-column <FILTER_COLUMN>`: Optional column to filter on
+- `-v, --filter-value <FILTER_VALUE>`: Optional value to filter for
+- `-g, --group-by <GROUP_BY>`: Optional column to group by
+- `-a, --aggregate <AGGREGATE>`: Optional column to aggregate
+- `-u, --agg-func <AGG_FUNC>`: Aggregation function (sum, mean, min, max, count) [default: mean]
+- `-s, --stats`: Perform statistical analysis
+- `--confidence <CONFIDENCE>`: Confidence level for statistical tests (0.90, 0.95, 0.99) [default: 0.95]
+- `--json-format <JSON_FORMAT>`: JSON format (records, lines) [default: records]
+
+### Generate Command
+
+- `-r, --rows <ROWS>`: Number of rows to generate [default: 100]
+- `-o, --output <o>`: Output file path
+- `-t, --format <FORMAT>`: Output format (csv, json, parquet) [default: {{data_format}}]
+
+## Examples
+
+### Basic Analysis
+
+```bash
+# Analyze the example data file
+cargo run -- analyze -f data/example_data.{{data_format}}
+```
+
+### Filtering and Grouping
+
+```bash
+# Filter data where department is "Engineering"
+cargo run -- analyze -f data/example_data.{{data_format}} -c department -v Engineering
+
+# Group by department and calculate mean salary
+cargo run -- analyze -f data/example_data.{{data_format}} -g department -a salary -u mean
+```
+
+### Statistical Analysis
+
+```bash
+# Perform statistical analysis with 95% confidence level
+cargo run -- analyze -f data/example_data.{{data_format}} -s
+
+# Perform statistical analysis with 99% confidence level
+cargo run -- analyze -f data/example_data.{{data_format}} -s --confidence 0.99
+```
+
+### Data Visualization
+
+The application automatically generates histograms for numeric columns when using the `-s` flag for statistical analysis. The histograms are saved as PNG files in the same directory as the input file.
+
+```bash
+# Generate histograms for all numeric columns
+cargo run -- analyze -f data/example_data.{{data_format}} -s
+```
+
+## License
+
+MIT

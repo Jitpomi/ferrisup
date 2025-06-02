@@ -1,0 +1,19 @@
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.36", features = ["macros", "rt-multi-thread"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Vercel Functions dependencies
+vercel_runtime = "1.1"
+
+[dev-dependencies]
+http = "0.2"

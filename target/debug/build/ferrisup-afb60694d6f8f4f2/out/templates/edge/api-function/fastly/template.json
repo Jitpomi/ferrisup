@@ -1,0 +1,24 @@
+{
+  "name": "Fastly Compute@Edge API",
+  "description": "A Rust-powered API function for Fastly Compute@Edge",
+  "category": "edge",
+  "subcategory": "api-function",
+  "type": "binary",
+  "dependencies": {
+    "default": [
+      "fastly = \"0.9.5\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "anyhow = \"1.0\""
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "Install Fastly CLI: brew install fastly/tap/fastly",
+    "Login to Fastly: fastly profile create",
+    "Build the project: cargo build --release --target wasm32-wasi",
+    "For local development: fastly compute serve",
+    "Deploy to Fastly: fastly compute publish",
+    "Test your API: curl https://<your-service>.edgecompute.app/api/info"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Browser Web Component",
+  "description": "A WebAssembly-powered web component for browsers",
+  "category": "edge",
+  "subcategory": "web-component",
+  "type": "library",
+  "dependencies": {
+    "default": [
+      "wasm-bindgen = \"0.2\"",
+      "js-sys = \"0.3\"",
+      "web-sys = { version = \"0.3\", features = [\"console\", \"Window\", \"Document\", \"Element\", \"HtmlElement\", \"Node\", \"Text\", \"MouseEvent\", \"EventTarget\", \"CustomElementRegistry\", \"HtmlDivElement\", \"ShadowRoot\", \"ShadowRootInit\", \"ShadowRootMode\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde-wasm-bindgen = \"0.6\"",
+      "wasm-bindgen-futures = \"0.4\""
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "Install wasm-pack: cargo install wasm-pack",
+    "Build the web component: wasm-pack build --target web",
+    "For local development: python -m http.server or npx serve",
+    "Include in your HTML: <script type=\"module\">import './pkg/{{project_name}}.js';</script>",
+    "Use the component: <rust-component></rust-component>"
+  ]
+}

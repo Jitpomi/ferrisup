@@ -1,0 +1,42 @@
+{
+  "name": "actix-server",
+  "description": "A Rust web server using the Actix framework",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "actix-web = \"4.5\"",
+      "actix-rt = \"2.9\"",
+      "tokio = { version = \"1.36\", features = [\"full\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "env_logger = \"0.11\"",
+      "log = \"0.4\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "reqwest = { version = \"0.11\", features = [\"json\"] }"
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo run",
+    "# Test the API with: curl http://localhost:8080/",
+    "# Add more routes in src/main.rs",
+    "# Explore middleware in Actix with actix-web-middleware"
+  ]
+}

@@ -1,0 +1,21 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/{{project_name}}', '.']
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/{{project_name}}']
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+    - 'functions'
+    - 'deploy'
+    - '{{project_name}}'
+    - '--region=us-central1'
+    - '--source=.'
+    - '--trigger-http'
+    - '--runtime=rust'
+    - '--entry-point=function_handler'
+images:
+  - 'gcr.io/$PROJECT_ID/{{project_name}}'

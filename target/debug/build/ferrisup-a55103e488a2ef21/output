@@ -1,0 +1,3 @@
+cargo:rerun-if-changed=templates/
+cargo:rerun-if-changed=config.json
+cargo:rustc-env=FERRISUP_TEMPLATES_DIR=/Users/samsonssali/RustroverProjects/tools/ferrisup/target/debug/build/ferrisup-a55103e488a2ef21/out

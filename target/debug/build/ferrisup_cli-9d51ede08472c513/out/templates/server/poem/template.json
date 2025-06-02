@@ -1,0 +1,41 @@
+{
+  "name": "poem-server",
+  "description": "A Rust web server using the Poem framework",
+  "type": "binary",
+  "files": [
+    {
+      "source": "src/main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "Cargo.toml.template",
+      "target": "Cargo.toml"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "poem = \"2.0\"",
+      "tokio = { version = \"1.36\", features = [\"full\"] }",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "tracing = \"0.1\"",
+      "tracing-subscriber = \"0.3\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "reqwest = { version = \"0.11\", features = [\"json\"] }"
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "cargo run",
+    "# Test the API with: curl http://localhost:3000/",
+    "# Add more routes in src/main.rs",
+    "# Enable OpenAPI with: poem-openapi = \"3.0.0\""
+  ]
+}

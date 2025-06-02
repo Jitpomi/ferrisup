@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  {{project_name}}
+  
+  AWS Lambda@Edge function written in Rust
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+
+Resources:
+  # Lambda@Edge function
+  EdgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - x86_64
+      AutoPublishAlias: live
+      FunctionName: {{project_name}}
+      Description: A Rust-powered Lambda@Edge function
+      Events:
+        ApiGateway:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            RestApiId: !Ref EdgeApi
+        RootPath:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+            RestApiId: !Ref EdgeApi
+  
+  # API Gateway definition
+  EdgeApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      EndpointConfiguration: REGIONAL
+      Name: {{project_name}}-api
+
+  # CloudFront distribution for Lambda@Edge (only used if you want to deploy as a true Lambda@Edge function)
+  # Uncomment this section if you want to deploy as Lambda@Edge instead of just Lambda + API Gateway
+  # EdgeDistribution:
+  #   Type: AWS::CloudFront::Distribution
+  #   Properties:
+  #     DistributionConfig:
+  #       Enabled: true
+  #       DefaultCacheBehavior:
+  #         TargetOriginId: {{project_name}}-origin
+  #         ViewerProtocolPolicy: redirect-to-https
+  #         LambdaFunctionAssociations:
+  #           - EventType: viewer-request
+  #             LambdaFunctionARN: !Ref EdgeFunctionVersion
+  #         ForwardedValues:
+  #           QueryString: true
+  #       Origins:
+  #         - Id: {{project_name}}-origin
+  #           DomainName: example.com
+  #           CustomOriginConfig:
+  #             OriginProtocolPolicy: https-only
+
+Outputs:
+  EdgeFunction:
+    Description: "Lambda@Edge Function ARN"
+    Value: !GetAtt EdgeFunction.Arn
+  
+  EdgeApi:
+    Description: "API Gateway endpoint URL for the Edge Function"
+    Value: !Sub "https://${EdgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  
+  EdgeFunction:
+    Description: "Lambda@Edge Function"
+    Value: !Ref EdgeFunction

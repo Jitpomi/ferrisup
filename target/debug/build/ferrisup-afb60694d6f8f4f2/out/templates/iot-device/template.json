@@ -1,0 +1,73 @@
+{
+  "name": "iot-device",
+  "description": "A Rust IoT device firmware template with connectivity features",
+  "type": "binary",
+  "files": [
+    {
+      "source": "main.rs",
+      "target": "src/main.rs"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "database": {
+    "db_type": "embedded",
+    "orm": "none" 
+  },
+  "dependencies": {
+    "default": [
+      "panic-halt = \"0.2\"",
+      "embedded-hal = \"0.2\"",
+      "cortex-m = \"0.7\"",
+      "cortex-m-rt = \"0.7\""
+    ],
+    "connectivity": [
+      "embassy-net = \"0.2\"",
+      "embedded-nal = \"0.6\"",
+      "embedded-nal-async = \"0.4\""
+    ],
+    "sensors": [
+      "embedded-sensors = \"0.3\"",
+      "embedded-hal-bus = \"0.1\""
+    ],
+    "rp2040": [
+      "rp2040-hal = \"0.9\"",
+      "rp2040-boot2 = \"0.3\""
+    ],
+    "esp32": [
+      "esp32-hal = \"0.16\"",
+      "esp-backtrace = \"0.9\"",
+      "esp-wifi = \"0.1\""
+    ],
+    "stm32": [
+      "stm32f4xx-hal = { version = \"0.17\", features = [\"stm32f411\"] }"
+    ],
+    "arduino": [
+      "arduino-hal = \"0.1\"",
+      "avr-device = \"0.5\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "defmt = \"0.3\"",
+      "defmt-rtt = \"0.4\"",
+      "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Install the appropriate target for your microcontroller",
+    "# For RP2040: rustup target add thumbv6m-none-eabi",
+    "# For ESP32: rustup target add xtensa-esp32-none-elf",
+    "# For STM32: rustup target add thumbv7em-none-eabihf",
+    "# For Arduino: rustup target add avr-unknown-gnu-atmega328",
+    "# Install flashing tools",
+    "# For RP2040/STM32: cargo install probe-run",
+    "# For ESP32: cargo install espflash",
+    "# Build and flash the firmware",
+    "cargo build --target <your-target>",
+    "cargo run --target <your-target>"
+  ]
+}

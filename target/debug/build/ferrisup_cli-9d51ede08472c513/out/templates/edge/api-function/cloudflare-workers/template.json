@@ -1,0 +1,25 @@
+{
+  "name": "Cloudflare Workers API",
+  "description": "A Rust-powered API function for Cloudflare Workers",
+  "category": "edge",
+  "subcategory": "api-function",
+  "type": "library",
+  "dependencies": {
+    "default": [
+      "worker = \"0.0.18\"",
+      "serde = { version = \"1.0\", features = [\"derive\"] }",
+      "serde_json = \"1.0\"",
+      "wasm-bindgen = \"0.2\"",
+      "js-sys = \"0.3\"",
+      "wasm-bindgen-futures = \"0.4\""
+    ]
+  },
+  "next_steps": [
+    "cd {{project_name}}",
+    "Install wrangler: npm install -g wrangler",
+    "Login to Cloudflare: wrangler login",
+    "Build and deploy: wrangler publish",
+    "For local development: wrangler dev",
+    "Test your API: curl https://<your-worker>.<your-subdomain>.workers.dev/api/info"
+  ]
+}

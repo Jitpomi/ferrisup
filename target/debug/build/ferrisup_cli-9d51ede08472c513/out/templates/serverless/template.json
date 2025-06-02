@@ -1,0 +1,153 @@
+{
+  "name": "serverless",
+  "description": "A Rust serverless function template for cloud deployment with support for AWS Lambda, Google Cloud Functions, Azure Functions, Vercel, and Netlify",
+  "type": "binary",
+  "files": [],
+  "options": [
+    {
+      "name": "cloud_provider",
+      "type": "select",
+      "description": "Which cloud provider would you like to target for your serverless function?",
+      "default": "aws",
+      "options": [
+        "aws",
+        "gcp",
+        "azure",
+        "vercel",
+        "netlify"
+      ]
+    }
+  ],
+  "help": {
+    "aws": "AWS Lambda is a serverless compute service that runs your code in response to events and automatically manages the underlying compute resources.",
+    "gcp": "Google Cloud Functions is a serverless execution environment for building and connecting cloud services.",
+    "azure": "Azure Functions is a serverless solution that allows you to write less code, maintain less infrastructure, and save on costs.",
+    "vercel": "Vercel Functions provide a serverless platform for deploying functions that run on-demand and scale automatically.",
+    "netlify": "Netlify Functions let you deploy server-side code that runs alongside your static website or application."
+  },
+  "conditional_files": [
+    {
+      "when": "cloud_provider == \"aws\"",
+      "files": [
+        {
+          "source": "aws/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "aws/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "aws/README.md.template",
+          "target": "README.md"
+        },
+        {
+          "source": "aws/template.yml",
+          "target": "template.yml"
+        },
+        {
+          "source": "aws/Makefile",
+          "target": "Makefile"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == \"gcp\"",
+      "files": [
+        {
+          "source": "gcp/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "gcp/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "gcp/README.md.template",
+          "target": "README.md"
+        },
+        {
+          "source": "gcp/Dockerfile",
+          "target": "Dockerfile"
+        },
+        {
+          "source": "gcp/cloudbuild.yaml",
+          "target": "cloudbuild.yaml"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == \"azure\"",
+      "files": [
+        {
+          "source": "azure/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "azure/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "azure/README.md.template",
+          "target": "README.md"
+        },
+        {
+          "source": "azure/function.json",
+          "target": "function.json"
+        },
+        {
+          "source": "azure/host.json",
+          "target": "host.json"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == \"vercel\"",
+      "files": [
+        {
+          "source": "vercel/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "vercel/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "vercel/README.md.template",
+          "target": "README.md"
+        },
+        {
+          "source": "vercel/vercel.json",
+          "target": "vercel.json"
+        }
+      ]
+    },
+    {
+      "when": "cloud_provider == \"netlify\"",
+      "files": [
+        {
+          "source": "netlify/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "netlify/Cargo.toml.template",
+          "target": "Cargo.toml"
+        },
+        {
+          "source": "netlify/README.md.template",
+          "target": "README.md"
+        },
+        {
+          "source": "netlify/netlify.toml",
+          "target": "netlify.toml"
+        }
+      ]
+    }
+  ],
+  "next_steps": [
+    "cd {{project_name}}",
+    "# Set environment variables (see README.md)",
+    "cargo run",
+    "# See README.md for deployment instructions"
+  ]
+}

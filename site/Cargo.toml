@@ -1,0 +1,21 @@
+[package]
+name = "ferrisup_site"
+version = "0.1.0"
+authors = ["jermsam <ssali@jitpomi.com>"]
+edition = "2021"
+
+[package.metadata]
+
+[package.metadata.ferrisup]
+component_type = "client"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = { version = "0.6.0", features = ["router"] }
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]

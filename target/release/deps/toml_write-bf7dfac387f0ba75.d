@@ -1,0 +1,11 @@
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/release/deps/libtoml_write-bf7dfac387f0ba75.rmeta: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/key.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/string.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/value.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/write.rs
+
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/release/deps/libtoml_write-bf7dfac387f0ba75.rlib: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/key.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/string.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/value.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/write.rs
+
+/Users/samsonssali/RustroverProjects/tools/ferrisup/target/release/deps/toml_write-bf7dfac387f0ba75.d: /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/lib.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/key.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/string.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/value.rs /Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/write.rs
+
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/lib.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/key.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/string.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/value.rs:
+/Users/samsonssali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.1/src/write.rs:

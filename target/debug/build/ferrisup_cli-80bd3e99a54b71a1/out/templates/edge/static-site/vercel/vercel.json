@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "wasm-pack build --target web && cp -r pkg .",
+  "outputDirectory": ".",
+  "public": true,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "github": {
+    "silent": true
+  }
+}

@@ -1,0 +1,64 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting Google Cloud Functions.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main function code
+├── Cargo.toml          # Rust dependencies
+├── cloudbuild.yaml     # Google Cloud Build configuration
+└── Dockerfile          # Container configuration
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) - For deploying to Google Cloud Functions
+- Docker - For local testing and building
+
+## Local Development
+
+For Google Cloud Functions, you can test locally with the Functions Framework:
+
+1. Build your function:
+   ```bash
+   cargo build --release
+   ```
+
+2. Use Docker to test:
+   ```bash
+   docker build -t {{project_name}} .
+   docker run -p 8080:8080 {{project_name}}
+   ```
+
+3. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:8080" -d '{"name": "world"}'
+   ```
+
+## Deployment
+
+To deploy your Google Cloud Function:
+
+1. Configure GCP credentials:
+   ```bash
+   gcloud auth login
+   ```
+
+2. Deploy to GCP:
+   ```bash
+   gcloud functions deploy {{project_name}} \
+     --runtime=rust \
+     --trigger-http \
+     --allow-unauthenticated
+   ```
+
+## Additional Resources
+
+- [Google Cloud Functions Documentation](https://cloud.google.com/functions/docs)
+- [Google Cloud Rust SDK](https://github.com/googleapis/google-cloud-rust)

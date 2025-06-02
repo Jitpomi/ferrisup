@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{project_name}} | Rust WebAssembly Component</title>
+    <style>
+        :root {
+            --primary-color: #0075C9;
+            --secondary-color: #FF9500;
+            --dark-color: #333333;
+            --light-color: #F5F5F5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: var(--light-color);
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #eaeaea;
+            border-radius: 6px;
+        }
+
+        .demo-section h2 {
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .control-panel {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 6px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .component-container {
+            margin-top: 20px;
+            min-height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .code-section {
+            margin-top: 30px;
+        }
+
+        pre {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🦀 {{project_name}} WebComponent Demo</h1>
+        <p>A custom web component built with Rust and WebAssembly</p>
+    </header>
+
+    <div class="container">
+        <div class="demo-section">
+            <h2>Component Demo</h2>
+            <p>This demonstrates the Rust-powered web component with customizable properties.</p>
+            
+            <div class="control-panel">
+                <div class="form-group">
+                    <label for="component-title">Title:</label>
+                    <input type="text" id="component-title" value="Rust WebComponent">
+                </div>
+                <div class="form-group">
+                    <label for="component-description">Description:</label>
+                    <input type="text" id="component-description" value="A web component built with Rust and WebAssembly">
+                </div>
+                <div class="form-group">
+                    <label for="component-theme">Theme:</label>
+                    <select id="component-theme">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <button id="update-component">Update Component</button>
+            </div>
+            
+            <div class="component-container" id="component-demo">
+                <!-- The web component will be rendered here -->
+                <p>Loading component...</p>
+            </div>
+        </div>
+        
+        <div class="code-section">
+            <h2>How to Use</h2>
+            <p>To use this component in your own projects:</p>
+            <pre><code>// Import and initialize the WebAssembly module
+import init, { RustComponent, register_rust_component } from './pkg/{{project_name}}.js';
+
+// Initialize the WebAssembly module
+async function run() {
+  await init();
+  
+  // Register the custom element (optional)
+  register_rust_component('rust-element');
+  
+  // Or create and use the component directly
+  const component = new RustComponent();
+  document.getElementById('container').appendChild(component.element());
+  
+  // Update properties
+  const props = new ComponentProperties();
+  props.set_title('Custom Title');
+  props.set_description('Custom description text');
+  props.set_theme('dark');
+  component.update(props);
+  
+  // Set a click handler
+  component.set_click_handler(() => {
+    console.log('Component clicked!');
+  });
+}
+
+run();</code></pre>
+        </div>
+    </div>
+
+    <footer>
+        <p>Created with FerrisUp - <a href="https://github.com/Jitpomi/ferrisup" target="_blank">https://github.com/Jitpomi/ferrisup</a></p>
+    </footer>
+
+    <script type="module">
+        import init, { RustComponent, ComponentProperties, register_rust_component } from './pkg/{{project_name}}.js';
+
+        let component;
+
+        async function run() {
+            try {
+                await init();
+                
+                // Register the custom element
+                register_rust_component('rust-element');
+                
+                // Create the component
+                component = new RustComponent();
+                
+                // Get the container and replace loading message
+                const container = document.getElementById('component-demo');
+                container.innerHTML = '';
+                container.appendChild(component.element());
+                
+                // Set up the update button
+                document.getElementById('update-component').addEventListener('click', updateComponent);
+                
+                // Set a click handler on the component
+                component.set_click_handler(() => {
+                    alert('Component clicked!');
+                });
+                
+            } catch (e) {
+                console.error("Error initializing WebAssembly:", e);
+                document.getElementById('component-demo').innerHTML = `
+                    <p style="color: red;">⚠️ Error Loading WebAssembly Component</p>
+                    <pre>${e}</pre>
+                `;
+            }
+        }
+        
+        function updateComponent() {
+            if (!component) return;
+            
+            const props = new ComponentProperties();
+            props.set_title(document.getElementById('component-title').value);
+            props.set_description(document.getElementById('component-description').value);
+            props.set_theme(document.getElementById('component-theme').value);
+            
+            component.update(props);
+        }
+
+        run();
+    </script>
+</body>
+</html>

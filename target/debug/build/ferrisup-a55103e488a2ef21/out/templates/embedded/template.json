@@ -1,0 +1,179 @@
+{
+  "name": "embedded",
+  "description": "A Rust embedded systems application template for microcontrollers",
+  "type": "binary",
+  "files": [
+    {
+      "source": "common/.cargo/config.toml",
+      "target": ".cargo/config.toml"
+    },
+    {
+      "source": "common/memory.x",
+      "target": "memory.x"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "options": [
+    {
+      "name": "framework",
+      "description": "Do you want to use an embedded framework?",
+      "type": "select",
+      "options": ["No, use standard embedded template", "Yes, use Embassy framework"],
+      "default": "No, use standard embedded template"
+    },
+    {
+      "name": "mcu_target",
+      "description": "Microcontroller target",
+      "type": "select",
+      "options": ["rp2040", "stm32", "esp32", "arduino"],
+      "default": "rp2040"
+    }
+  ],
+  "conditional_files": [
+    {
+      "when": "mcu_target == \"rp2040\"",
+      "files": [
+        {
+          "source": "mcu/rp2040/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/rp2040/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == \"esp32\"",
+      "files": [
+        {
+          "source": "mcu/esp32/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/esp32/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == \"stm32\"",
+      "files": [
+        {
+          "source": "mcu/stm32/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/stm32/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    },
+    {
+      "when": "mcu_target == \"arduino\"",
+      "files": [
+        {
+          "source": "mcu/arduino/src/main.rs",
+          "target": "src/main.rs"
+        },
+        {
+          "source": "mcu/arduino/Cargo.toml.template",
+          "target": "Cargo.toml"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "default": [
+      "panic-halt = \"0.2\"",
+      "cortex-m = \"0.7\"",
+      "cortex-m-rt = \"0.7\"",
+      "embedded-hal = \"0.2\""
+    ]
+  },
+  "dev-dependencies": {
+    "default": [
+      "defmt = \"0.3\"",
+      "defmt-rtt = \"0.4\"",
+      "panic-probe = { version = \"0.3\", features = [\"print-defmt\"] }"
+    ]
+  },
+  "next_steps": {
+    "default": [
+      "cd {{project_name}}",
+      "# Check the README.md for microcontroller-specific setup and build instructions"
+    ],
+    "conditional": [
+      {
+        "when": "mcu_target == \"rp2040\"",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add thumbv6m-none-eabi",
+          "cargo install probe-run",
+          "# Build the firmware",
+          "cargo build --target thumbv6m-none-eabi",
+          "# Flash the firmware",
+          "cargo run --target thumbv6m-none-eabi"
+        ]
+      },
+      {
+        "when": "mcu_target == \"stm32\"",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add thumbv7em-none-eabihf",
+          "# Build the firmware",
+          "cargo build --target thumbv7em-none-eabihf",
+          "# Flash the firmware",
+          "cargo run --target thumbv7em-none-eabihf"
+        ]
+      },
+      {
+        "when": "mcu_target == \"esp32\"",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add xtensa-esp32-none-elf",
+          "cargo install espflash",
+          "# Build the firmware",
+          "cargo build --target xtensa-esp32-none-elf",
+          "# Flash the firmware",
+          "espflash flash --monitor target/xtensa-esp32-none-elf/debug/{{project_name}}"
+        ]
+      },
+      {
+        "when": "mcu_target == \"arduino\"",
+        "steps": [
+          "# Install the appropriate target for your microcontroller",
+          "rustup target add avr-unknown-gnu-atmega328",
+          "cargo install ravedude",
+          "# Build the firmware",
+          "cargo build --target avr-unknown-gnu-atmega328",
+          "# Flash the firmware",
+          "cargo run --target avr-unknown-gnu-atmega328"
+        ]
+      }
+    ]
+  },
+  "post_setup_info": {
+    "conditional": [
+      {
+        "when": "mcu_target == \"rp2040\"",
+        "message": " For RP2040 development, you might want to check out the rp-hal repo: https://github.com/rp-rs/rp-hal"
+      },
+      {
+        "when": "mcu_target == \"esp32\"",
+        "message": " For ESP32 development, you might want to check out the esp-rs organization: https://github.com/esp-rs"
+      },
+      {
+        "when": "mcu_target == \"stm32\"",
+        "message": " For STM32 development, you might want to check out the stm32-rs organization: https://github.com/stm32-rs"
+      },
+      {
+        "when": "mcu_target == \"arduino\"",
+        "message": " For Arduino development in Rust, you might want to check out avr-hal: https://github.com/Rahix/avr-hal"
+      }
+    ]
+  }
+}

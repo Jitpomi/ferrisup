@@ -1,0 +1,48 @@
+# {{project_name}}
+
+A Rust serverless function created with FerrisUp targeting Netlify Functions.
+
+## Project Structure
+
+```
+{{project_name}}/
+├── src/
+│   └── main.rs         # Main function code
+├── Cargo.toml          # Rust dependencies
+└── netlify.toml        # Netlify deployment configuration
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- [Netlify CLI](https://www.netlify.com/products/cli/) - For deploying to Netlify
+
+## Local Development
+
+For Netlify Functions, you can test locally with Netlify CLI:
+
+1. Start development server:
+   ```bash
+   netlify dev
+   ```
+
+2. Make HTTP requests to your function:
+   ```bash
+   curl -X POST "http://localhost:8888/.netlify/functions/{{project_name}}" -d '{"name": "world"}'
+   ```
+
+## Deployment
+
+To deploy your Netlify Function:
+
+1. Deploy to Netlify:
+   ```bash
+   netlify deploy --prod
+   ```
+
+## Additional Resources
+
+- [Netlify Functions Documentation](https://docs.netlify.com/functions/overview/)
+- [Netlify Rust Functions Example](https://github.com/netlify/rust-functions-example)
