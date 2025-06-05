@@ -13,7 +13,7 @@ fn test_list_templates() -> Result<()> {
     assert!(!templates.is_empty(), "Template list should not be empty");
     
     // Check for some expected templates
-    let expected_templates = ["minimal", "library", "full-stack"];
+    let expected_templates = ["minimal", "library", "server"];
     for template in expected_templates.iter() {
         assert!(
             templates.iter().any(|(name, _)| name == template),
@@ -33,7 +33,7 @@ fn test_list_templates() -> Result<()> {
 #[test]
 fn test_get_template() -> Result<()> {
     // Test retrieving template content for a few templates
-    let templates_to_test = ["minimal", "library", "full-stack"];
+    let templates_to_test = ["minimal", "library", "server"];
     
     for template in templates_to_test.iter() {
         let template_content = ferrisup::template_manager::get_template(template)?;
@@ -58,7 +58,7 @@ fn test_get_all_templates() -> Result<()> {
     assert!(!templates.is_empty(), "Template list should not be empty");
     
     // Check for some expected templates
-    let expected_templates = ["minimal", "library", "full-stack"];
+    let expected_templates = ["minimal", "library", "server"];
     for template in expected_templates.iter() {
         assert!(
             templates.contains(&template.to_string()),

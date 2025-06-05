@@ -260,7 +260,7 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
     // Since Config no longer has project_name and template fields,
     // we'll use hardcoded values for the preview
     let project_name = "example_project";
-    let template_type = "full-stack"; // Default template type for preview
+    let template_type = "minimal"; // Default template type for preview
     
     let mut tree = format!("{}/\n", project_name);
     tree.push_str("├── Cargo.toml\n");

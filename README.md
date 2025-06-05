@@ -31,6 +31,32 @@ cd ferrisup
 cargo install --path .
 ```
 
+## Usage
+
+FerrisUp provides a simple and intuitive command-line interface for creating and managing Rust projects. Here's how to use it:
+
+```bash
+# Get help information
+ferrisup --help
+
+# Create a new project (interactive mode)
+ferrisup new
+
+# List available templates
+ferrisup list
+
+# Preview a template
+ferrisup preview --template full-stack
+
+# Transform an existing project
+ferrisup transform
+
+# Manage dependencies
+ferrisup dependency add tokio serde
+```
+
+See the Commands section below for more detailed usage instructions.
+
 ## Quick Start
 
 ```bash
