@@ -8,7 +8,7 @@ use crate::utils::{
     copy_dir_contents, create_directory, extract_dependencies, update_cargo_with_dependencies,
     update_workspace_members,
 };
-use dialoguer::{Confirm, Input, Select};
+use dialoguer::{Confirm, Input, MultiSelect, Select};
 use toml_edit::{value, Document, Item, Table};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
@@ -229,10 +229,95 @@ fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
     })
 }
 
-// Function to convert a project to a workspace
+// Function to update path references in files kept at the root
+// Function to update path references in files kept at the root
+// Function to update path references in files kept at the root
+fn update_root_file_references(project_dir: &Path, component_name: &str, files_to_keep_at_root: &[String]) -> Result<()> {
+    println!("{}", "Updating references in files kept at root...".blue());
+    
+    for file_name in files_to_keep_at_root {
+        let file_path = project_dir.join(file_name);
+        if !file_path.exists() {
+            continue;
+        }
+        
+        // Special handling for .gitignore files
+        if file_name.to_lowercase() == ".gitignore" {
+            update_gitignore_references(&file_path, component_name)?;
+            continue;
+        }
+        
+        // Skip binary files and directories
+        if file_path.is_dir() {
+            continue;
+        }
+        
+        // Try to read the file as text
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            // Look for paths that might need updating
+            let mut updated_content = content.clone();
+            
+            // Replace direct references to files that are now in the component directory
+            // Using a simpler regex approach to avoid escaping issues
+            let src_regex = format!(r"(src/[\w\-\.\/]+)");
+            let re = regex::Regex::new(&src_regex).unwrap();
+            
+            updated_content = re.replace_all(&updated_content, |caps: &regex::Captures| {
+                format!("{}/{}", component_name, &caps[1])
+            }).to_string();
+            
+            // If content was modified, write it back
+            if content != updated_content {
+                println!("Updated references in root file: {}", file_name);
+                fs::write(&file_path, updated_content)?;
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+// Special handling for .gitignore files using wildcards
+// Special handling for .gitignore files using wildcards
+fn update_gitignore_references(gitignore_path: &Path, component_name: &str) -> Result<()> {
+    let content = fs::read_to_string(gitignore_path)?;
+    let lines = content.lines().collect::<Vec<_>>();
+    let mut modified = false;
+    let mut all_lines = Vec::new();
+    
+    // First, collect all existing lines
+    for line in &lines {
+        all_lines.push(line.to_string());
+    }
+    
+    // Check for src/ references that need to be updated
+    for line in &lines {
+        // Skip comments and empty lines
+        if line.trim().starts_with('#') || line.trim().is_empty() {
+            continue;
+        }
+        
+        // If line references src/ directly, add a wildcard version for the component
+        if line.trim() == "src/" || line.trim().starts_with("src/") {
+            // Create a new line with the component path using wildcards
+            let new_line = format!("{}/{}/*", component_name, line.trim());
+            if !all_lines.contains(&new_line) {
+                all_lines.push(new_line);
+                modified = true;
+            }
+        }
+    }
+    
+    if modified {
+        println!("Updated .gitignore with wildcards for component paths");
+        fs::write(gitignore_path, all_lines.join("\n"))?;
+    }
+    
+    Ok(())
+}
+
 fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     println!("{}", "Converting project to workspace...".blue());
-
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
     let project_name = &structure.project_name;
@@ -240,23 +325,8 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     // Ensure .ferrisup directory exists
     let ferrisup_dir = project_dir.join(".ferrisup");
     create_directory(&ferrisup_dir)?;
-
-    // Detect component type from project structure
-    let component_type = detect_component_type(project_dir)?;
-
-    // Map component type to a more user-friendly name for the prompt
-    let default_name = match component_type {
-        "minimal" => "minimal",
-        "client" => "client",
-        "server" => "server",
-        "shared" => "shared",
-        "edge" => "edge",
-        "serverless" => "serverless",
-        "data-science" => "data-science",
-        "embedded" => "embedded",
-        _ => component_type,
-    };
-
+    // We use the original project name as the default component name instead of detecting component type    // Use the original project name as the default component name
+    let default_name = project_name;
     // Prompt for component name with default based on component type
     let component_name = Input::<String>::new()
         .with_prompt(format!(
@@ -271,22 +341,100 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     create_directory(&component_dir)?;
     create_directory(&component_dir.join("src"))?;
 
-    // Move all project files to component directory except workspace files
-    let entries = fs::read_dir(project_dir)?;
+    // Get list of all files and directories in the project root
+    let all_root_entries: Vec<String> = fs::read_dir(project_dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+
+    // These files will always be skipped and not offered to the user for selection.
+    let always_skip_filenames = vec![
+        "Cargo.toml".to_string(),    // Workspace Cargo.toml will be created anew
+        "Cargo.lock".to_string(),  // Workspace Cargo.lock
+        ".git".to_string(),        // Git directory
+        ".ferrisup".to_string(),   // FerrisUp metadata directory
+        component_name.clone(),    // The new component directory being created
+    ];
+
+    // Determine which files are eligible for the user to select to keep at root
+    let selectable_entries_for_prompt: Vec<String> = all_root_entries
+        .iter()
+        .filter(|name| !always_skip_filenames.contains(name))
+        .cloned()
+        .collect();
+
+    let files_to_keep_at_root: Vec<String> = if !selectable_entries_for_prompt.is_empty() {
+        println!(
+            "{}",
+            "The following files/directories are in your project root:".yellow()
+        );
+
+        // Define common files/directories to pre-select for keeping at root.
+        // These are suggestions; the user can change selections.
+        let common_root_filenames: Vec<&str> = vec![
+            "readme.md", "readme", "license", "license.md", "license.txt",
+            ".gitignore", "makefile", "justfile", "dockerfile", 
+            "docker-compose.yml", ".editorconfig", "contributing.md",
+            // Common directory names (matched as simple names, case-insensitive)
+            ".github", ".gitlab", ".vscode", "docs", "scripts", "assets", "examples", "tests",
+            // Other common config files that might be at the root
+            "netlify.toml", "vercel.json", ".nvmrc", "pnpm-workspace.yaml", "package-lock.json", "yarn.lock"
+        ];
+
+        let default_selections: Vec<bool> = selectable_entries_for_prompt
+            .iter()
+            .map(|entry_name| {
+                let lower_entry_name = entry_name.to_lowercase();
+                common_root_filenames.iter().any(|pattern| lower_entry_name == *pattern)
+            })
+            .collect();
+
+        let selections = MultiSelect::new()
+            .items(&selectable_entries_for_prompt)
+            .with_prompt("Select files/directories to KEEP at the project root (they will NOT be moved to the new component). Use Space to select/deselect, Enter to confirm.")
+            .defaults(&default_selections) // Use the generated defaults with pre-selected common files
+            .interact_opt()? 
+            .unwrap_or_else(Vec::new);
+
+        selections
+            .into_iter()
+            .map(|index| selectable_entries_for_prompt[index].clone())
+            .collect()
+    } else {
+        println!("{}", "No movable files found in the project root to select for keeping.".yellow());
+        Vec::new()
+    };
+
+    if !files_to_keep_at_root.is_empty() {
+        println!(
+            "{} {:?}",
+            "Files selected to keep at root (will not be moved):".cyan(),
+            files_to_keep_at_root
+        );
+    }
+
+    // Move project files to component directory
+    println!("{}", "Processing files for component directory...".blue());
+    let entries = fs::read_dir(project_dir)?; // Re-read entries to ensure freshness
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
         let file_name = path.file_name().unwrap().to_string_lossy().to_string();
 
-        // Skip workspace files and the component directory itself
-        if file_name == "Cargo.toml"
-            || file_name == "Cargo.lock"
-            || file_name == ".git"
-            || file_name == ".ferrisup"
-            || file_name == component_name
-        {
+        // Skip:
+        // 1. Files/dirs that are essential for the workspace or the new component dir itself (always_skip_filenames)
+        // 2. Files/dirs explicitly selected by the user to keep at root
+        if always_skip_filenames.contains(&file_name) {
+            // These are essential workspace/tooling files, or the component dir itself, always skipped.
+            // No specific message needed unless debugging, as this is expected.
+            continue;
+        } else if files_to_keep_at_root.contains(&file_name) {
+            println!("Keeping at root (user selected): {}", file_name.yellow());
             continue;
         }
+        
+        // If not skipped, it will be moved.
+        println!("Moving to component '{}': {}", component_name.cyan(), file_name.green());
 
         // Move file or directory to component
         let target_path = component_dir.join(&file_name);
@@ -367,8 +515,8 @@ edition = "2021"
 
         // Update package name to use project_component format with underscores
         if let Some(package) = component_doc.get_mut("package") {
-            if let Some(name) = package.get_mut("name") {
-                *name = toml_edit::value(format!("{}_{}", project_name, component_name));
+            if let Some(_name) = package.get_mut("name") {
+                // Keep original package name - no change needed
             }
         }
 
@@ -443,6 +591,9 @@ edition = "2021"
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
+    // Update references in files kept at the root
+    update_root_file_references(project_dir, &component_name, &files_to_keep_at_root)?;
+
     // Fix workspace resolver
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
@@ -499,7 +650,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
 pub fn add_component(project_dir: &Path) -> Result<()> {
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
-    let project_name = &structure.project_name;
+    let _project_name = &structure.project_name;
 
     // Ensure .ferrisup directory exists
     let ferrisup_dir = project_dir.join(".ferrisup");
@@ -699,8 +850,20 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
-    // Update component's Cargo.toml to use project-prefixed package name
+    // Create an empty list for files to keep at root since we're not moving files in this case
+    let files_to_keep_at_root: Vec<String> = Vec::new();
+    
+    // Update references in files kept at the root
+    update_root_file_references(project_dir, &component_name, &files_to_keep_at_root)?;
+
+    // Define component cargo path
     let component_cargo_path = component_dir.join("Cargo.toml");
+    
+    // Get project name from directory name
+    let project_name = project_dir.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown");
+    
     if component_cargo_path.exists() {
         let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
         let mut component_doc = component_cargo_content
@@ -709,8 +872,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
         // Update package name to use project_component format with underscores
         if let Some(package) = component_doc.get_mut("package") {
-            if let Some(name) = package.get_mut("name") {
-                *name = toml_edit::value(format!("{}_{}", project_name, component_name));
+            if let Some(_name) = package.get_mut("name") {
+                // Keep original package name - no change needed
             }
         }
 
@@ -1060,7 +1223,8 @@ fn update_source_imports(
     component_name: &str,
 ) -> Result<()> {
     // Create the new package name
-    let new_package_name = format!("{0}_{1}", project_name, component_name);
+    // Use the original package name instead of creating a new prefixed one
+    let new_package_name = component_name.to_string();
 
     // Walk through all Rust source files in the component directory
     let src_dir = component_dir.join("src");
@@ -1139,7 +1303,7 @@ fn process_directory_imports(
 
     Ok(())
 }
-
+#[allow(dead_code)]
 // Function to detect component type based on project files
 fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
     // First, check if there's an explicit component type in the Cargo.toml metadata
