@@ -1816,18 +1816,6 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
         }
     }
 
-    // Get project name for package prefixes - more reliable method for workspaces
-    let mut project_name = structure.project_name.to_lowercase();
-
-    // If project_name is "unknown", try to determine it from directory name
-    if project_name == "unknown" {
-        if let Some(dir_name) = project_dir.file_name() {
-            if let Some(dir_str) = dir_name.to_str() {
-                project_name = dir_str.to_lowercase();
-            }
-        }
-    }
-
     // We don't need the project_name anymore
 
     println!("{}", "\nFinal Steps:\n".green().bold());
