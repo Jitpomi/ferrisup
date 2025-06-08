@@ -465,14 +465,13 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
         .parse::<Document>()
         .context("Failed to parse component Cargo.toml")?;
 
-    // Update the package name using the project_name from structure
+    // Update the package name using the component_name chosen by the user
     if let Some(package) = component_cargo_doc.get_mut("package") {
         if let Some(table) = package.as_table_mut() {
             table.insert(
                 "name",
                 value(format!(
-                    "{0}_{1}",
-                    project_name.to_lowercase(),
+                    "{}",
                     component_name.to_lowercase()
                 )),
             );
@@ -526,13 +525,13 @@ edition = "2021"
         // Create new Cargo.toml for component if it doesn't exist
         let component_cargo_toml = format!(
             r#"[package]
-name = "{}_{}"
+name = "{}"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 "#,
-            project_name, component_name
+            component_name
         );
 
         fs::write(component_cargo_path, component_cargo_toml)?;
@@ -1861,28 +1860,28 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
 
     // Add individual component build commands
     for component in &component_names {
-        print!(" && cargo build -p {0}_{1}", project_name, component);
+        print!(" && cargo build -p {}", component);
     }
     println!("\n");
 
     // 3. Build specific components
     println!("{}", "3. To build specific components:".blue());
     for component in &component_names {
-        println!("   cargo build -p {0}_{1}", project_name, component);
+        println!("   cargo build -p {}", component);
     }
     println!();
 
     // 4. Run specific components
     println!("{}", "4. To run specific components:".blue());
     for component in &component_names {
-        println!("   cargo run -p {0}_{1}", project_name, component);
+        println!("   cargo run -p {}", component);
     }
     println!();
 
     // 5. Test specific components
     println!("{}", "5. To test specific components:".blue());
     for component in &component_names {
-        println!("   cargo test -p {0}_{1}", project_name, component);
+        println!("   cargo test -p {}", component);
     }
     println!();
 
@@ -1890,10 +1889,7 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
     println!("{}", "6. To add dependencies to components:".blue());
     println!("   cd [component_name] && cargo add [dependency_name]");
     println!("   OR");
-    println!(
-        "   cargo add [dependency_name] --package {0}_[component_name]",
-        project_name
-    );
+    println!("   cargo add [dependency_name] --package [component_name]");
     println!();
 
     // 7. Adding more components
