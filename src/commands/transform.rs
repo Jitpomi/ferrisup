@@ -1828,21 +1828,7 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
         }
     }
 
-    // Also try to get it from metadata if available
-    let metadata_path = project_dir.join(".ferrisup/metadata.toml");
-    if metadata_path.exists() && project_name == "unknown" {
-        if let Ok(metadata_content) = fs::read_to_string(&metadata_path) {
-            if let Ok(metadata_doc) = metadata_content.parse::<Document>() {
-                if let Some(project_metadata) = metadata_doc.get("project") {
-                    if let Some(name) = project_metadata.get("name") {
-                        if let Some(name_str) = name.as_str() {
-                            project_name = name_str.to_lowercase();
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // We don't need the project_name anymore
 
     println!("{}", "\nFinal Steps:\n".green().bold());
 
