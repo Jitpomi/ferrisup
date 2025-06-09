@@ -151,6 +151,7 @@ The transform command provides an interactive menu with the following capabiliti
   - Uses the component type as the default name suggestion when adding new components
   - Uses the same framework options as the `new` command
   - Creates components with proper package naming conventions
+  - When adding a shared component, makes it accessible to all other workspace members via a module named `shared::*`
   - Directly uses the `new` command functionality for consistent component creation
   - Updates the workspace Cargo.toml automatically
   - Preserves and updates component metadata during transformation
