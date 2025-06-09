@@ -127,24 +127,31 @@ ferrisup new [PROJECT_NAME] [--component-type TYPE] [--application-type APPLICAT
 Transform an existing project into a different structure or add components. This command enables the "Start Anywhere, Scale Anywhere" philosophy by allowing you to evolve your project structure as your needs grow.
 
 ```bash
-ferrisup transform [--project PATH]
+ferrisup transform [--project PATH] [--test-mode]
 ```
 
 The transform command provides an interactive menu with the following capabilities:
 
 - **Convert to Workspace**: Transform a single-crate project into a Rust workspace
-  - Intelligently detects the component type of your existing project
+  - Intelligently detects the component type of your existing project (including binary/CLI projects)
   - Uses the component type as the default name suggestion
-  - Properly moves all project files to the first component
+  - Implements strict safeguards to prevent critical source and build files from remaining at root
+  - Smart file selection prompts that only allow build artifacts and temporary files to remain at root
+  - Automatic backup of existing root-level files (README.md, .gitignore) before creating workspace versions
+  - Creates comprehensive workspace README.md with project structure documentation
+  - Properly moves all project files to the component directory
   - Updates package names to use project-prefixed format (e.g., `projectname_componentname`)
-  - Automatically updates source file references to match the new package names
+  - Automatically updates import paths to maintain project integrity after transformation
+  - Provides clear color-coded terminal messaging throughout the transformation process
+  - Supports non-interactive test mode via the `--test-mode` flag or `FERRISUP_TEST_MODE` environment variable
 
 - **Add Components**: Add new components to an existing workspace
-  - Supports all component types (client, server, shared, edge, etc.)
+  - Supports all component types (client, server, shared, edge, data-science, binary, etc.)
   - Uses the same framework options as the `new` command
   - Creates components with proper package naming conventions
   - Directly uses the `new` command functionality for consistent component creation
   - Updates the workspace Cargo.toml automatically
+  - Preserves and updates component metadata during transformation
 
 - **Add Components Without Workspace**: Add related components without converting to a workspace
   - Creates sibling component projects in the same parent directory
@@ -152,6 +159,9 @@ The transform command provides an interactive menu with the following capabiliti
   - Preserves the original project structure
 
 - **Update Metadata**: Manage project configuration stored in `.ferrisup/metadata.toml`
+  - More accurate component type detection based on project structure and dependencies
+  - Ensures metadata consistency between .ferrisup/metadata.toml and component Cargo.toml
+  - Properly identifies and sets "binary" component type for CLI applications
 
 - **Next Steps Guide**: Provides clear instructions after transformation
   - Shows commands to build all components at once
