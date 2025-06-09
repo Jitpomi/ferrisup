@@ -10,6 +10,7 @@ A powerful Rust project bootstrapping tool - Start Anywhere, Scale Anywhere
 
 FerrisUp CLI is a versatile command-line tool for creating and managing Rust projects with flexible templates. Like Create React App for React, FerrisUp makes it easy to start new Rust projects with the right structure and dependencies.
 
+
 ## Features
 
 - **Multiple Templates**: From minimal binaries to full-stack applications
