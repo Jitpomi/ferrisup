@@ -5,6 +5,16 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.21] - 2025-06-08
+
+### Fixed
+- Updated documentation to align with current component-based terminology
+- Removed outdated references to `--template` option which is no longer supported
+- Removed outdated references to `--no-interactive` flag which is no longer supported
+- Added information about `--test-mode` flag for non-interactive transformations
+- Added missing component types in documentation (binary, shared)
+- Improved command examples to reflect current functionality
+
 ## [0.1.20] - 2025-06-08
 
 ### Fixed
