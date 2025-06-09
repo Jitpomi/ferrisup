@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Enhanced Component Type Detection**: Intelligent detection of binary/CLI components during project transformation
 - **Strict Workspace Safeguards**: Comprehensive safety measures to prevent workspace corruption during transformation
 - **Improved User Experience**: Clearer messaging and interactive confirmations throughout the transformation process
+- **Project Structure Reorganization**: Complete reorganization of project files into a proper Rust workspace structure
 
 ### Added
 - Intelligent component type detection for binary/CLI applications:
   - Automatically identifies CLI projects based on dependencies like clap, structopt, etc.
   - Sets appropriate component_type metadata to "binary" for CLI applications
   - Recognizes CLI-specific patterns in project structure and dependencies
+  - Ensures proper classification of CLI tools in component metadata
 - Enhanced workspace transformation safety features:
   - Strict safeguards to prevent critical files from being mistakenly kept at root
   - Smart file selection prompts that only allow build artifacts and temporary files to remain at root
@@ -28,24 +30,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Creates comprehensive workspace README.md with project structure documentation
   - Generates appropriate .gitignore for workspace projects
   - Builds proper workspace Cargo.toml with correct member references
+  - Ensures proper workspace member paths and relationships
 - Non-interactive test mode support via environment variables:
   - Added `FERRISUP_TEST_MODE` for automated testing of transformation features
   - Default safe selections for non-interactive transformations
+  - Automated handling of file selection during tests
 
 ### Changed
+- Complete project structure reorganization:
+  - Transformed FerrisUp itself from a single-package project to a Rust workspace
+  - Moved all source code, binaries, and tests into the component directory
+  - Relocated all templates from root to component directory (over 100 template files)
+  - Reorganized test files and utilities to match workspace structure
 - Improved workspace transformation process:
   - Automatically moves all source code, documentation, and project-specific files into component directories
   - Creates workspace-level configuration files with appropriate content
   - Updates import paths automatically to maintain project integrity after transformation
   - Preserves component metadata during transformation
+  - Handles complex directory structures with nested components
 - Enhanced component metadata handling:
   - More accurate component type detection based on project structure and dependencies
   - Preserves and updates component metadata during transformation
   - Ensures metadata consistency between .ferrisup/metadata.toml and component Cargo.toml
+  - Properly identifies and sets "binary" component type for CLI applications
 - Refined user interface for transformation:
   - More intuitive file selection prompts with clearer categorization
   - Better error handling with descriptive messages
   - Progress indicators for long-running operations
+  - Improved color-coding for different types of messages
 
 ## [0.1.18] - 2025-06-01
 
