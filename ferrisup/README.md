@@ -79,16 +79,17 @@ ferrisup new my_server --component-type server --framework axum
 ferrisup new my_edge_app --component-type edge --provider cloudflare
 ```
 
-## Available Templates
+## Available Component Types
 
-View all available templates:
+View all available component types:
 
 ```bash
 ferrisup list
 ```
 
-Current templates include:
+Current component types include:
 - `minimal` - Simple binary with a single main.rs file
+- `binary` - Command-line application with CLI features
 - `library` - Rust library crate with a lib.rs file
 - `embedded` - Embedded systems firmware for microcontrollers
 - `server` - Web server with API endpoints (Axum, Actix, or Poem)
@@ -96,6 +97,7 @@ Current templates include:
 - `serverless` - Serverless function (AWS Lambda, Cloudflare Workers, etc.)
 - `data-science` - Data science and machine learning projects
 - `edge` - Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)
+- `shared` - Shared code libraries for workspace components
 
 ## Commands
 
@@ -104,7 +106,7 @@ Current templates include:
 Create a new Rust project with a predefined structure.
 
 ```bash
-ferrisup new [PROJECT_NAME] [--template TEMPLATE_NAME] [--git] [--build] [--no-interactive]
+ferrisup new [PROJECT_NAME] [--git] [--build] [--no-interactive]
 
 # Component-specific options (use one of these combinations):
 ferrisup new [PROJECT_NAME] [--component-type TYPE] [--framework FRAMEWORK]
@@ -113,8 +115,7 @@ ferrisup new [PROJECT_NAME] [--component-type TYPE] [--application-type APPLICAT
 ```
 
 - `PROJECT_NAME`: Optional name for your project
-- `--template`: Specify a template (web, api, full-stack, etc.)
-- `--component-type`: Specify a component type (server, client, data-science, edge, etc.)
+- `--component-type`: Specify a component type (server, client, data-science, edge, binary, etc.)
 - `--framework`: Specify a framework for the selected component type (e.g., polars, linfa for data-science; axum, actix, poem for server)
 - `--provider`: Specify a cloud provider for serverless or edge components (e.g., cloudflare, vercel, aws)
 - `--application-type`: Specify an application type for certain components
@@ -170,7 +171,7 @@ The transform command provides an interactive menu with the following capabiliti
 
 ### `list`
 
-List available templates.
+List available component types and frameworks.
 
 ```bash
 ferrisup list
@@ -178,10 +179,10 @@ ferrisup list
 
 ### `preview`
 
-Preview a template without creating any files.
+Preview a component type without creating any files.
 
 ```bash
-ferrisup preview [--template TEMPLATE_NAME]
+ferrisup preview [--component-type TYPE] [--framework FRAMEWORK]
 ```
 
 ### `dependency`
