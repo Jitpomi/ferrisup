@@ -384,9 +384,33 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     let _has_gitignore = all_root_entries.contains(&".gitignore".to_string());
 
     // Determine which files are eligible for the user to select to keep at root
+    // Only build artifacts and temporary files should be selectable
     let selectable_entries_for_prompt: Vec<String> = all_root_entries
         .iter()
-        .filter(|name| !always_skip_filenames.contains(name) && !critical_component_files.contains(name))
+        .filter(|name| {
+            // Files must not be in always_skip_filenames or critical_component_files
+            !always_skip_filenames.contains(name) && 
+            !critical_component_files.contains(name) && 
+            // Additionally, only allow selection of build artifacts and temporary files
+            // or files that match patterns in build_artifacts_and_temp_files
+            build_artifacts_and_temp_files.iter().any(|pattern| {
+                if pattern.contains('*') {
+                    // Handle wildcard patterns
+                    let pattern_parts: Vec<&str> = pattern.split('*').collect();
+                    if pattern_parts.len() == 2 {
+                        let prefix = pattern_parts[0];
+                        let suffix = pattern_parts[1];
+                        name.starts_with(prefix) && name.ends_with(suffix)
+                    } else {
+                        // Simple exact match for non-wildcard patterns
+                        pattern == *name
+                    }
+                } else {
+                    // Simple exact match for non-wildcard patterns
+                    pattern == *name
+                }
+            })
+        })
         .cloned()
         .collect();
 
