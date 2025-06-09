@@ -26,8 +26,8 @@ pub fn fix_component_imports(component_dir: &Path, component_name: &str, project
         let mut cargo_doc = cargo_content.parse::<Document>()
             .context("Failed to parse component Cargo.toml")?;
         
-        // Check if the package name needs to be updated
-        let new_package_name = format!("{}_{}", project_name, component_name);
+        // Use the component name directly instead of {project_name}_{component_name}
+        let new_package_name = component_name.to_string();
         
         if let Some(package) = cargo_doc.get_mut("package") {
             if let Some(name) = package.get_mut("name") {

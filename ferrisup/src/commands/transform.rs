@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use std::fs;
 use std::path::Path;
+use std::ffi::OsStr;
 // Command import removed (no longer needed)
 use crate::commands::import_fixer::fix_component_imports;
 use crate::utils::{
@@ -9,7 +10,7 @@ use crate::utils::{
     update_workspace_members,
 };
 use dialoguer::{Confirm, Input, MultiSelect, Select};
-use toml_edit::{value, Document, Item, Table};
+use toml_edit::{value, Document, Item, Table, Value};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     println!(
@@ -1117,6 +1118,11 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
+    // If this is a shared component, make it accessible to all workspace members
+    if component_type == "shared" {
+        make_shared_component_accessible(project_dir, &component_name)?;
+    }
+
     // Create an empty list for files to keep at root since we're not moving files in this case
     let files_to_keep_at_root: Vec<String> = Vec::new();
     
@@ -2002,6 +2008,169 @@ fn store_component_type_in_cargo(component_dir: &Path, component_type: &str) -> 
     Ok(())
 }
 
+// Function to make shared components accessible to all workspace members
+fn make_shared_component_accessible(project_dir: &Path, component_name: &str) -> Result<()> {
+    println!("{}", format!("Making shared component '{}' accessible to all workspace members...", component_name).blue());
+    
+    // Use the component name directly as the module name
+    let module_name = component_name.to_string();
+    
+    // Path to the shared component directory
+    let shared_dir = project_dir.join(component_name);
+    
+    // We don't need to modify the shared component's lib.rs file structure
+    // as it will be a standard library crate
+    
+    // Update the shared component's Cargo.toml to use the component name directly
+    let cargo_path = shared_dir.join("Cargo.toml");
+    if cargo_path.exists() {
+        let cargo_content = fs::read_to_string(&cargo_path)?;
+        let mut doc = cargo_content.parse::<Document>()
+            .context("Failed to parse shared component's Cargo.toml")?;
+        
+        // Use the component name directly as the package name
+        if let Some(package) = doc.get_mut("package") {
+            if let Some(name) = package.get_mut("name") {
+                *name = Item::Value(Value::from(component_name));
+            }
+        }
+        
+        fs::write(&cargo_path, doc.to_string())?;
+    }
+    
+    // Update the root workspace Cargo.toml to include the shared component
+    let root_cargo_path = project_dir.join("Cargo.toml");
+    if root_cargo_path.exists() {
+        let root_cargo_content = fs::read_to_string(&root_cargo_path)?;
+        let mut root_doc = root_cargo_content.parse::<Document>()
+            .context("Failed to parse root Cargo.toml")?;
+        
+        // Make sure the workspace section exists
+        if root_doc.get("workspace").is_none() {
+            root_doc.insert("workspace", Item::Table(Table::new()));
+        }
+        
+        // Make sure the workspace.members section exists
+        if let Some(workspace) = root_doc.get_mut("workspace") {
+            if workspace.get("members").is_none() {
+                let mut array = toml_edit::Array::new();
+                array.set_trailing_comma(true);
+                workspace.as_table_mut().unwrap().insert("members", Item::Value(Value::Array(array)));
+            }
+            
+            // Add the component to workspace members if not already there
+            if let Some(members) = workspace.get_mut("members") {
+                if let Some(array) = members.as_array_mut() {
+                    // Check if the component is already in the members list
+                    let component_str = format!("{}", component_name);
+                    let mut found = false;
+                    for item in array.iter() {
+                        if let Some(member) = item.as_str() {
+                            if member == component_name {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if !found {
+                        array.push(component_str);
+                    }
+                }
+            }
+        }
+        
+        fs::write(&root_cargo_path, root_doc.to_string())?;
+    }
+    
+    // Find all other components in the workspace and add the shared component as a dependency
+    for entry in fs::read_dir(project_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        // Skip non-directories and the shared component itself
+        if !path.is_dir() || path.file_name() == Some(OsStr::new(component_name)) {
+            continue;
+        }
+        
+        // Skip directories that don't look like components (e.g., target, .git)
+        let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if dir_name.starts_with(".") || dir_name == "target" {
+            continue;
+        }
+        
+        // Check if this is a component by looking for Cargo.toml
+        let component_cargo_path = path.join("Cargo.toml");
+        if component_cargo_path.exists() {
+            // Add the shared component as a dependency
+            let cargo_content = fs::read_to_string(&component_cargo_path)?;
+            let mut doc = cargo_content.parse::<Document>()
+                .context(format!("Failed to parse {}'s Cargo.toml", dir_name))?;
+            
+            // Add dependency section if it doesn't exist
+            if doc.get("dependencies").is_none() {
+                doc.insert("dependencies", Item::Table(Table::new()));
+            }
+            
+            // Add the shared component as a dependency
+            if let Some(dependencies) = doc.get_mut("dependencies") {
+                if let Some(deps_table) = dependencies.as_table_mut() {
+                    let mut shared_dep = Table::new();
+                    shared_dep.insert("path", Item::Value(Value::from(format!("../{}", component_name))));
+                    deps_table.insert(&module_name, Item::Table(shared_dep));
+                }
+            }
+            
+            fs::write(&component_cargo_path, doc.to_string())?;
+            println!("{}", format!("Added shared component as dependency to {}", dir_name).green());
+            
+            // Add the module declaration to the component's lib.rs or main.rs
+            let lib_rs_path = path.join("src").join("lib.rs");
+            let main_rs_path = path.join("src").join("main.rs");
+                        // Function to add the module declaration to a file
+            let add_module_declaration = |file_path: &Path| -> Result<()> {
+                if file_path.exists() {
+                    let mut content = fs::read_to_string(file_path)?;
+                    
+                    // Create the module declaration using modern Rust 2018 style imports
+                    let module_declaration = format!(
+                        "\n// Import the shared component\nuse {}::*;\n", 
+                        module_name
+                    );
+                    
+                    // Only add if it doesn't already exist
+                    if !content.contains(&format!("use {}::", module_name)) {
+                        // Find a good place to insert the import
+                        if let Some(pos) = content.find("fn ") {
+                            // Insert before the first function
+                            let (before, after) = content.split_at(pos);
+                            content = format!("{}{}{}", before, module_declaration, after);
+                        } else {
+                            // Just append to the top if no function is found
+                            content = format!("{}{}", module_declaration, content);
+                        }
+                        
+                        fs::write(file_path, content)?;
+                        println!("{}", format!("Added shared module import to {}", file_path.display()).green());
+                    }
+                }
+                Ok(())
+            };
+            
+            // Try to add the module declaration to lib.rs first, then main.rs if lib.rs doesn't exist
+            if lib_rs_path.exists() {
+                add_module_declaration(&lib_rs_path)?;
+            } else if main_rs_path.exists() {
+                add_module_declaration(&main_rs_path)?;
+            }
+        }
+    }
+    
+    println!("{}", format!("Shared component '{}' is now accessible to all workspace members", component_name).green());
+    
+    Ok(())
+}
+
 // Function to store transformation metadata
 fn store_transformation_metadata(
     project_dir: &Path,
@@ -2135,29 +2304,15 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
     }
     println!();
 
-    // 4. Run specific components
-    println!("{}", "4. To run specific components:".blue());
-    for component in &component_names {
-        println!("   cargo run -p {}", component);
-    }
-    println!();
-
-    // 5. Test specific components
-    println!("{}", "5. To test specific components:".blue());
-    for component in &component_names {
-        println!("   cargo test -p {}", component);
-    }
-    println!();
-
-    // 6. Adding dependencies
-    println!("{}", "6. To add dependencies to components:".blue());
+    // 4. Adding dependencies
+    println!("{}", "4. To add dependencies to components:".blue());
     println!("   cd [component_name] && cargo add [dependency_name]");
     println!("   OR");
     println!("   cargo add [dependency_name] --package [component_name]");
     println!();
 
-    // 7. Adding more components
-    println!("{}", "7. To add more components in the future:".blue());
+    // 5. Adding more components
+    println!("{}", "5. To add more components in the future:".blue());
     println!("   ferrisup transform");
     println!();
 
