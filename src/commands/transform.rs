@@ -159,7 +159,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
             match option_idx {
                 0 => {
                     // Convert to workspace
-                    convert_to_workspace(project_dir)?;
+                    convert_to_workspace(project_dir, is_test_mode)?;
                     is_workspace = true;
                     // Continue to the next iteration with workspace options
                     continue;
@@ -316,7 +316,7 @@ fn update_gitignore_references(gitignore_path: &Path, component_name: &str) -> R
     Ok(())
 }
 
-fn convert_to_workspace(project_dir: &Path) -> Result<()> {
+fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     println!("{}", "Converting project to workspace...".blue());
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
@@ -355,13 +355,54 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
         ".ferrisup".to_string(),   // FerrisUp metadata directory
         component_name.clone(),    // The new component directory being created
     ];
+    
+    // These files must be moved to the component directory to maintain functionality
+    // and should not be selectable to keep at the root
+    let critical_component_files = vec![
+        "src".to_string(),         // Source code must move with the component
+        "build.rs".to_string(),    // Build script is specific to the component
+        "benches".to_string(),     // Benchmarks are specific to the component
+        "examples".to_string(),    // Examples are specific to the component
+        "bin".to_string()          // Binary files are specific to the component
+    ];
+    
+    // Build artifacts and temporary files that should stay at the root
+    let build_artifacts_and_temp_files = vec![
+        "target".to_string(),      // Build artifacts
+        ".idea".to_string(),       // IntelliJ IDEA settings
+        ".vscode".to_string(),     // VS Code settings
+        ".DS_Store".to_string(),   // macOS folder settings
+        "Cargo.lock".to_string(),  // Cargo lock file
+        "*.log".to_string(),       // Log files
+        "*.tmp".to_string(),       // Temporary files
+        "*.swp".to_string(),       // Vim swap files
+        "*.bak".to_string(),       // Backup files
+    ];
+    
+    // Track if .gitignore is in the root to determine if we need to create one
+    // Using underscore prefix to indicate intentionally unused variable
+    let _has_gitignore = all_root_entries.contains(&".gitignore".to_string());
 
     // Determine which files are eligible for the user to select to keep at root
     let selectable_entries_for_prompt: Vec<String> = all_root_entries
         .iter()
-        .filter(|name| !always_skip_filenames.contains(name))
+        .filter(|name| !always_skip_filenames.contains(name) && !critical_component_files.contains(name))
         .cloned()
         .collect();
+
+    // Print information about critical files that will automatically move to the component
+    if !critical_component_files.is_empty() {
+        println!(
+            "{}",
+            "\nIMPORTANT: The following critical files/directories will automatically be moved to the component:".bold().yellow()
+        );
+        for file in &critical_component_files {
+            if all_root_entries.contains(file) {
+                println!("  - {} (required for component functionality)", file.cyan());
+            }
+        }
+        println!();
+    }
 
     let files_to_keep_at_root: Vec<String> = if !selectable_entries_for_prompt.is_empty() {
         println!(
@@ -369,30 +410,28 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
             "The following files/directories are in your project root:".yellow()
         );
 
-        // Define common files/directories to pre-select for keeping at root.
-        // These are suggestions; the user can change selections.
-        let common_root_filenames: Vec<&str> = vec![
-            "readme.md", "readme", "license", "license.md", "license.txt",
-            ".gitignore", "makefile", "justfile", "dockerfile", 
-            "docker-compose.yml", ".editorconfig", "contributing.md",
-            // Common directory names (matched as simple names, case-insensitive)
-            ".github", ".gitlab", ".vscode", "docs", "scripts", "assets", "examples", "tests",
-            // Other common config files that might be at the root
-            "netlify.toml", "vercel.json", ".nvmrc", "pnpm-workspace.yaml", "package-lock.json", "yarn.lock"
-        ];
-
+        // Automatically pre-select only build artifacts and temporary files to keep at root
         let default_selections: Vec<bool> = selectable_entries_for_prompt
             .iter()
             .map(|entry_name| {
-                let lower_entry_name = entry_name.to_lowercase();
-                common_root_filenames.iter().any(|pattern| lower_entry_name == *pattern)
+                build_artifacts_and_temp_files.contains(entry_name)
             })
             .collect();
+
+        println!(
+            "{}",
+            "\nSAFE DEFAULTS: Only build artifacts and temporary files are pre-selected to stay at root.".bold().green()
+        );
+        println!(
+            "{}",
+            "All source code, documentation, and project-specific files will be moved to the component.".green()
+        );
+        println!();
 
         let selections = MultiSelect::new()
             .items(&selectable_entries_for_prompt)
             .with_prompt("Select files/directories to KEEP at the project root (they will NOT be moved to the new component). Use Space to select/deselect, Enter to confirm.")
-            .defaults(&default_selections) // Use the generated defaults with pre-selected common files
+            .defaults(&default_selections)
             .interact_opt()? 
             .unwrap_or_else(Vec::new);
 
@@ -414,7 +453,69 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     }
 
     // Move project files to component directory
-    println!("{}", "Processing files for component directory...".blue());
+    println!("{}", "\nProcessing files for component directory...".blue().bold());
+    println!("{}", "The following actions will be taken:".blue());
+    
+    // First, identify and categorize all files for better user understanding
+    let mut critical_files_to_move = Vec::new();
+    let mut other_files_to_move = Vec::new();
+    let mut files_kept_at_root = Vec::new();
+    let mut workspace_files = Vec::new();
+    
+    let entries = fs::read_dir(project_dir)?; // Read entries for categorization
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+        
+        if always_skip_filenames.contains(&file_name) {
+            workspace_files.push(file_name);
+        } else if files_to_keep_at_root.contains(&file_name) {
+            files_kept_at_root.push(file_name);
+        } else if critical_component_files.contains(&file_name) {
+            critical_files_to_move.push(file_name);
+        } else {
+            other_files_to_move.push(file_name);
+        }
+    }
+    
+    // Display categorized files
+    if !critical_files_to_move.is_empty() {
+        println!("{}", "\nCritical files that MUST move to component:".yellow().bold());
+        for file in &critical_files_to_move {
+            println!("  → {} (required for component functionality)", file.cyan());
+        }
+    }
+    
+    if !other_files_to_move.is_empty() {
+        println!("{}", "\nOther files that will move to component:".yellow());
+        for file in &other_files_to_move {
+            println!("  → {}", file.green());
+        }
+    }
+    
+    if !files_kept_at_root.is_empty() {
+        println!("{}", "\nFiles that will stay at the root:".yellow());
+        for file in &files_kept_at_root {
+            println!("  → {}", file.blue());
+        }
+    }
+    
+    // Confirm with user before proceeding
+    if !is_test_mode {
+        let proceed = Confirm::new()
+            .with_prompt("\nProceed with these file movements?")
+            .default(true)
+            .interact()?;
+            
+        if !proceed {
+            println!("{}", "Workspace transformation cancelled.".red());
+            return Ok(());
+        }
+    }
+    
+    // Now actually move the files
+    println!("{}", "\nMoving files to component directory...".blue());
     let entries = fs::read_dir(project_dir)?; // Re-read entries to ensure freshness
     for entry in entries {
         let entry = entry?;
@@ -426,16 +527,11 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
         // 2. Files/dirs explicitly selected by the user to keep at root
         if always_skip_filenames.contains(&file_name) {
             // These are essential workspace/tooling files, or the component dir itself, always skipped.
-            // No specific message needed unless debugging, as this is expected.
             continue;
         } else if files_to_keep_at_root.contains(&file_name) {
-            println!("Keeping at root (user selected): {}", file_name.yellow());
             continue;
         }
         
-        // If not skipped, it will be moved.
-        println!("Moving to component '{}': {}", component_name.cyan(), file_name.green());
-
         // Move file or directory to component
         let target_path = component_dir.join(&file_name);
 
@@ -444,11 +540,13 @@ fn convert_to_workspace(project_dir: &Path) -> Result<()> {
             copy_dir_all(&path, &target_path)?;
             // Remove original after successful copy
             fs::remove_dir_all(&path)?;
+            println!("Moved directory to component '{}': {}", component_name.cyan(), file_name.green());
         } else {
             // Copy file
             fs::copy(&path, &target_path)?;
             // Remove original after successful copy
             fs::remove_file(&path)?;
+            println!("Moved file to component '{}': {}", component_name.cyan(), file_name.green());
         }
     }
 
@@ -612,14 +710,160 @@ edition = "2021"
     // Write updated workspace Cargo.toml
     fs::write(workspace_cargo_path, workspace_doc.to_string())?;
 
+    // Always create a root-level README.md with project structure description
+    // This is important regardless of whether the user selected to keep README.md at the root
+    println!("{}", "\nCreating root-level README.md with workspace structure description...".blue());
+    create_root_readme(project_dir, &component_name)?;
+    
+    // Always create a root-level .gitignore with standard Rust workspace patterns
+    // This is important regardless of whether the user selected to keep .gitignore at the root
+    println!("{}", "Creating root-level .gitignore with standard Rust workspace patterns...".blue());
+    create_root_gitignore(project_dir)?;
+
     // Print success message
     println!("{}", "Project successfully converted to workspace!".green());
+    println!("{}", "Created root README.md with project structure description".green());
+    println!("{}", "Created root .gitignore with standard Rust workspace patterns".green());
 
     // Print framework-specific instructions only for reference
     if let Some(framework) = detected_framework {
         println!("{} {}", "Detected framework:".blue(), framework.cyan());
     }
 
+    Ok(())
+}
+
+// Function to create a root-level README.md with project structure description
+fn create_root_readme(project_dir: &Path, component_name: &str) -> Result<()> {
+    let readme_path = project_dir.join("README.md");
+    
+    // If README.md already exists, back it up
+    if readme_path.exists() {
+        let backup_path = project_dir.join("README.md.bak");
+        println!("{} {}", "Backing up existing README.md to".yellow(), backup_path.display().to_string().yellow());
+        fs::copy(&readme_path, &backup_path)?;
+    }
+    
+    // Create a new README.md with workspace structure information
+    let readme_content = format!(r#"# Workspace Project
+
+This is a Rust workspace project created with FerrisUp.
+
+## Project Structure
+
+This workspace contains the following components:
+
+- `{}`: The main component of the project
+
+## Development
+
+To build all components in the workspace:
+
+```bash
+cargo build
+```
+
+To run tests for all components:
+
+```bash
+cargo test
+```
+
+To add a new component to the workspace:
+
+```bash
+ferrisup transform
+```
+
+## License
+
+This project is licensed under the terms specified in the LICENSE file, if present.
+"#, component_name);
+    
+    fs::write(readme_path, readme_content)?;
+    Ok(())
+}
+fn create_root_gitignore(project_dir: &Path) -> Result<()> {
+    let gitignore_path = project_dir.join(".gitignore");
+    
+    if gitignore_path.exists() {
+        // Back up existing .gitignore
+        let backup_path = project_dir.join(".gitignore.bak");
+        println!("{} {}", "Backing up existing .gitignore to".yellow(), backup_path.display().to_string().yellow());
+        fs::copy(&gitignore_path, &backup_path)?;
+        
+        // Read existing content
+        let existing_content = fs::read_to_string(&gitignore_path)?;
+        
+        // Create new content with workspace patterns
+        let gitignore_content = format!(r#"# Modified by FerrisUp Workspace Transformation
+
+# Rust Workspace Standard Patterns
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDEs and editors
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*.iml
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Logs
+*.log
+
+# Original content below
+{}
+"#, existing_content);
+        
+        fs::write(gitignore_path, gitignore_content)?;
+    } else {
+        // Create a new .gitignore with standard patterns
+        let gitignore_content = r#"# Generated by FerrisUp
+
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDEs and editors
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*.iml
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Logs
+*.log
+"#;
+
+        fs::write(gitignore_path, gitignore_content)?;
+    }
+    
     Ok(())
 }
 
