@@ -5,6 +5,48 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.19] - 2025-06-08
+
+### Key Milestones
+- **Self-Transformation**: FerrisUp has transformed itself into a Rust workspace, demonstrating its own powerful transformation capabilities
+- **Enhanced Component Type Detection**: Intelligent detection of binary/CLI components during project transformation
+- **Strict Workspace Safeguards**: Comprehensive safety measures to prevent workspace corruption during transformation
+- **Improved User Experience**: Clearer messaging and interactive confirmations throughout the transformation process
+
+### Added
+- Intelligent component type detection for binary/CLI applications:
+  - Automatically identifies CLI projects based on dependencies like clap, structopt, etc.
+  - Sets appropriate component_type metadata to "binary" for CLI applications
+  - Recognizes CLI-specific patterns in project structure and dependencies
+- Enhanced workspace transformation safety features:
+  - Strict safeguards to prevent critical files from being mistakenly kept at root
+  - Smart file selection prompts that only allow build artifacts and temporary files to remain at root
+  - Automatic backup of existing root-level files (README.md, .gitignore) before creating workspace versions
+  - Clear color-coded terminal messaging to improve user understanding during transformation
+  - Confirmation prompts before file movements for additional safety
+- Root-level workspace files generation:
+  - Creates comprehensive workspace README.md with project structure documentation
+  - Generates appropriate .gitignore for workspace projects
+  - Builds proper workspace Cargo.toml with correct member references
+- Non-interactive test mode support via environment variables:
+  - Added `FERRISUP_TEST_MODE` for automated testing of transformation features
+  - Default safe selections for non-interactive transformations
+
+### Changed
+- Improved workspace transformation process:
+  - Automatically moves all source code, documentation, and project-specific files into component directories
+  - Creates workspace-level configuration files with appropriate content
+  - Updates import paths automatically to maintain project integrity after transformation
+  - Preserves component metadata during transformation
+- Enhanced component metadata handling:
+  - More accurate component type detection based on project structure and dependencies
+  - Preserves and updates component metadata during transformation
+  - Ensures metadata consistency between .ferrisup/metadata.toml and component Cargo.toml
+- Refined user interface for transformation:
+  - More intuitive file selection prompts with clearer categorization
+  - Better error handling with descriptive messages
+  - Progress indicators for long-running operations
+
 ## [0.1.18] - 2025-06-01
 
 ### Key Milestones

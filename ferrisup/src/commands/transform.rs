@@ -1594,6 +1594,7 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
                                     "serverless" => return Ok("serverless"),
                                     "data-science" => return Ok("data-science"),
                                     "embedded" => return Ok("embedded"),
+                                    "binary" => return Ok("binary"),
                                     _ => {}
                                 }
                             }
@@ -1621,6 +1622,7 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
                         "serverless" => return Ok("serverless"),
                         "data-science" => return Ok("data-science"),
                         "embedded" => return Ok("embedded"),
+                        "binary" => return Ok("binary"),
                         _ => {}
                     }
                 }
@@ -1663,6 +1665,8 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
             return Ok("data-science");
         } else if metadata_content.contains("component_type = \"embedded\"") {
             return Ok("embedded");
+        } else if metadata_content.contains("component_type = \"binary\"") {
+            return Ok("binary");
         } else if metadata_content.contains("template = \"client\"") {
             return Ok("client");
         } else if metadata_content.contains("template = \"server\"") {
@@ -1677,6 +1681,8 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
             return Ok("data-science");
         } else if metadata_content.contains("template = \"embedded\"") {
             return Ok("embedded");
+        } else if metadata_content.contains("template = \"binary\"") {
+            return Ok("binary");
         }
     }
 
@@ -1925,9 +1931,25 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
         }
     }
 
-    // Default to server for binary projects, shared for libraries
+    // Default to binary for CLI applications, server for other binary projects, shared for libraries
     let structure = analyze_project_structure(project_dir)?;
     if structure.is_binary {
+        // Check if it's a CLI application by looking for CLI-specific dependencies
+        if cargo_toml.exists() {
+            let cargo_content = fs::read_to_string(&cargo_toml)?;
+            if cargo_content.contains("clap")
+                || cargo_content.contains("structopt")
+                || cargo_content.contains("argh")
+                || cargo_content.contains("pico-args")
+                || cargo_content.contains("gumdrop")
+                || cargo_content.contains("command-line")
+                || cargo_content.contains("command_line")
+                || cargo_content.contains("cli")
+            {
+                return Ok("binary");
+            }
+        }
+        
         // For binary projects, prefer serverless over server as default if we detect any AWS-related files
         if project_dir.join(".aws").exists()
             || cargo_toml.exists() && fs::read_to_string(&cargo_toml)?.contains("aws")

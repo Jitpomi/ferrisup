@@ -1,6 +1,6 @@
 [components]
 
 [components.ferrisup]
-template = "server"
-component_type = "server"
+template = "binary"
+component_type = "binary"
 created_at = "2025-06-08T19:43:10.280604-06:00"
