@@ -42,11 +42,11 @@ ferrisup --help
 # Create a new project (interactive mode)
 ferrisup new
 
-# List available templates
+# List available component types
 ferrisup list
 
-# Preview a template
-ferrisup preview --template full-stack
+# Preview a component type
+ferrisup preview --component-type server --framework axum
 
 # Transform an existing project
 ferrisup transform
@@ -106,7 +106,7 @@ Current component types include:
 Create a new Rust project with a predefined structure.
 
 ```bash
-ferrisup new [PROJECT_NAME] [--git] [--build] [--no-interactive]
+ferrisup new [PROJECT_NAME] [--git] [--build]
 
 # Component-specific options (use one of these combinations):
 ferrisup new [PROJECT_NAME] [--component-type TYPE] [--framework FRAMEWORK]
@@ -121,7 +121,6 @@ ferrisup new [PROJECT_NAME] [--component-type TYPE] [--application-type APPLICAT
 - `--application-type`: Specify an application type for certain components
 - `--git`: Initialize a git repository
 - `--build`: Run cargo build after creation
-- `--no-interactive`: Create project without prompting, using default values
 
 ### `transform`
 
@@ -205,7 +204,6 @@ Options for `dependency add`:
 - `--features, -f`: Specify features to enable (comma separated)
 - `--dev, -d`: Add as a development dependency
 - `--path, -p`: Specify project path (defaults to current directory)
-- `--no-interactive`: Disable interactive prompts
 
 **Smart Dependency Management:**
 - When adding a dependency with `--dev` that already exists in main dependencies, it will be automatically moved to dev-dependencies
@@ -298,7 +296,7 @@ cargo test test_name
 cargo test --test file_name
 ```
 
-The `--no-interactive` flag is especially useful for automated testing and CI/CD pipelines, allowing for the creation of projects without requiring user input.
+For automated testing and CI/CD pipelines, the `transform` command supports a `--test-mode` flag (or the `FERRISUP_TEST_MODE` environment variable) that allows for non-interactive execution of workspace transformations.
 
 ## Contributing
 
