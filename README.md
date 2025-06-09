@@ -4,7 +4,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/ferrisup.svg)](https://crates.io/crates/ferrisup)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://github.com/Jitpomi/ferrisup/actions/workflows/rust.yml/badge.svg)](https://github.com/Jitpomi/ferrisup/actions/workflows/rust.yml)
+[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
 > **Start Anywhere, Scale Anywhere**
 
