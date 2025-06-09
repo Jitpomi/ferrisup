@@ -135,7 +135,7 @@ The transform command provides an interactive menu with the following capabiliti
 
 - **Convert to Workspace**: Transform a single-crate project into a Rust workspace
   - Intelligently detects the component type of your existing project (including binary/CLI projects)
-  - Uses the component type as the default name suggestion
+  - Uses the project name as the default name suggestion (preserves the project's identity for publishing and deployments)
   - Implements strict safeguards to prevent critical source and build files from remaining at root
   - Smart file selection prompts that only allow build artifacts and temporary files to remain at root
   - Automatic backup of existing root-level files (README.md, .gitignore) before creating workspace versions
@@ -148,6 +148,7 @@ The transform command provides an interactive menu with the following capabiliti
 
 - **Add Components**: Add new components to an existing workspace
   - Supports all component types (client, server, shared, edge, data-science, binary, etc.)
+  - Uses the component type as the default name suggestion when adding new components
   - Uses the same framework options as the `new` command
   - Creates components with proper package naming conventions
   - Directly uses the `new` command functionality for consistent component creation
