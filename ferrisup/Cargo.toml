@@ -41,6 +41,9 @@ toml_edit = "0.20"
 dirs = "5.0"
 chrono = "0.4"
 
+[dependencies.shared]
+path = "../shared"
+
 [features]
 default = []
 workspace_test = []

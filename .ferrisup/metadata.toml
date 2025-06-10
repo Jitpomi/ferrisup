@@ -4,3 +4,14 @@
 template = "binary"
 component_type = "binary"
 created_at = "2025-06-08T19:43:10.280604-06:00"
+
+[components.client]
+template = "client"
+component_type = "client"
+framework = "dioxus"
+created_at = "2025-06-09T21:57:20.200711-06:00"
+
+[components.shared]
+template = "library"
+component_type = "shared"
+created_at = "2025-06-09T21:57:26.600244-06:00"
