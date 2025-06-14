@@ -4,14 +4,10 @@ use std::fs;
 use std::path::Path;
 use std::ffi::OsStr;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
-use crate::utils::{
-    extract_dependencies,
-    update_cargo_with_dependencies,
-    update_workspace_members,
-};
 use crate::commands::import_fixer::fix_component_imports;
-use toml_edit::{value, Document, Item, Table, Value};
-use shared::fs::*;
+use crate::commands::test_mode::{is_test_mode, test_mode_or};
+use toml_edit::{value, DocumentMut, Item, Table, Value};
+use shared::{fs::*, cargo::*};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     println!(
@@ -23,34 +19,16 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
         "Transform your existing Rust project with new features".blue()
     );
 
-    // Check if we're in test mode
-    let is_test_mode = std::env::var("FERRISUP_TEST_MODE").is_ok();
-
-    // Interactive mode if project path is not provided
-    let path_str = match project_path {
-        Some(p) => p.to_string(),
-        None => {
-            // Default to current directory
-            let current_dir = std::env::current_dir()?;
-            let use_current_dir = if is_test_mode {
-                true
-            } else {
-                Confirm::new()
-                    .with_prompt("Use current directory for transformation?")
-                    .default(true)
-                    .interact()?
-            };
-
-            if use_current_dir {
-                current_dir.to_string_lossy().to_string()
-            } else {
-                // Prompt for project path
-                Input::new()
-                    .with_prompt("Enter the path to your project")
-                    .interact_text()?
-            }
-        }
+    // Get project path from argument or use current directory
+    let project_path_buf = if let Some(path) = project_path {
+        Path::new(path).to_path_buf()
+    } else {
+        std::env::current_dir()?
     };
+    
+    // Interactive mode if project path is not provided
+    let path_str = project_path_buf.to_string_lossy().to_string();
+
 
     let project_dir = Path::new(&path_str);
 
@@ -133,7 +111,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
             ]
         };
 
-        let option_idx = if is_test_mode {
+        let option_idx = if is_test_mode() {
             0
         } else {
             Select::new()
@@ -161,7 +139,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
             match option_idx {
                 0 => {
                     // Convert to workspace
-                    convert_to_workspace(project_dir, is_test_mode)?;
+                    convert_to_workspace(&project_dir)?;
                     is_workspace = true;
                     // Continue to the next iteration with workspace options
                     continue;
@@ -199,7 +177,7 @@ fn analyze_project_structure(project_dir: &Path) -> Result<ProjectStructure> {
 
     // Parse Cargo.toml
     let cargo_doc = cargo_toml_content
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .context("Failed to parse Cargo.toml as TOML")?;
 
     // Check if it's a workspace
@@ -318,7 +296,7 @@ fn update_gitignore_references(gitignore_path: &Path, component_name: &str) -> R
     Ok(())
 }
 
-fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
+fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     // Converting project to workspace
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
@@ -330,13 +308,16 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     // We use the original project name as the default component name instead of detecting component type    // Use the original project name as the default component name
     let default_name = project_name;
     // Prompt for component name with default based on component type
-    let component_name = Input::<String>::new()
-        .with_prompt(format!(
-            "What would you like to name the first component? [{}]",
-            default_name
-        ))
-        .default(default_name.to_string())
-        .interact_text()?;
+    let component_name = test_mode_or(default_name.to_string(), || {
+        Input::<String>::new()
+            .with_prompt(format!(
+                "What would you like to name the first component? [{}]",
+                default_name
+            ))
+            .default(default_name.to_string())
+            .interact_text()
+            .map_err(anyhow::Error::from)
+    })?;
 
     // Create component directory and src subdirectory
     let component_dir = project_dir.join(&component_name);
@@ -527,7 +508,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     }
     
     // Confirm with user before proceeding
-    if !is_test_mode {
+    if !is_test_mode() {
         let proceed = Confirm::new()
             .with_prompt("\nProceed with these file movements?")
             .default(true)
@@ -585,7 +566,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     // Update the component Cargo.toml package name
     let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
     let mut component_cargo_doc = component_cargo_content
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .context("Failed to parse component Cargo.toml")?;
 
     // Update the package name using the component_name chosen by the user
@@ -632,7 +613,7 @@ edition = "2021"
     if component_cargo_path.exists() {
         let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
         let mut component_doc = component_cargo_content
-            .parse::<Document>()
+            .parse::<DocumentMut>()
             .context("Failed to parse component Cargo.toml")?;
 
         // Update package name to use project_component format with underscores
@@ -720,7 +701,7 @@ edition = "2021"
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
     let mut workspace_doc = workspace_cargo_content
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .context("Failed to parse workspace Cargo.toml")?;
 
     // Add resolver = "2" to workspace
@@ -913,6 +894,8 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
 
 // Function to add a component to a workspace
 pub fn add_component(project_dir: &Path) -> Result<()> {
+    // Check if we're in test mode
+    let _is_test_mode = std::env::var("FERRISUP_TEST_MODE").is_ok();
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
     let _project_name = &structure.project_name;
@@ -936,11 +919,15 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
         "embedded - Embedded systems firmware",
     ];
 
-    let component_idx = Select::new()
-        .with_prompt("Select component type:")
-        .items(&component_types)
-        .default(0)
-        .interact()?;
+    let component_idx = if is_test_mode() {
+        0 // Default to first option in test mode
+    } else {
+        Select::new()
+            .with_prompt("Select component type:")
+            .items(&component_types)
+            .default(0)
+            .interact()?
+    };
 
     // Map index to component type
     let component_type = match component_idx {
@@ -955,10 +942,13 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     };
 
     // Prompt for component name with default based on component type
-    let component_name = Input::<String>::new()
-        .with_prompt(format!("Component name [{}]", component_type))
-        .default(component_type.to_string())
-        .interact_text()?;
+    let component_name = test_mode_or(component_type.to_string(), || {
+        Input::<String>::new()
+            .with_prompt(format!("Component name [{}]", component_type))
+            .default(component_type.to_string())
+            .interact_text()
+            .map_err(anyhow::Error::from)
+    })?;
 
     // Define component directory path (but don't create it yet)
     let component_dir = project_dir.join(&component_name);
@@ -1139,7 +1129,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     if component_cargo_path.exists() {
         let component_cargo_content = fs::read_to_string(&component_cargo_path)?;
         let mut component_doc = component_cargo_content
-            .parse::<Document>()
+            .parse::<DocumentMut>()
             .context("Failed to parse component Cargo.toml")?;
 
         // Update package name to use project_component format with underscores
@@ -1160,7 +1150,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
         let workspace_cargo_path = project_dir.join("Cargo.toml");
         let actual_project_name = if workspace_cargo_path.exists() {
             if let Ok(workspace_content) = fs::read_to_string(&workspace_cargo_path) {
-                if let Ok(workspace_doc) = workspace_content.parse::<Document>() {
+                if let Ok(workspace_doc) = workspace_content.parse::<DocumentMut>() {
                     // Try workspace.package.name first
                     if let Some(workspace) = workspace_doc.get("workspace") {
                         if let Some(pkg) = workspace.get("package") {
@@ -1303,6 +1293,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
 // Function to add a component without converting to workspace
 pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
+    // Check if we're in test mode
+    let _is_test_mode = std::env::var("FERRISUP_TEST_MODE").is_ok();
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
     let _project_name = &structure.project_name;
@@ -1328,10 +1320,13 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     };
 
     // Prompt for component name with default based on component type
-    let module_name = Input::<String>::new()
-        .with_prompt(format!("Module name [{}]", component_type))
-        .default(component_type.to_string())
-        .interact_text()?;
+    let module_name = test_mode_or(component_type.to_string(), || {
+        Input::<String>::new()
+            .with_prompt(format!("Module name [{}]", component_type))
+            .default(component_type.to_string())
+            .interact_text()
+            .map_err(anyhow::Error::from)
+    })?;
 
     // Create module directory inside src instead of at project root
     let src_dir = project_dir.join("src");
@@ -1400,7 +1395,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     if template_cargo_path.exists() {
         let template_cargo_content = fs::read_to_string(&template_cargo_path)?;
         let template_doc = template_cargo_content
-            .parse::<Document>()
+            .parse::<DocumentMut>()
             .context("Failed to parse template Cargo.toml")?;
 
         if let Some(deps) = template_doc.get("dependencies") {
@@ -1582,7 +1577,7 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
     let cargo_toml = project_dir.join("Cargo.toml");
     if cargo_toml.exists() {
         let cargo_content = fs::read_to_string(&cargo_toml)?;
-        let cargo_doc = cargo_content.parse::<Document>().ok();
+        let cargo_doc = cargo_content.parse::<DocumentMut>().ok();
 
         if let Some(doc) = cargo_doc {
             // Check for ferrisup metadata in Cargo.toml
@@ -1613,7 +1608,7 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
     let metadata_path = project_dir.join(".ferrisup/metadata.toml");
     if metadata_path.exists() {
         let metadata_content = fs::read_to_string(&metadata_path)?;
-        let metadata_doc = metadata_content.parse::<Document>().ok();
+        let metadata_doc = metadata_content.parse::<DocumentMut>().ok();
 
         if let Some(doc) = metadata_doc {
             // Try to get component_type directly
@@ -1967,7 +1962,7 @@ fn store_component_type_in_cargo(component_dir: &Path, component_type: &str) -> 
 
     let cargo_content = fs::read_to_string(&cargo_path)?;
     let mut doc = cargo_content
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .context("Failed to parse Cargo.toml")?;
 
     // Ensure package section exists
@@ -2014,7 +2009,7 @@ fn make_shared_component_accessible(project_dir: &Path, component_name: &str) ->
     let cargo_path = shared_dir.join("Cargo.toml");
     if cargo_path.exists() {
         let cargo_content = fs::read_to_string(&cargo_path)?;
-        let mut doc = cargo_content.parse::<Document>()
+        let mut doc = cargo_content.parse::<DocumentMut>()
             .context("Failed to parse shared component's Cargo.toml")?;
         
         // Use the component name directly as the package name
@@ -2031,7 +2026,7 @@ fn make_shared_component_accessible(project_dir: &Path, component_name: &str) ->
     let root_cargo_path = project_dir.join("Cargo.toml");
     if root_cargo_path.exists() {
         let root_cargo_content = fs::read_to_string(&root_cargo_path)?;
-        let mut root_doc = root_cargo_content.parse::<Document>()
+        let mut root_doc = root_cargo_content.parse::<DocumentMut>()
             .context("Failed to parse root Cargo.toml")?;
         
         // Make sure the workspace section exists
@@ -2093,7 +2088,7 @@ fn make_shared_component_accessible(project_dir: &Path, component_name: &str) ->
         if component_cargo_path.exists() {
             // Add the shared component as a dependency
             let cargo_content = fs::read_to_string(&component_cargo_path)?;
-            let mut doc = cargo_content.parse::<Document>()
+            let mut doc = cargo_content.parse::<DocumentMut>()
                 .context(format!("Failed to parse {}'s Cargo.toml", dir_name))?;
             
             // Add dependency section if it doesn't exist
@@ -2181,10 +2176,10 @@ fn store_transformation_metadata(
     };
 
     let mut doc = if metadata_content.is_empty() {
-        Document::new()
+        DocumentMut::new()
     } else {
         metadata_content
-            .parse::<Document>()
+            .parse::<DocumentMut>()
             .context("Failed to parse metadata.toml")?
     };
 
@@ -2247,7 +2242,7 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
     let workspace_doc = workspace_cargo_content
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .context("Failed to parse workspace Cargo.toml")?;
 
     // Extract component names from workspace members
@@ -2309,6 +2304,3 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
 }
 
 // End of file
-
-// Function to fix imports in a component after updating the package name
-

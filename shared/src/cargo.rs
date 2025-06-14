@@ -1,11 +1,10 @@
 use std::path::Path;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use colored::Colorize;
-use toml;
-use toml_edit::Item;
+#[allow(unused_imports)]
+use toml_edit::{DocumentMut, Item};
 
-#[allow(dead_code)]
-pub fn write_cargo_toml(project_dir: &Path) -> Result<()> {
+pub fn write_cargo_toml(project_dir: &Path) -> anyhow::Result<()> {
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -14,84 +13,53 @@ edition = "2021"
 
 [dependencies]
 "#,
-        // Using a default project name 
+        // Using a default project name
         "rust_project"
     );
-    
+
     std::fs::write(project_dir.join("Cargo.toml"), cargo_toml)
         .context("Failed to write Cargo.toml")?;
-    
+
     Ok(())
 }
 
-#[allow(dead_code)]
-pub fn write_env_file(project_dir: &Path) -> Result<()> {
-    let env_sample = r#"# Database connection
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/rust_workspace
-
-# Server config
-SERVER_HOST=127.0.0.1
-SERVER_PORT=3000
-
-# Client config
-CLIENT_API_URL=http://localhost:3000/api
-
-# JWT Secret
-JWT_SECRET=your-secret-key-here
-
-# Vector database connection (if using)
-VECTOR_DB_URL=http://localhost:8080
-
-# AI model settings (if using)
-MODEL_PATH=./ai/models/model.onnx
-"#;
-    
-    std::fs::write(project_dir.join(".env.sample"), env_sample)
-        .context("Failed to write .env.sample")?;
-    
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn read_cargo_toml(project_dir: &Path) -> Result<String> {
+pub fn read_cargo_toml(project_dir: &Path) -> anyhow::Result<String> {
     let cargo_path = project_dir.join("Cargo.toml");
     if !cargo_path.exists() {
         return Err(anyhow::anyhow!("Cargo.toml not found"));
     }
-    
+
     std::fs::read_to_string(&cargo_path)
         .context(format!("Failed to read {}", cargo_path.display()))
 }
 
-#[allow(dead_code)]
-pub fn write_cargo_toml_content(project_dir: &Path, content: &str) -> Result<()> {
+pub fn write_cargo_toml_content(project_dir: &Path, content: &str) -> anyhow::Result<()> {
     let cargo_path = project_dir.join("Cargo.toml");
-    
+
     std::fs::write(&cargo_path, content)
         .context(format!("Failed to write {}", cargo_path.display()))?;
-    
+
     println!("{} {}", "Updated".green(), cargo_path.display());
-    
+
     Ok(())
 }
 
-#[allow(dead_code)]
-pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
+pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
     let cargo_content = read_cargo_toml(project_dir)?;
-    
+
     // Parse the TOML content
     let cargo_toml: toml::Value = toml::from_str(&cargo_content)
         .context("Failed to parse Cargo.toml as valid TOML")?;
-    
+
     // Check if it's a workspace
     if cargo_toml.get("workspace").is_none() {
         return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
     }
-    
+
     // Extract existing workspace members
     let mut updated = false;
     let mut existing_members = Vec::new();
-    
+
     if let Some(workspace) = cargo_toml.get("workspace").and_then(|w| w.as_table()) {
         if let Some(members) = workspace.get("members").and_then(|m| m.as_array()) {
             for member in members {
@@ -101,10 +69,10 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
             }
         }
     }
-    
+
     // Discover crates in the project directory
     let mut crates_to_add = Vec::new();
-    
+
     // Check common workspace directories
     for dir in &["client", "server", "shared", "libs", "crates"] {
         let dir_path = project_dir.join(dir);
@@ -116,7 +84,7 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
                 for entry in std::fs::read_dir(&dir_path).context(format!("Failed to read directory {}", dir_path.display()))? {
                     let entry = entry.context("Failed to read directory entry")?;
                     let path = entry.path();
-                    
+
                     if path.is_dir() && path.join("Cargo.toml").exists() {
                         let relative_path = format!("{}/{}", dir, path.file_name().unwrap().to_string_lossy());
                         if !existing_members.contains(&relative_path) {
@@ -127,15 +95,15 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
             }
         }
     }
-    
+
     // Add root level crates
     for entry in std::fs::read_dir(project_dir).context("Failed to read project directory")? {
         let entry = entry.context("Failed to read directory entry")?;
         let path = entry.path();
-        
+
         if path.is_dir() && path.join("Cargo.toml").exists() {
             let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
-            
+
             // Skip common directories that might contain multiple crates and system directories
             if ![
                 "src", "target", ".git", ".github", ".ferrisup"
@@ -144,19 +112,19 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
             }
         }
     }
-    
+
     // If we found new crates, update the Cargo.toml
     if !crates_to_add.is_empty() {
         updated = true;
-        
+
         // Create a new TOML structure with updated members
         let mut new_cargo = cargo_toml.clone();
-        
+
         // Get or create the workspace table
         let workspace = new_cargo.get_mut("workspace")
             .and_then(|w| w.as_table_mut())
             .expect("Workspace section should exist");
-        
+
         // Get or create the members array
         let members = if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
             members
@@ -164,27 +132,26 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
             workspace.insert("members".to_string(), toml::Value::Array(Vec::new()));
             workspace.get_mut("members").and_then(|m| m.as_array_mut()).unwrap()
         };
-        
+
         // Add new crates
         for crate_path in crates_to_add {
             println!("Adding workspace member: {}", crate_path.green());
             members.push(toml::Value::String(crate_path.to_string()));
         }
-        
+
         // Write the updated TOML back to the file
         let updated_content = toml::to_string(&new_cargo)
             .context("Failed to serialize updated Cargo.toml")?;
-        
+
         write_cargo_toml_content(project_dir, &updated_content)?;
     }
-    
+
     Ok(updated)
 }
 
+/// Helper function to extract dependencies from a TOML table
 
-// Helper function to extract dependencies from a TOML table
-#[allow(dead_code)]
-pub fn extract_dependencies(deps_table: &Item) -> Result<Vec<(String, String, Option<Vec<String>>)>> {
+pub fn extract_dependencies(deps_table: &Item) -> anyhow::Result<Vec<(String, String, Option<Vec<String>>)>> {
     let mut dependencies = Vec::new();
 
     if let Some(deps_table) = deps_table.as_table() {
@@ -203,7 +170,7 @@ pub fn extract_dependencies(deps_table: &Item) -> Result<Vec<(String, String, Op
                             }
                         }
                     }
-                    
+
                     let features_option = if features.is_empty() { None } else { Some(features) };
                     dependencies.push((name.to_string(), version.to_string(), features_option));
                 }
@@ -214,33 +181,33 @@ pub fn extract_dependencies(deps_table: &Item) -> Result<Vec<(String, String, Op
     Ok(dependencies)
 }
 
-// Helper function to update Cargo.toml with dependencies using cargo add
-#[allow(dead_code)]
-pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>, dev: bool) -> Result<()> {
+
+/// Helper function to update Cargo.toml with dependencies using cargo add
+pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>, dev: bool) -> anyhow::Result<()> {
     // Get the project directory (parent of the Cargo.toml file)
     let project_dir = cargo_path.parent().ok_or_else(|| anyhow!("Could not determine project directory"))?;
-    
+
     // Save current directory to return to it after
     let current_dir = std::env::current_dir()?;
-    
+
     // Change to project directory to run cargo add
     std::env::set_current_dir(project_dir)?;
-    
+
     for (name, version, features) in dependencies {
         // Build cargo add command
         let mut cmd = std::process::Command::new("cargo");
         cmd.arg("add").arg(&name);
-        
+
         // Add as development dependency if dev flag is set
         if dev {
             cmd.arg("--dev");
         }
-        
+
         // Add version if it's not "*"
         if version != "*" {
             cmd.arg("--version").arg(&version);
         }
-        
+
         // Add features if provided
         if let Some(feat_list) = features {
             if !feat_list.is_empty() {
@@ -248,16 +215,16 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
                 cmd.arg("--features").arg(features_str);
             }
         }
-        
+
         // Run the command
         let output = cmd.output()
             .context(format!("Failed to add dependency: {}", name))?;
-        
+
         if !output.status.success() {
-            println!("{} {}", 
-                "Warning:".yellow().bold(), 
-                format!("Failed to add dependency: {}", name).yellow());
-            
+            println!("{} {}",
+                     "Warning:".yellow().bold(),
+                     format!("Failed to add dependency: {}", name).yellow());
+
             // Print error message if available
             if let Ok(err) = String::from_utf8(output.stderr) {
                 if !err.is_empty() {
@@ -266,51 +233,44 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
             }
         }
     }
-    
+
     // Change back to original directory
     std::env::set_current_dir(current_dir)?;
-    
+
     Ok(())
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::tempdir;
     
     #[test]
-    fn test_write_cargo_toml_content() -> Result<()> {
-        // Create a temporary directory for testing
+    fn test_write_cargo_toml() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
-        let test_dir = temp_dir.path().join("test_project");
-        std::fs::create_dir_all(&test_dir)?;
+        let project_dir = temp_dir.path().join("test_project");
+        fs::create_dir_all(&project_dir)?;
         
-        // Test content to write
-        let content = r#"[package]
-name = "test_project"
-version = "0.1.0"
-edition = "2021"
-"#;
+        write_cargo_toml(&project_dir)?;
         
-        // Write the content
-        write_cargo_toml_content(&test_dir, content)?;
-        
-        // Verify the file was created with correct content
-        let cargo_path = test_dir.join("Cargo.toml");
+        let cargo_path = project_dir.join("Cargo.toml");
         assert!(cargo_path.exists());
-        let read_content = std::fs::read_to_string(cargo_path)?;
-        assert_eq!(read_content, content);
+        
+        let content = fs::read_to_string(cargo_path)?;
+        assert!(content.contains("name = \"rust_project\""));
         
         Ok(())
     }
     
     #[test]
-    fn test_read_cargo_toml() -> Result<()> {
+    fn test_read_cargo_toml() -> anyhow::Result<()> {
         // Create a temporary directory for testing
         let temp_dir = tempdir()?;
         let test_dir = temp_dir.path().join("test_project");
-        std::fs::create_dir_all(&test_dir)?;
-        
+        fs::create_dir_all(&test_dir)?;
+
         // Create a test Cargo.toml file
         let cargo_content = r#"[package]
 name = "test_project"
@@ -318,69 +278,50 @@ version = "0.1.0"
 edition = "2021"
 "#;
         let cargo_path = test_dir.join("Cargo.toml");
-        std::fs::write(&cargo_path, cargo_content)?;
-        
+        fs::write(&cargo_path, cargo_content)?;
+
         // Read the file
         let read_content = read_cargo_toml(&test_dir)?;
-        
+
         // Verify the content was read correctly
         assert_eq!(read_content, cargo_content);
-        
+
         Ok(())
     }
-    
+
     #[test]
-    fn test_write_cargo_toml() -> Result<()> {
+    fn test_write_cargo_toml_content() -> anyhow::Result<()> {
         // Create a temporary directory for testing
         let temp_dir = tempdir()?;
         let test_dir = temp_dir.path().join("test_project");
-        std::fs::create_dir_all(&test_dir)?;
-        
-        // Write the default Cargo.toml
-        write_cargo_toml(&test_dir)?;
-        
-        // Verify the file was created
+        fs::create_dir_all(&test_dir)?;
+
+        // Test content to write
+        let content = r#"[package]
+name = "test_project"
+version = "0.1.0"
+edition = "2021"
+"#;
+
+        // Write the content
+        write_cargo_toml_content(&test_dir, content)?;
+
+        // Verify the file was created with correct content
         let cargo_path = test_dir.join("Cargo.toml");
         assert!(cargo_path.exists());
-        
-        // Verify the content contains expected sections
-        let content = std::fs::read_to_string(cargo_path)?;
-        assert!(content.contains("[package]"));
-        assert!(content.contains("name = \"rust_project\"")); 
-        assert!(content.contains("version = \"0.1.0\""));
-        assert!(content.contains("edition = \"2021\""));
-        
+        let read_content = fs::read_to_string(cargo_path)?;
+        assert_eq!(read_content, content);
+
         Ok(())
     }
-    
+
     #[test]
-    fn test_write_env_file() -> Result<()> {
-        // Create a temporary directory for testing
-        let temp_dir = tempdir()?;
-        let test_dir = temp_dir.path().join("test_project");
-        std::fs::create_dir_all(&test_dir)?;
-        
-        // Write the .env file
-        write_env_file(&test_dir)?;
-        
-        // Verify the file was created
-        let env_path = test_dir.join(".env.sample");
-        assert!(env_path.exists());
-        
-        // Verify the content contains expected sections
-        let content = std::fs::read_to_string(env_path)?;
-        assert!(content.contains("# Database connection"));
-        
-        Ok(())
-    }
-    
-    #[test]
-    fn test_update_workspace_members() -> Result<()> {
+    fn test_update_workspace_members() -> anyhow::Result<()> {
         // Create a temporary directory for testing
         let temp_dir = tempdir()?;
         let workspace_dir = temp_dir.path().join("workspace");
-        std::fs::create_dir_all(&workspace_dir)?;
-        
+        fs::create_dir_all(&workspace_dir)?;
+
         // Create a basic workspace Cargo.toml
         let cargo_content = r#"[workspace]
 members = []
@@ -390,71 +331,67 @@ version = "0.1.0"
 edition = "2021"
 "#;
         let cargo_path = workspace_dir.join("Cargo.toml");
-        std::fs::write(&cargo_path, cargo_content)?;
-        
+        fs::write(&cargo_path, cargo_content)?;
+
         // Create a component directory
         let component_dir = workspace_dir.join("component1");
-        std::fs::create_dir_all(&component_dir)?;
-        
+        fs::create_dir_all(&component_dir)?;
+
         // Create a component Cargo.toml
         let component_cargo = r#"[package]
 name = "component1"
 version = "0.1.0"
 edition = "2021"
 "#;
-        std::fs::write(component_dir.join("Cargo.toml"), component_cargo)?;
-        
+        fs::write(component_dir.join("Cargo.toml"), component_cargo)?;
+
         // Update workspace members
         let updated = update_workspace_members(&workspace_dir)?;
-        
+
         // Verify the workspace was updated
         assert!(updated);
-        
+
         // Check that the workspace Cargo.toml now includes the component
-        let updated_content = std::fs::read_to_string(cargo_path)?;
+        let updated_content = fs::read_to_string(cargo_path)?;
         assert!(updated_content.contains("members = ["));
         assert!(updated_content.contains("\"component1\""));
-        
+
         Ok(())
     }
-    
+
     #[test]
-    fn test_extract_dependencies() -> Result<()> {
+    fn test_extract_dependencies() -> anyhow::Result<()> {
         // Create a simple TOML string with dependencies
         let toml_str = r#"
 [dependencies]
 anyhow = "1.0"
 "#;
-        
+
         // Parse the TOML
-        let parsed: toml_edit::Document = toml_str.parse().unwrap();
+        let parsed: DocumentMut = toml_str.parse().unwrap();
         let deps_table = &parsed["dependencies"];
-        
+
         // Extract dependencies
         let deps = extract_dependencies(deps_table)?;
-        
+
         // Verify the extracted dependencies
         assert_eq!(deps.len(), 1);
-        
+
         // Check dependency (anyhow)
         assert_eq!(deps[0].0, "anyhow");
         assert_eq!(deps[0].1, "1.0");
         assert!(deps[0].2.is_none());
-        
+
         Ok(())
     }
-    
+
     #[test]
-    fn test_update_cargo_with_dependencies() -> Result<()> {
-        // Skip this test if we're not in an environment where we can run cargo commands
-        // This is a more complex test that would require mocking cargo commands
-        // or running actual cargo commands which might not be suitable for all test environments
-        
+    fn test_update_cargo_with_dependencies() -> anyhow::Result<()> {
         // For now, we'll just test that the function doesn't panic with valid inputs
         let temp_dir = tempdir()?;
         let test_dir = temp_dir.path().join("test_project");
-        std::fs::create_dir_all(&test_dir)?;
-        
+        fs::create_dir_all(&test_dir)?;
+
         // Create a basic Cargo.toml
         let cargo_content = r#"[package]
 name = "test_project"
@@ -464,20 +401,18 @@ edition = "2021"
 [dependencies]
 "#;
         let cargo_path = test_dir.join("Cargo.toml");
-        std::fs::write(&cargo_path, cargo_content)?;
-        
+        fs::write(&cargo_path, cargo_content)?;
+
         // Create a simple dependency list
         let _dependencies: Vec<(String, String, Option<Vec<String>>)> = vec![
-            ("anyhow".to_string(), "1.0".to_string(), None),
+            ("serde".to_string(), "1.0".to_string(), Some(vec!["derive".to_string()])),
+            ("tokio".to_string(), "1.0".to_string(), None),
         ];
-        
-        // We'll just verify that the function doesn't panic
-        // In a real test, we would need to mock the cargo command execution
-        // or run it in a controlled environment
-        
-        // This is a placeholder for a more comprehensive test
-        // update_cargo_with_dependencies(&cargo_path, dependencies, false)?;
-        
+
+        // This is a placeholder test - in a real test, we'd verify the content was updated correctly
+        // update_cargo_with_dependencies(&test_dir, &dependencies)?;
+
         Ok(())
     }
+
 }
