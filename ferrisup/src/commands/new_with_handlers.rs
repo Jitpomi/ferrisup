@@ -2,14 +2,14 @@ use anyhow::{Result, anyhow};
 use colored::Colorize;
 use dialoguer::{Select, Input};
 use serde_json::{Value, json, Map};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::fs;
 use crate::project;
-use crate::core::Config;
-use crate::utils::to_pascal_case;
+use shared::to_pascal_case;
 
 /// Main execute function to handle project creation
+#[allow(dead_code)]
 pub fn execute(
     name: Option<&str>,
     template: Option<&str>,
@@ -33,7 +33,7 @@ pub fn execute(
 
     // Create project directory
     let app_path = Path::new(&name);
-    create_directory(app_path)?;
+    ensure_directory_exists(app_path)?;
 
     // Get template
     let template = match template {
@@ -85,7 +85,7 @@ pub fn execute(
     };
 
     // Collect variables for the template
-    let mut variables = collect_template_variables(&template, &name, no_interactive)?;
+    let variables = collect_template_variables(&template, &name, no_interactive)?;
     
     // Add the template name to the variables
     let mut vars_map = variables.as_object().cloned().unwrap_or_default();
@@ -149,15 +149,23 @@ pub fn execute(
     Ok(())
 }
 
-/// Helper function to collect template variables
-fn collect_template_variables(template_name: &str, project_name: &str, no_interactive: bool) -> Result<Value> {
+/// Process template variables and collect them into a JSON object
+#[allow(dead_code)]
+fn collect_template_variables(template: &str, name: &str, no_interactive: bool) -> Result<Value> {
+    let variables = process_variables(template, name, no_interactive)?;
+    Ok(variables)
+}
+
+/// Helper function to process variables
+#[allow(dead_code)]
+fn process_variables(template: &str, name: &str, no_interactive: bool) -> Result<Value> {
     // Get template configuration
-    let template_config = project::get_template_config(template_name)?;
+    let template_config = project::get_template_config(template)?;
     
     // Start with default variables
     let mut variables = Map::new();
-    variables.insert("project_name".to_string(), json!(project_name));
-    variables.insert("project_name_pascal_case".to_string(), json!(crate::utils::to_pascal_case(project_name)));
+    variables.insert("project_name".to_string(), json!(name));
+    variables.insert("project_name_pascal_case".to_string(), json!(to_pascal_case(name)));
     
     // Process prompts from template config
     if let Some(prompts) = template_config.get("prompts").and_then(|p| p.as_array()) {
@@ -229,12 +237,11 @@ fn collect_template_variables(template_name: &str, project_name: &str, no_intera
     Ok(Value::Object(variables))
 }
 
-/// Helper function to create a directory
-fn create_directory(path: &Path) -> Result<()> {
-    if path.exists() {
-        return Err(anyhow!("Directory already exists: {}", path.display()));
+/// Helper function to ensure a directory exists
+#[allow(dead_code)]
+fn ensure_directory_exists(path: &Path) -> Result<()> {
+    if !path.exists() {
+        fs::create_dir_all(path).map_err(|e| anyhow!("Failed to create directory: {}", e))?;
     }
-    
-    fs::create_dir_all(path)?;
     Ok(())
 }

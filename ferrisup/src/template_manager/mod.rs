@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use walkdir::WalkDir;
 use regex::Regex;
 use std::os::unix::fs::PermissionsExt;
-use crate::utils::to_pascal_case;
+use shared::to_pascal_case;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -2423,7 +2423,7 @@ fn apply_specific_patches(target_dir: &Path) -> Result<()> {
             // Apply a specific patch for the mnist model.rs file
             let updated_content = r#"use crate::data::MnistBatch;
 use burn::{
-    nn::{BatchNorm, PaddingConfig2d, loss::CrossEntropyLossConfig},
+    nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
     prelude::*,
     tensor::backend::AutodiffBackend,
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},

@@ -1,3 +1,5 @@
+mod manager;
+
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::fs::File;
@@ -13,7 +15,7 @@ use std::process::Command;
 use walkdir::WalkDir;
 use regex::Regex;
 use std::os::unix::fs::PermissionsExt;
-use crate::utils::to_pascal_case;
+use shared::to_pascal_case;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));

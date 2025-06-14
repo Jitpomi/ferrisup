@@ -55,14 +55,17 @@ fn test_all_templates() -> Result<()> {
     use tempfile::TempDir;
     
     let template_tuples = ferrisup::template_manager::list_templates()?;
-    let template_count = template_tuples.len();
+    let _template_count = template_tuples.len();
     // Found templates to test
     
     // Track successful and failed templates
     let mut success_count = 0;
     let mut failed_templates = Vec::new();
     
-    for (template_name, template_description) in &template_tuples {
+    for (template_name, _template_description) in &template_tuples {
+        // Check that template name is not empty
+        assert!(!template_name.is_empty());
+        
         // Testing template
         
         // Skip templates that may require additional setup

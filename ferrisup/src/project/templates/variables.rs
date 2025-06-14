@@ -2,7 +2,7 @@
 use anyhow::Result;
 use dialoguer::{Input, Select, Confirm};
 use serde_json::{Value, json, Map};
-use crate::utils::to_pascal_case;
+use shared::to_pascal_case;
 
 /// Process variables for a template
 ///
@@ -170,4 +170,3 @@ fn to_snake_case(s: &str) -> String {
     
     result
 }
-

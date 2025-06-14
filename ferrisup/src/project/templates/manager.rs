@@ -1,13 +1,15 @@
 // Template manager for applying templates and retrieving next steps
-use anyhow::Result;
+use anyhow::{Result, Context};
 use handlebars::Handlebars;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io;
 use std::collections::HashSet;
+use colored::Colorize;
 
 /// Get all available templates
+#[allow(dead_code)]
 pub fn get_all_templates() -> Result<Vec<String>> {
     // List all built-in templates
     let templates = vec![
@@ -48,6 +50,7 @@ pub fn get_all_templates() -> Result<Vec<String>> {
 }
 
 /// List available templates with their descriptions
+#[allow(dead_code)]
 pub fn list_templates() -> Result<Vec<(String, String)>> {
     // Define core templates with descriptions
     let mut templates = vec![
@@ -95,6 +98,7 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
 }
 
 /// Find a template directory by name
+#[allow(dead_code)]
 pub fn find_template_directory(template_name: &str) -> Result<PathBuf> {
     let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
     
@@ -146,6 +150,7 @@ pub fn find_template_directory(template_name: &str) -> Result<PathBuf> {
 }
 
 /// Get template configuration from template.json
+#[allow(dead_code)]
 pub fn get_template_config(template_name: &str) -> Result<Value> {
     let template_dir = find_template_directory(template_name)?;
     let template_json = template_dir.join("template.json");
@@ -161,6 +166,7 @@ pub fn get_template_config(template_name: &str) -> Result<Value> {
 }
 
 /// Apply a template to a target directory
+#[allow(dead_code)]
 pub fn apply_template(
     template_name: &str,
     target_dir: &Path,
@@ -442,6 +448,7 @@ pub fn apply_template(
 }
 
 /// Get next steps for a template
+#[allow(dead_code)]
 pub fn get_template_next_steps(template_name: &str, project_name: &str, variables: Option<Value>) -> Option<Vec<String>> {
     // Check if there's a .ferrisup_next_steps.json file in the project directory
     let project_dir = Path::new(project_name);
@@ -645,6 +652,7 @@ pub fn get_template_next_steps(template_name: &str, project_name: &str, variable
 
 /// Parse a simple condition string like "variable == 'value'" into a tuple (variable_name, expected_value)
 /// This function supports both single and double quotes around the value.
+#[allow(dead_code)]
 fn parse_condition(condition: &str) -> Option<(&str, &str)> {
     // Look for patterns like "variable == 'value'" or "variable == \"value\""
     let parts: Vec<&str> = condition.split("==").collect();
@@ -667,6 +675,7 @@ fn parse_condition(condition: &str) -> Option<(&str, &str)> {
 }
 
 /// Recursively copy a directory
+#[allow(dead_code)]
 fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
     fs::create_dir_all(dst)?;
     
@@ -686,6 +695,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
 }
 
 /// Evaluate a condition expression against variables
+#[allow(dead_code)]
 fn evaluate_condition(condition: &str, variables: &Value) -> bool {
     // Simple condition parsing
     let parts: Vec<&str> = condition.split_whitespace().collect();
@@ -709,6 +719,7 @@ fn evaluate_condition(condition: &str, variables: &Value) -> bool {
 }
 
 /// Get the template directory for a given template name
+#[allow(dead_code)]
 pub fn get_template_dir(template_name: &str) -> Result<PathBuf> {
     let templates_dir = get_templates_dir()?;
     
@@ -722,6 +733,7 @@ pub fn get_template_dir(template_name: &str) -> Result<PathBuf> {
 }
 
 /// Check if a template exists
+#[allow(dead_code)]
 pub fn template_exists(template_name: &str) -> bool {
     if let Ok(template_dir) = get_template_dir(template_name) {
         return template_dir.exists() && template_dir.is_dir();
@@ -730,6 +742,7 @@ pub fn template_exists(template_name: &str) -> bool {
 }
 
 /// Get the base templates directory
+#[allow(dead_code)]
 pub fn get_templates_dir() -> Result<PathBuf> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
@@ -742,6 +755,7 @@ pub fn get_templates_dir() -> Result<PathBuf> {
 }
 
 /// Update Cargo.toml with template dependencies
+#[allow(dead_code)]
 fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> {
     let cargo_path = project_dir.join("Cargo.toml");
     if !cargo_path.exists() || dependencies.is_empty() {
@@ -785,6 +799,7 @@ fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> 
 }
 
 /// Get dependencies for a template based on variables
+#[allow(dead_code)]
 fn get_template_dependencies(template_name: &str, variables: &Value) -> Option<Vec<String>> {
     if let Ok(template_config) = get_template_config(template_name) {
         if let Some(deps) = template_config.get("dependencies") {
@@ -802,7 +817,7 @@ fn get_template_dependencies(template_name: &str, variables: &Value) -> Option<V
             // Add conditional dependencies
             if let Some(deps_obj) = deps.as_object() {
                 if let Some(var_obj) = variables.as_object() {
-                    for (var_name, var_val) in var_obj {
+                    for (_var_name, var_val) in var_obj {
                         if let Some(var_val_str) = var_val.as_str() {
                             if let Some(cond_deps) = deps_obj.get(var_val_str).and_then(|d| d.as_array()) {
                                 for dep in cond_deps {

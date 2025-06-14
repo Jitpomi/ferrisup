@@ -1,10 +1,10 @@
+// Client application for FerrisUp
 use dioxus::prelude::*;
 
 // Import our local components
 mod components;
-use components::Test;
-
-
+use components::*;
+use crate::components::LinkType;
 
 fn get_links() -> Vec<LinkType> {
     vec![
@@ -55,9 +55,6 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const HEADER_SVG: Asset = asset!("/assets/img.png");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
-
-// Import the shared component
-use shared::*;
 fn main() {
     dioxus::launch(App);
 }

@@ -6,9 +6,10 @@ use colored::Colorize;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
-use crate::utils::{create_directory, to_pascal_case};
+use crate::utils::create_directory;
 use serde_json::{self, json, Value};
 use handlebars::Handlebars;
+use shared::to_pascal_case;
 
 // Helper function to recursively copy directories
 fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
@@ -353,7 +354,7 @@ pub fn execute(
         println!("\n✅ {} project created successfully!", name);
         
         // Get next steps for the selected framework
-        let template_json_path = PathBuf::from(format!("{}/server/template.json", template_root));
+        let template_json_path = PathBuf::from(format!("{}/templates/server/template.json", env!("CARGO_MANIFEST_DIR")));
         if template_json_path.exists() {
             let template_json = fs::read_to_string(&template_json_path)?;
             let template_config: Value = serde_json::from_str(&template_json)?;
