@@ -1,6 +1,6 @@
 
-// Import the shared component
-use shared::*;
+// Shared component functionality is available through the shared crate
+// Uncomment if needed: use shared::*;
 /// FerrisUp - A versatile Rust project bootstrapping tool
 /// 
 /// This crate provides a CLI tool for bootstrapping and managing Rust projects
