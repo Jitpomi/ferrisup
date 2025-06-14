@@ -13,6 +13,7 @@ use std::process::Command;
 use walkdir::WalkDir;
 use regex::Regex;
 use std::os::unix::fs::PermissionsExt;
+use crate::utils::to_pascal_case;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -177,13 +178,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
         "project_name": project_name,
         "project_name_kebab": project_name.replace(" ", "-").to_lowercase(),
         "project_name_snake": project_name.replace(" ", "_").to_lowercase(),
-        "project_name_pascal": project_name.split(" ").map(|s| {
-            let mut chars = s.chars();
-            match chars.next() {
-                Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
-                None => String::new(),
-            }
-        }).collect::<Vec<String>>().join(""),
+        "project_name_pascal": to_pascal_case(project_name),
         "date": "2025-04-20",
         "year": "2025",
     });
@@ -977,27 +972,7 @@ fn prompt_with_default(question: &str, default: &str) -> Result<String> {
     }
 }
 
-#[allow(dead_code)]
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    
-    for c in s.chars() {
-        if c == '-' || c == '_' || c == ' ' {
-            capitalize_next = true;
-        } else {
-            if capitalize_next {
-                result.push(c.to_uppercase().next().unwrap());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        }
-    }
-    
-    result
-}
-
+/// Copy a directory recursively
 #[allow(dead_code)]
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     fs::create_dir_all(dst)?;

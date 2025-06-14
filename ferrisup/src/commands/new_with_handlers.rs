@@ -7,6 +7,7 @@ use std::process::Command;
 use std::fs;
 use crate::project;
 use crate::core::Config;
+use crate::utils::to_pascal_case;
 
 /// Main execute function to handle project creation
 pub fn execute(
@@ -156,7 +157,7 @@ fn collect_template_variables(template_name: &str, project_name: &str, no_intera
     // Start with default variables
     let mut variables = Map::new();
     variables.insert("project_name".to_string(), json!(project_name));
-    variables.insert("project_name_pascal_case".to_string(), json!(to_pascal_case(project_name)));
+    variables.insert("project_name_pascal_case".to_string(), json!(crate::utils::to_pascal_case(project_name)));
     
     // Process prompts from template config
     if let Some(prompts) = template_config.get("prompts").and_then(|p| p.as_array()) {
@@ -226,27 +227,6 @@ fn collect_template_variables(template_name: &str, project_name: &str, no_intera
     }
     
     Ok(Value::Object(variables))
-}
-
-/// Helper function to convert a string to PascalCase
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            if capitalize_next {
-                result.push(c.to_ascii_uppercase());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        } else {
-            capitalize_next = true;
-        }
-    }
-    
-    result
 }
 
 /// Helper function to create a directory

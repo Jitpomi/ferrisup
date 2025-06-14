@@ -547,7 +547,7 @@ pub fn get_template_next_steps(template_name: &str, project_name: &str, variable
                                 // Get the condition expression
                                 if let Some(when_expr) = condition_map.get("when").and_then(|w| w.as_str()) {
                                     // Simple condition evaluation for now - just check for exact matches
-                                    // Format: "variable_name == 'value'"
+                                    // Format: "variable == 'value'"
                                     if let Some((var_name, expected_value)) = parse_condition(when_expr) {
                                         // Check if the variable exists and matches the expected value
                                         if let Some(actual_value) = vars.get(var_name).and_then(|v| v.as_str()) {
@@ -646,51 +646,24 @@ pub fn get_template_next_steps(template_name: &str, project_name: &str, variable
 /// Parse a simple condition string like "variable == 'value'" into a tuple (variable_name, expected_value)
 /// This function supports both single and double quotes around the value.
 fn parse_condition(condition: &str) -> Option<(&str, &str)> {
-    // Simple parsing for "variable == 'value'" or 'variable == "value"'
-    if let Some(equals_pos) = condition.find("==") {
-        let var_name = condition[..equals_pos].trim();
-        let value_part = condition[equals_pos + 2..].trim();
-        
-        // Extract the value inside quotes or treat as raw value if no quotes
-        let value = if (value_part.starts_with('\'') && value_part.ends_with('\'')) ||
-                      (value_part.starts_with('"') && value_part.ends_with('"')) {
-            value_part
-                .trim_start_matches('\'')
-                .trim_start_matches('"')
-                .trim_end_matches('\'')
-                .trim_end_matches('"')
-        } else {
-            // Handle case when quotes might be missing or mismatched
-            value_part
-        };
-        
-        if !var_name.is_empty() && !value.is_empty() {
-            return Some((var_name, value));
-        }
+    // Look for patterns like "variable == 'value'" or "variable == \"value\""
+    let parts: Vec<&str> = condition.split("==").collect();
+    if parts.len() != 2 {
+        return None;
     }
     
-    None
-}
-
-/// Convert a string to PascalCase
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
+    let variable = parts[0].trim();
+    let value = parts[1].trim();
     
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            if capitalize_next {
-                result.push(c.to_ascii_uppercase());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        } else {
-            capitalize_next = true;
-        }
-    }
+    // Remove quotes from value
+    let value = if (value.starts_with('\'') && value.ends_with('\'')) || 
+                  (value.starts_with('"') && value.ends_with('"')) {
+        &value[1..value.len()-1]
+    } else {
+        value
+    };
     
-    result
+    Some((variable, value))
 }
 
 /// Recursively copy a directory
@@ -808,7 +781,7 @@ fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> 
         }
     }
     
-    Ok()
+    Ok(())
 }
 
 /// Get dependencies for a template based on variables

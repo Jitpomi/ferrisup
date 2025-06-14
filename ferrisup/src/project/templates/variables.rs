@@ -2,6 +2,7 @@
 use anyhow::Result;
 use dialoguer::{Input, Select, Confirm};
 use serde_json::{Value, json, Map};
+use crate::utils::to_pascal_case;
 
 /// Process variables for a template
 ///
@@ -170,23 +171,3 @@ fn to_snake_case(s: &str) -> String {
     result
 }
 
-/// Convert a string to PascalCase
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            if capitalize_next {
-                result.push(c.to_ascii_uppercase());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        } else {
-            capitalize_next = true;
-        }
-    }
-    
-    result
-}

@@ -14,6 +14,7 @@ use lazy_static::lazy_static;
 use walkdir::WalkDir;
 use regex::Regex;
 use std::os::unix::fs::PermissionsExt;
+use crate::utils::to_pascal_case;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));
@@ -685,41 +686,40 @@ This project was generated using FerrisUp.
             // Copy any other MCU-specific files at the root level
             if let Ok(entries) = fs::read_dir(&mcu_dir) {
                 for entry in entries {
-                    if let Ok(entry) = entry {
-                        let file_name = entry.file_name();
-                        let file_name_str = file_name.to_string_lossy();
-                        
-                        // Skip src, .cargo, and memory.x as they're handled separately
-                        if file_name_str == "src" || file_name_str == ".cargo" || file_name_str == "memory.x" {
-                            continue;
-                        }
-                        
-                        let source_path = entry.path();
-                        let target_path = target_dir.join(&file_name);
-                        
-                        if source_path.is_dir() {
-                            copy_dir_all(&source_path, &target_path)?;
+                    let entry = entry?;
+                    let file_name = entry.file_name();
+                    let file_name_str = file_name.to_string_lossy();
+                    
+                    // Skip src, .cargo, and memory.x as they're handled separately
+                    if file_name_str == "src" || file_name_str == ".cargo" || file_name_str == "memory.x" {
+                        continue;
+                    }
+                    
+                    let source_path = entry.path();
+                    let target_path = target_dir.join(&file_name);
+                    
+                    if source_path.is_dir() {
+                        copy_dir_all(&source_path, &target_path)?;
+                    } else {
+                        // Check if it's a template file
+                        if source_path.extension().map_or(false, |ext| ext == "template") {
+                            // Read the source file
+                            let content = fs::read_to_string(&source_path)?;
+                            
+                            // Create handlebars instance for templating
+                            let mut handlebars = Handlebars::new();
+                            handlebars.register_escape_fn(handlebars::no_escape);
+                            
+                            // Apply templating
+                            let rendered = handlebars.render_template(&content, &template_vars)
+                                .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
+                            
+                            // Write to target file (removing .template extension)
+                            let target_file_name = target_path.file_stem().unwrap().to_string_lossy().to_string();
+                            let target_file_path = target_dir.join(target_file_name);
+                            fs::write(target_file_path, rendered)?;
                         } else {
-                            // Check if it's a template file
-                            if source_path.extension().map_or(false, |ext| ext == "template") {
-                                // Read the source file
-                                let content = fs::read_to_string(&source_path)?;
-                                
-                                // Create handlebars instance for templating
-                                let mut handlebars = Handlebars::new();
-                                handlebars.register_escape_fn(handlebars::no_escape);
-                                
-                                // Apply templating
-                                let rendered = handlebars.render_template(&content, &template_vars)
-                                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                                
-                                // Write to target file (removing .template extension)
-                                let target_file_name = target_path.file_stem().unwrap().to_string_lossy().to_string();
-                                let target_file_path = target_dir.join(target_file_name);
-                                fs::write(target_file_path, rendered)?;
-                            } else {
-                                fs::copy(&source_path, &target_path)?;
-                            }
+                            fs::copy(&source_path, &target_path)?;
                         }
                     }
                 }
@@ -1154,6 +1154,7 @@ fn process_file(
     
     Ok(())
 }
+
 fn process_conditional_blocks(content: &str, variables: &Value) -> Result<String> {
     let mut result = content.to_string();
     
@@ -1585,26 +1586,6 @@ fn prompt_with_default(question: &str, default: &str) -> Result<String> {
     } else {
         Ok(input.to_string())
     }
-}
-
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    
-    for c in s.chars() {
-        if c == '-' || c == '_' || c == ' ' {
-            capitalize_next = true;
-        } else {
-            if capitalize_next {
-                result.push(c.to_uppercase().next().unwrap());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        }
-    }
-    
-    result
 }
 
 /// Recursively copy a directory to a target directory
@@ -2460,13 +2441,6 @@ pub struct Model<B: Backend> {
     activation: nn::Gelu,
 }
 
-impl<B: Backend> Default for Model<B> {
-    fn default() -> Self {
-        let device = B::Device::default();
-        Self::new(&device)
-    }
-}
-
 const NUM_CLASSES: usize = 10;
 
 impl<B: Backend> Model<B> {
@@ -2525,6 +2499,10 @@ impl<B: Backend> Model<B> {
             output,
             targets,
         }
+    }
+
+    pub fn from_record(record: &impl Record, device: &B::Device) -> Self {
+        Module::from_record(record, device)
     }
 }
 
@@ -3009,7 +2987,6 @@ fn fix_mnist_model_implementation(target_dir: &Path) -> Result<()> {
             let updated_content = r#"use crate::data::MnistBatch;
 use burn::{
     module::Module,
-    nn,
     nn::{loss::CrossEntropyLossConfig, BatchNorm, PaddingConfig2d},
     tensor::backend::Backend,
     tensor::backend::AutodiffBackend,

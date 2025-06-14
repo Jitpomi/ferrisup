@@ -6,7 +6,7 @@ use colored::Colorize;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
-use crate::utils::create_directory;
+use crate::utils::{create_directory, to_pascal_case};
 use serde_json::{self, json, Value};
 use handlebars::Handlebars;
 
@@ -1742,27 +1742,6 @@ fn check_dependencies(template: &str) -> Result<()> {
     }
     
     Ok(())
-}
-
-// Helper function to convert a string to PascalCase
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    
-    for c in s.chars() {
-        if c == '-' || c == '_' || c == ' ' {
-            capitalize_next = true;
-        } else {
-            if capitalize_next {
-                result.push(c.to_uppercase().next().unwrap());
-                capitalize_next = false;
-            } else {
-                result.push(c);
-            }
-        }
-    }
-    
-    result
 }
 
 // Helper function to handle edge templates
