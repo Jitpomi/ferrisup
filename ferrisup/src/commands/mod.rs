@@ -8,7 +8,6 @@ pub mod config;
 pub mod workspace;
 pub mod component;
 pub mod dependency;
-pub mod frameworks;
 pub mod unused_features;
 pub mod import_fixer;
 

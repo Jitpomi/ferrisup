@@ -849,6 +849,107 @@ pub fn execute(
                 println!("✅ dioxus-cli is already installed");
             }
             
+            // Check for wasm32-unknown-unknown target (required for web)
+            println!("🔍 Checking for wasm32-unknown-unknown target...");
+            let wasm_check = Command::new("rustup")
+                .args(["target", "list", "--installed"])
+                .output()?;
+            
+            let wasm_output = String::from_utf8_lossy(&wasm_check.stdout);
+            if !wasm_output.contains("wasm32-unknown-unknown") {
+                println!("⚠️ wasm32-unknown-unknown target not found. Installing...");
+                let status = Command::new("rustup")
+                    .args(["target", "add", "wasm32-unknown-unknown"])
+                    .status()?;
+                
+                if !status.success() {
+                    println!("❌ Failed to install wasm32-unknown-unknown target.");
+                    println!("Please install it manually with: rustup target add wasm32-unknown-unknown");
+                } else {
+                    println!("✅ wasm32-unknown-unknown target installed successfully");
+                }
+            } else {
+                println!("✅ wasm32-unknown-unknown target is already installed");
+            }
+            
+            // Check for aarch64-apple-ios-sim target (required for iOS simulator)
+            println!("🔍 Checking for aarch64-apple-ios-sim target...");
+            let ios_check = Command::new("rustup")
+                .args(["target", "list", "--installed"])
+                .output()?;
+            
+            let ios_output = String::from_utf8_lossy(&ios_check.stdout);
+            if !ios_output.contains("aarch64-apple-ios-sim") {
+                println!("⚠️ aarch64-apple-ios-sim target not found.");
+                println!("This is something that Rustup can do for you. Rustup is Rust's toolchain");
+                println!("installer and manager, and it can add the iOS simulator target to your Rust installation.");
+                
+                // Ask if user wants to install iOS simulator target
+                let install_ios = dialoguer::Confirm::new()
+                    .with_prompt("Would you like to install the iOS simulator target?")
+                    .default(true)
+                    .interact()?;
+                
+                if install_ios {
+                    println!("Installing aarch64-apple-ios-sim target...");
+                    let status = Command::new("rustup")
+                        .args(["target", "add", "aarch64-apple-ios-sim"])
+                        .status()?;
+                    
+                    if !status.success() {
+                        println!("❌ Failed to install aarch64-apple-ios-sim target.");
+                        println!("Please install it manually with: rustup target add aarch64-apple-ios-sim");
+                    } else {
+                        println!("✅ aarch64-apple-ios-sim target installed successfully");
+                    }
+                } else {
+                    println!("Skipping iOS simulator target installation.");
+                    println!("You can install it later with: rustup target add aarch64-apple-ios-sim");
+                }
+            } else {
+                println!("✅ aarch64-apple-ios-sim target is already installed");
+            }
+            
+            // Check for Android targets if on macOS or Linux
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            {
+                println!("🔍 Checking for Android targets...");
+                let android_check = Command::new("rustup")
+                    .args(["target", "list", "--installed"])
+                    .output()?;
+                
+                let android_output = String::from_utf8_lossy(&android_check.stdout);
+                if !android_output.contains("aarch64-linux-android") {
+                    println!("⚠️ aarch64-linux-android target not found.");
+                    println!("For most modern Android devices, you'll want the aarch64-linux-android target.");
+                    
+                    // Ask if user wants to install Android target
+                    let install_android = dialoguer::Confirm::new()
+                        .with_prompt("Would you like to install the Android target?")
+                        .default(true)
+                        .interact()?;
+                    
+                    if install_android {
+                        println!("Installing aarch64-linux-android target...");
+                        let status = Command::new("rustup")
+                            .args(["target", "add", "aarch64-linux-android"])
+                            .status()?;
+                        
+                        if !status.success() {
+                            println!("❌ Failed to install aarch64-linux-android target.");
+                            println!("Please install it manually with: rustup target add aarch64-linux-android");
+                        } else {
+                            println!("✅ aarch64-linux-android target installed successfully");
+                        }
+                    } else {
+                        println!("Skipping Android target installation.");
+                        println!("You can install it later with: rustup target add aarch64-linux-android");
+                    }
+                } else {
+                    println!("✅ aarch64-linux-android target is already installed");
+                }
+            }
+            
             // Create project directory
             create_directory(app_path)?;
             
@@ -863,12 +964,6 @@ pub fn execute(
             if !create_status.success() {
                 return Err(anyhow!("Failed to create Dioxus project with dioxus-cli"));
             }
-            
-            // Ensure WASM target is installed for web projects
-            println!("🔧 Ensuring WASM target is installed...");
-            let _ = Command::new("rustup")
-                .args(["target", "add", "wasm32-unknown-unknown"])
-                .status();
             
             // Print success message with instructions
             println!("\n🎉 Project {} created successfully!", name);

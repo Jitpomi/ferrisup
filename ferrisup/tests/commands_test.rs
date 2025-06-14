@@ -64,9 +64,10 @@ fn test_new_command() -> Result<()> {
     let temp_dir = common::create_test_dir()?;
     let dir_path = temp_dir.path();
     
-    // Test the new command
+    // Test the new command with the current command structure
+    // Using --component-type instead of --template and adding --no-interactive
     let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "test_project", "--template", "minimal"])
+        .args(&["new", "test_project", "--component-type", "minimal", "--no-interactive"])
         .current_dir(dir_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -162,7 +163,7 @@ fn test_workspace_command() -> Result<()> {
     // Test adding members to the workspace - treat each command independently
     println!("Creating member1 with minimal template");
     let _member1_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "member1", "--template", "minimal"])
+        .args(&["new", "member1", "--component-type", "minimal", "--no-interactive"])
         .current_dir(dir_path)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -170,7 +171,7 @@ fn test_workspace_command() -> Result<()> {
     
     println!("Creating member2 with library template");
     let _member2_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "member2", "--template", "library"])
+        .args(&["new", "member2", "--component-type", "library", "--no-interactive"])
         .current_dir(dir_path)
         .stdout(Stdio::null())
         .stderr(Stdio::null())

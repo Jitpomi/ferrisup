@@ -340,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated package metadata in Cargo.toml
 - Transferred GitHub repository to Jitpomi organization
-- Updated documentation with correct repository links
+- Updated documentation with correct repository LINKS
 
 ### Fixed
 - Fixed compiler warnings in various files

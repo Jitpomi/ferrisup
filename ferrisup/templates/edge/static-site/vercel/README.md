@@ -118,7 +118,7 @@ To add more pages to your static site:
 1. Create a new HTML file in the root directory
 2. Copy the basic structure from `index.html`
 3. Add content specific to the new page
-4. Update navigation links in `create_header()` function
+4. Update navigation LINKS in `create_header()` function
 
 ### Using External Libraries
 

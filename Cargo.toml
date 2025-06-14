@@ -7,3 +7,15 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
