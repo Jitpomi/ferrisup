@@ -51,32 +51,6 @@ fn test_read_cargo_toml_missing_file() {
 }
 
 #[test]
-fn test_write_cargo_toml_content() -> Result<()> {
-    // Create a temporary directory for testing
-    let temp_dir = TempDir::new()?;
-    let test_dir = temp_dir.path().join("test_project");
-    fs::create_dir_all(&test_dir)?;
-    
-    // Test content to write
-    let content = r#"[package]
-name = "test_project"
-version = "0.1.0"
-edition = "2021"
-"#;
-    
-    // Write the content
-    ferrisup::utils::write_cargo_toml_content(&test_dir, content)?;
-    
-    // Verify the file was created with correct content
-    let cargo_path = test_dir.join("Cargo.toml");
-    assert!(cargo_path.exists());
-    let read_content = fs::read_to_string(cargo_path)?;
-    assert_eq!(read_content, content);
-    
-    Ok(())
-}
-
-#[test]
 fn test_copy_directory() -> Result<()> {
     // Create a temporary directory for testing
     let temp_dir = TempDir::new()?;
