@@ -3,13 +3,12 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 use std::ffi::OsStr;
-// Command import removed (no longer needed)
-use crate::commands::import_fixer::fix_component_imports;
+use dialoguer::{Confirm, Input, MultiSelect, Select};
 use crate::utils::{
     copy_dir_contents, create_directory, extract_dependencies, update_cargo_with_dependencies,
     update_workspace_members,
 };
-use dialoguer::{Confirm, Input, MultiSelect, Select};
+use crate::commands::import_fixer::fix_component_imports;
 use toml_edit::{value, Document, Item, Table, Value};
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
@@ -358,7 +357,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     ];
     
     // These files must be moved to the component directory to maintain functionality
-    // and should not be selectable to keep at the root
+    // and should not be selectable to keep at root
     let critical_component_files = vec![
         "src".to_string(),         // Source code must move with the component
         "build.rs".to_string(),    // Build script is specific to the component
@@ -489,8 +488,8 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     let entries = fs::read_dir(project_dir)?; // Read entries for categorization
     for entry in entries {
         let entry = entry?;
-        let path = entry.path();
-        let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+        let src_path = entry.path();
+        let file_name = src_path.file_name().unwrap().to_string_lossy().to_string();
         
         if always_skip_filenames.contains(&file_name) {
             workspace_files.push(file_name);
@@ -897,11 +896,10 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
 
     for entry in fs::read_dir(src)? {
         let entry = entry?;
-        let ty = entry.file_type()?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
-        if ty.is_dir() {
+        if src_path.is_dir() {
             copy_dir_all(&src_path, &dst_path)?;
         } else {
             fs::copy(&src_path, &dst_path)?;
@@ -931,6 +929,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
         "server - Web server with API endpoints (Axum, Actix, or Poem)",
         "shared - Shared code between client and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
+        "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
         "data-science - Data science and machine learning projects",
         "embedded - Embedded systems firmware",
     ];
@@ -947,8 +946,9 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
         1 => "server",
         2 => "shared",
         3 => "edge",
-        4 => "data-science",
-        5 => "embedded",
+        4 => "serverless",
+        5 => "data-science",
+        6 => "embedded",
         _ => "client", // Default to client
     };
 
@@ -1272,7 +1272,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
             "{}",
             format!("Using project name '{}' for imports", actual_project_name).blue()
         );
-        fix_component_imports(&component_dir, &component_name, &actual_project_name)?;
+        fix_component_imports(&component_dir, &component_name)?;
     }
 
     // Update workspace Cargo.toml to include the new component
@@ -1780,16 +1780,6 @@ fn detect_component_type(project_dir: &Path) -> Result<&'static str> {
             || cargo_content.contains("fastly")
         {
             return Ok("edge");
-        }
-
-        // Check for Vercel - could be edge or serverless
-        if cargo_content.contains("vercel") {
-            // Look for clues that this is a serverless function
-            if project_dir.join("api").exists() {
-                return Ok("serverless");
-            } else {
-                return Ok("edge");
-            }
         }
 
         // Check for client frameworks
@@ -2319,3 +2309,4 @@ fn print_final_next_steps(project_dir: &Path) -> Result<()> {
 // End of file
 
 // Function to fix imports in a component after updating the package name
+

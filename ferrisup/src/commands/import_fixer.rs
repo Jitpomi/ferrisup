@@ -14,7 +14,7 @@ use toml_edit::{Document, value};
 /// For example, if a component was created with name "client" but the package
 /// was renamed to "app_client" in Cargo.toml, this function will update all
 /// imports from "use client::*" to "use app_client::*".
-pub fn fix_component_imports(component_dir: &Path, component_name: &str, project_name: &str) -> Result<()> {
+pub fn fix_component_imports(component_dir: &Path, component_name: &str) -> Result<()> {
     println!("{}", format!("Fixing imports in component: {}", component_name).blue());
     
     // First, update the package name in Cargo.toml
@@ -81,7 +81,7 @@ pub fn fix_component_imports(component_dir: &Path, component_name: &str, project
                     Err(_) => continue,
                 };
                 
-                let new_package_name = format!("{}_{}", project_name, component_name);
+                let new_package_name = format!("{}", component_name);
                 
                 // Apply both replacements
                 let updated_content1 = re_component.replace_all(&content, format!("use {}{}", new_package_name, "$1"));
