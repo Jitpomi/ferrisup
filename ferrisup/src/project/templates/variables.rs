@@ -2,7 +2,7 @@
 use anyhow::Result;
 use dialoguer::{Input, Select, Confirm};
 use serde_json::{Value, json, Map};
-use shared::to_pascal_case;
+use shared::*;
 
 /// Process variables for a template
 ///
@@ -148,25 +148,4 @@ pub fn process_variables(
     Ok(Value::Object(variables))
 }
 
-/// Convert a string to snake_case
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut last_was_underscore = false;
-    
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            result.push(c.to_ascii_lowercase());
-            last_was_underscore = false;
-        } else if !last_was_underscore {
-            result.push('_');
-            last_was_underscore = true;
-        }
-    }
-    
-    // Remove trailing underscore if any
-    if result.ends_with('_') {
-        result.pop();
-    }
-    
-    result
-}
+
