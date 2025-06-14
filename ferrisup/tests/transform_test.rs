@@ -24,7 +24,7 @@ edition = "2021"
     
     // Create a basic main.rs
     let main_content = r#"fn main() {
-    println!("Hello, world!");
+    // Empty main function for testing
 }
 "#;
     fs::write(project_dir.join("src").join("main.rs"), main_content)?;

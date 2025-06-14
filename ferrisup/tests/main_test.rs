@@ -56,18 +56,18 @@ fn test_all_templates() -> Result<()> {
     
     let template_tuples = ferrisup::template_manager::list_templates()?;
     let template_count = template_tuples.len();
-    println!("Found {} templates to test", template_count);
+    // Found templates to test
     
     // Track successful and failed templates
     let mut success_count = 0;
     let mut failed_templates = Vec::new();
     
     for (template_name, template_description) in &template_tuples {
-        println!("Testing template: {} - {}", template_name, template_description);
+        // Testing template
         
         // Skip templates that may require additional setup
         if template_name.contains("embedded") || template_name.contains("edge") {
-            println!("Skipping {} template as it may require special setup", template_name);
+            // Skipping template that requires special setup
             continue;
         }
         
@@ -76,7 +76,7 @@ fn test_all_templates() -> Result<()> {
         let project_name = format!("test_{}", template_name.replace("-", "_"));
         
         // Create a project with this template - use --no-interactive flag to avoid terminal prompts
-        println!("Creating project '{}' with template '{}'", project_name, template_name);
+        // Creating test project
         
         let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
             .args(&[
@@ -95,18 +95,18 @@ fn test_all_templates() -> Result<()> {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         
-        println!("Command output for template '{}': ", template_name);
+        // Command output
         if !stdout.is_empty() {
-            println!("STDOUT:\n{}", stdout);
+            // STDOUT captured
         }
         if !stderr.is_empty() {
-            println!("STDERR:\n{}", stderr);
+            // STDERR captured
         }
         
         // Check if the command executed successfully, but continue with other templates
         if !output.status.success() {
-            println!("Warning: Failed to create project with template: {}", template_name);
-            println!("Status: {:?}", output.status);
+            // Failed to create project
+            // Command status
             failed_templates.push(template_name);
         } else {
             success_count += 1;
@@ -123,18 +123,18 @@ fn test_all_templates() -> Result<()> {
                 let cargo_content = fs::read_to_string(&cargo_toml)?;
                 assert!(cargo_content.contains(&project_name), "Cargo.toml should contain project name");
                 
-                println!("Project structure verification passed for {}", template_name);
+                // Project structure verification passed
             } else {
-                println!("Warning: src directory not found for template: {}", template_name);
+                // src directory not found
             }
         }
     }
     
     // Report overall results
-    println!("Template testing complete:");
-    println!("- Success: {}/{}", success_count, template_count);
+    // Template testing complete
+    // Success count
     if !failed_templates.is_empty() {
-        println!("- Failed templates: {:?}", failed_templates);
+        // Failed templates
     }
     
     // Assert that at least some templates succeeded

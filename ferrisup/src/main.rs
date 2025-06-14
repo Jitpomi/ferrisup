@@ -22,15 +22,7 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
-    // Welcome message
-    println!("{}", r#"
-  _____                _     _   _       
- |  ___|__ _ __ _ __ (_)___| | | |_ __  
- | |_ / _ \ '__| '__| / __| | | | '_ \ 
- |  _|  __/ |  | |  | \__ \ |_| | |_) |
- |_|  \___|_|  |_|  |_|___/\___/| .__/ 
-                               |_|    
- "#.green().bold());
+    // Simple welcome message
     println!("{}", "FerrisUp - A tool for bootstrapping Rust projects".green().bold());
     println!("{}", "Start anywhere, scale anywhere\n".green());
 

@@ -100,7 +100,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
     }
 
     // Analyze project structure
-    println!("{}", "Analyzing project structure...".blue());
+    // Analyzing project structure
     let structure = analyze_project_structure(project_dir)?;
 
     // Print detected project type
@@ -269,7 +269,7 @@ fn update_root_file_references(project_dir: &Path, component_name: &str, files_t
             
             // If content was modified, write it back
             if content != updated_content {
-                println!("Updated references in root file: {}", file_name);
+                // References updated in root file
                 fs::write(&file_path, updated_content)?;
             }
         }
@@ -310,7 +310,7 @@ fn update_gitignore_references(gitignore_path: &Path, component_name: &str) -> R
     }
     
     if modified {
-        println!("Updated .gitignore with wildcards for component paths");
+        // Updated .gitignore with wildcards
         fs::write(gitignore_path, all_lines.join("\n"))?;
     }
     
@@ -318,7 +318,7 @@ fn update_gitignore_references(gitignore_path: &Path, component_name: &str) -> R
 }
 
 fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
-    println!("{}", "Converting project to workspace...".blue());
+    // Converting project to workspace
     // Get project structure
     let structure = analyze_project_structure(project_dir)?;
     let project_name = &structure.project_name;
@@ -423,7 +423,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
         );
         for file in &critical_component_files {
             if all_root_entries.contains(file) {
-                println!("  - {} (required for component functionality)", file.cyan());
+                println!("  - {}", file.cyan());
             }
         }
         println!();
@@ -478,8 +478,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     }
 
     // Move project files to component directory
-    println!("{}", "\nProcessing files for component directory...".blue().bold());
-    println!("{}", "The following actions will be taken:".blue());
+    println!("{}", "Processing files for component directory...".blue());
     
     // First, identify and categorize all files for better user understanding
     let mut critical_files_to_move = Vec::new();
@@ -540,7 +539,7 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
     }
     
     // Now actually move the files
-    println!("{}", "\nMoving files to component directory...".blue());
+    // Moving files to component directory
     let entries = fs::read_dir(project_dir)?; // Re-read entries to ensure freshness
     for entry in entries {
         let entry = entry?;
@@ -565,13 +564,13 @@ fn convert_to_workspace(project_dir: &Path, is_test_mode: bool) -> Result<()> {
             copy_dir_all(&path, &target_path)?;
             // Remove original after successful copy
             fs::remove_dir_all(&path)?;
-            println!("Moved directory to component '{}': {}", component_name.cyan(), file_name.green());
+            // Directory moved to component
         } else {
             // Copy file
             fs::copy(&path, &target_path)?;
             // Remove original after successful copy
             fs::remove_file(&path)?;
-            println!("Moved file to component '{}': {}", component_name.cyan(), file_name.green());
+            // File moved to component
         }
     }
 
@@ -737,18 +736,16 @@ edition = "2021"
 
     // Always create a root-level README.md with project structure description
     // This is important regardless of whether the user selected to keep README.md at the root
-    println!("{}", "\nCreating root-level README.md with workspace structure description...".blue());
+    // Creating root-level README.md
     create_root_readme(project_dir, &component_name)?;
     
     // Always create a root-level .gitignore with standard Rust workspace patterns
     // This is important regardless of whether the user selected to keep .gitignore at the root
-    println!("{}", "Creating root-level .gitignore with standard Rust workspace patterns...".blue());
+    // Creating root-level .gitignore
     create_root_gitignore(project_dir)?;
 
     // Print success message
     println!("{}", "Project successfully converted to workspace!".green());
-    println!("{}", "Created root README.md with project structure description".green());
-    println!("{}", "Created root .gitignore with standard Rust workspace patterns".green());
 
     // Print framework-specific instructions only for reference
     if let Some(framework) = detected_framework {
@@ -1078,7 +1075,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     };
 
     // Print the template being used for debugging
-    println!("{}", format!("Using template: {}", template).blue());
+    // Using selected template
 
     // Save current directory to return to it after component creation
     let current_dir = std::env::current_dir()?;
