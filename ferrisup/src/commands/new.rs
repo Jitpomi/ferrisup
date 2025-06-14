@@ -6,10 +6,9 @@ use colored::Colorize;
 use anyhow::{Result, anyhow};
 use dialoguer::{Select, Input};
 use crate::template_manager;
-use crate::utils::create_directory;
 use serde_json::{self, json, Value};
 use handlebars::Handlebars;
-use shared::to_pascal_case;
+use shared::{fs::*, to_pascal_case};
 
 // Helper function to recursively copy directories
 fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {

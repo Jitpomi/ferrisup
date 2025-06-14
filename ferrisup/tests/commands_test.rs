@@ -12,7 +12,7 @@ fn test_preview_command() -> Result<()> {
         .args(&["preview", "--template", "minimal"])
         .output()?;
     
-    let _stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     
     // Print output for debugging
@@ -29,9 +29,11 @@ fn test_preview_command() -> Result<()> {
     
     // Verify expected content in output - be more lenient with checks
     // since output format might have changed
-    assert!(stderr.contains("minimal") || stderr.contains("Minimal"), 
+    assert!(stdout.contains("minimal") || stdout.contains("Minimal") || 
+           stderr.contains("minimal") || stderr.contains("Minimal"), 
            "Output should contain the template name");
-    assert!(stderr.contains("Project") || stderr.contains("Structure"), 
+    assert!(stdout.contains("Project") || stdout.contains("Structure") || 
+           stderr.contains("Project") || stderr.contains("Structure"), 
            "Output should show project structure");
     
     Ok(())

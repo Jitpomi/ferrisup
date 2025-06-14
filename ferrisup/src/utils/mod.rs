@@ -2,17 +2,8 @@ use std::fs;
 use std::path::Path;
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
-use walkdir::WalkDir;
 use toml;
 use toml_edit::Item;
-
-pub fn create_directory(path: &Path) -> Result<()> {
-    if !path.exists() {
-        fs::create_dir_all(path)?;
-        println!("Created directory: {}", path.display());
-    }
-    Ok(())
-}
 
 #[allow(dead_code)]
 pub fn write_cargo_toml(project_dir: &Path) -> Result<()> {
@@ -191,56 +182,6 @@ pub fn update_workspace_members(project_dir: &Path) -> Result<bool> {
     Ok(updated)
 }
 
-#[allow(dead_code)]
-pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
-    // Create the destination directory if it doesn't exist
-    create_directory(dst)?;
-    
-    // Use a robust directory traversal to handle potential symlinks
-    let walker = WalkDir::new(src).follow_links(true).into_iter();
-    
-    // Filter out errors in directory traversal
-    let walker = walker.filter_map(|e| e.ok());
-    
-    for entry in walker {
-        let path = entry.path();
-        // Skip the root directory itself
-        if path == src {
-            continue;
-        }
-        
-        // Get the path relative to the source directory
-        let relative = path.strip_prefix(src)?;
-        let target = dst.join(relative);
-        
-        if path.is_file() {
-            // Create parent directories if needed
-            if let Some(parent) = target.parent() {
-                if !parent.exists() {
-                    std::fs::create_dir_all(parent)?;
-                }
-            }
-            
-            // Copy the file
-            std::fs::copy(path, &target)
-                .with_context(|| format!("Failed to copy {} to {}", path.display(), target.display()))?;
-            
-            println!("Copied: {} -> {}", path.display(), target.display());
-        } else if path.is_dir() && !target.exists() {
-            // Create the directory if it doesn't exist
-            std::fs::create_dir_all(&target)
-                .with_context(|| format!("Failed to create directory {}", target.display()))?;
-        }
-    }
-    
-    println!("{} {} {} {}", 
-        "Successfully copied".green(),
-        src.display(),
-        "to".green(),
-        dst.display());
-    
-    Ok(())
-}
 
 // Helper function to extract dependencies from a TOML table
 #[allow(dead_code)]
@@ -332,24 +273,3 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
     
     Ok(())
 }
-
-// Helper function to copy directory contents
-#[allow(dead_code)]
-pub fn copy_dir_contents(from: &Path, to: &Path) -> Result<()> {
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let file_type = entry.file_type()?;
-        let from_path = entry.path();
-        let to_path = to.join(entry.file_name());
-
-        if file_type.is_dir() {
-            create_directory(&to_path)?;
-            copy_dir_contents(&from_path, &to_path)?;
-        } else {
-            fs::copy(&from_path, &to_path)?;
-        }
-    }
-
-    Ok(())
-}
-

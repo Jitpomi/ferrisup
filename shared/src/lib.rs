@@ -1,5 +1,7 @@
 //! Library template created with FerrisUp
 
+pub mod fs;
+
 /// Convert a string to PascalCase
 /// For example: "hello_world" -> "HelloWorld"
 #[allow(dead_code)]

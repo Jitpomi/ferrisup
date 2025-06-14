@@ -5,11 +5,13 @@ use std::path::Path;
 use std::ffi::OsStr;
 use dialoguer::{Confirm, Input, MultiSelect, Select};
 use crate::utils::{
-    copy_dir_contents, create_directory, extract_dependencies, update_cargo_with_dependencies,
+    extract_dependencies,
+    update_cargo_with_dependencies,
     update_workspace_members,
 };
 use crate::commands::import_fixer::fix_component_imports;
 use toml_edit::{value, Document, Item, Table, Value};
+use shared::fs::*;
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     println!(

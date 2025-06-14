@@ -3,8 +3,8 @@ use colored::Colorize;
 use dialoguer::{Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 use std::fs;
-
-use crate::utils::{create_directory, read_cargo_toml, update_cargo_with_dependencies, update_workspace_members, write_cargo_toml_content};
+use shared::fs::*;
+use crate::utils::{read_cargo_toml, update_cargo_with_dependencies, update_workspace_members, write_cargo_toml_content};
 
 /// Execute the workspace command to manage Cargo workspaces
 pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {

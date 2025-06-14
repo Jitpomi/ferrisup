@@ -14,9 +14,12 @@ component_type = "library"
 
 [dependencies]
 # Add your dependencies here
-[dev-dependencies]
 anyhow = "1.0"
+walkdir = "2.3"
+
+[dev-dependencies]
 criterion = "0.5"
+tempfile = "3.8"
 
 [lib]
 name = "shared"

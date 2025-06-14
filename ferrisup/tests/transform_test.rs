@@ -59,7 +59,7 @@ fn test_error_handling_with_nonexistent_directory() {
     let non_existent_dir = PathBuf::from("/non/existent/path");
     
     // Try to create a directory inside a non-existent path
-    let result = ferrisup::utils::create_directory(&non_existent_dir.join("test"));
+    let result = shared::fs::create_directory(&non_existent_dir.join("test"));
     
     // Verify the operation fails with an error
     assert!(result.is_err());

@@ -1,6 +1,7 @@
 use std::fs;
 use tempfile::TempDir;
 use anyhow::Result;
+use shared::fs::*;
 
 #[test]
 fn test_create_directory_success() -> Result<()> {
@@ -9,7 +10,7 @@ fn test_create_directory_success() -> Result<()> {
     let test_dir = temp_dir.path().join("test_dir");
     
     // Test creating a directory
-    ferrisup::utils::create_directory(&test_dir)?;
+    create_directory(&test_dir)?;
     
     // Verify the directory was created
     assert!(test_dir.exists());
@@ -25,7 +26,7 @@ fn test_create_directory_nested() -> Result<()> {
     let nested_dir = temp_dir.path().join("parent").join("child").join("grandchild");
     
     // Test creating nested directories
-    ferrisup::utils::create_directory(&nested_dir)?;
+    create_directory(&nested_dir)?;
     
     // Verify all directories were created
     assert!(nested_dir.exists());
@@ -89,7 +90,7 @@ fn test_copy_directory() -> Result<()> {
     fs::write(src_dir.join("subdir").join("file2.txt"), "content2")?;
     
     // Copy the directory
-    ferrisup::utils::copy_directory(&src_dir, &dst_dir)?;
+    copy_directory(&src_dir, &dst_dir)?;
     
     // Verify the directory was copied with all files
     assert!(dst_dir.exists());
