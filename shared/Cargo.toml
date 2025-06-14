@@ -2,8 +2,9 @@
 name = "shared"
 version = "0.1.0"
 edition = "2021"
-description = "A Rust library created with FerrisUp"
-license = "MIT OR Apache-2.0"
+description = "Shared utilities for ferrisup"
+license = "MIT"
+repository = "https://github.com/ferrisup/ferrisup"
 
 [package.metadata]
 
@@ -12,15 +13,18 @@ component_type = "library"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-# Add your dependencies here
-anyhow = "1.0"
-walkdir = "2.3"
-
-[dev-dependencies]
-criterion = "0.5"
-tempfile = "3.8"
-
 [lib]
 name = "shared"
 path = "src/lib.rs"
+
+[dependencies]
+# Using workspace dependencies
+anyhow = { workspace = true }
+walkdir = { workspace = true }
+toml = { workspace = true }
+colored = { workspace = true }
+toml_edit = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"

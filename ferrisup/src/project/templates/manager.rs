@@ -7,6 +7,7 @@ use std::fs;
 use std::io;
 use std::collections::HashSet;
 use colored::Colorize;
+use shared::cargo::*;
 
 /// Get all available templates
 #[allow(dead_code)]
@@ -782,16 +783,16 @@ fn update_cargo_toml(project_dir: &Path, dependencies: &[String]) -> Result<()> 
     
     // Parse the temporary Cargo.toml to extract dependencies in the format we need
     let doc = fs::read_to_string(&temp_cargo_path)?
-        .parse::<toml_edit::Document>()
+        .parse::<toml_edit::DocumentMut>()
         .context("Failed to parse temporary Cargo.toml")?;
     
     if let Some(deps) = doc.get("dependencies") {
         // Use our extract_dependencies function to get the dependencies in the right format
-        let deps_to_add = crate::utils::extract_dependencies(deps)?;
+        let deps_to_add = extract_dependencies(deps)?;
         
         // Use our enhanced utility function to add the dependencies to the actual Cargo.toml
         if !deps_to_add.is_empty() {
-            crate::utils::update_cargo_with_dependencies(&cargo_path, deps_to_add, false)?
+            update_cargo_with_dependencies(&cargo_path, deps_to_add, false)?
         }
     }
     

@@ -5,7 +5,7 @@ use dialoguer::{Confirm, Input, MultiSelect};
 use std::path::PathBuf;
 use std::fs;
 use std::process::Command;
-use crate::utils::update_cargo_with_dependencies;
+use shared::cargo::update_cargo_with_dependencies;
 
 #[derive(Debug, Args)]
 pub struct DependencyArgs {

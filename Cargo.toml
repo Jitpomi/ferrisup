@@ -8,6 +8,15 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 
+[workspace.dependencies]
+# Common dependencies used across multiple crates
+anyhow = "1.0"
+colored = "3.0.0"
+toml = "0.8.23"
+toml_edit = "0.22.27"
+walkdir = "2.3"
+tempfile = "3.8"
+
 [profile]
 
 [profile.wasm-dev]

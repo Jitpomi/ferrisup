@@ -1,10 +1,10 @@
 //! Library template created with FerrisUp
 
 pub mod fs;
+pub mod cargo;
 
 /// Convert a string to PascalCase
 /// For example: "hello_world" -> "HelloWorld"
-#[allow(dead_code)]
 pub fn to_pascal_case(input: &str) -> String {
     input
         .split('_')

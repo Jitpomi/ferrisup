@@ -20,7 +20,6 @@
 /// ```
 // Core modules
 pub mod core;
-pub mod utils;
 
 // Project management modules
 pub mod project;

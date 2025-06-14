@@ -10,6 +10,7 @@ pub mod component;
 pub mod dependency;
 pub mod unused_features;
 pub mod import_fixer;
+pub mod test_mode;
 mod new_with_handlers;
 
 // Re-export the Commands enum for the CLI

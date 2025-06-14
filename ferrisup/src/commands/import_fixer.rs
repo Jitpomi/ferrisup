@@ -4,7 +4,7 @@ use std::path::Path;
 use std::fs;
 use regex::Regex;
 use walkdir::WalkDir;
-use toml_edit::{Document, value};
+use toml_edit::{DocumentMut, value};
 
 /// Fixes imports in a component after the package name has been updated
 /// 
@@ -23,7 +23,7 @@ pub fn fix_component_imports(component_dir: &Path, component_name: &str) -> Resu
         let cargo_content = fs::read_to_string(&cargo_toml_path)
             .context("Failed to read component Cargo.toml")?;
         
-        let mut cargo_doc = cargo_content.parse::<Document>()
+        let mut cargo_doc = cargo_content.parse::<DocumentMut>()
             .context("Failed to parse component Cargo.toml")?;
         
         // Use the component name directly instead of {project_name}_{component_name}

@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::Path;
 
-#[allow(dead_code)]
 pub fn create_directory(path: &Path) -> anyhow::Result<()> {
     if !path.exists() {
         fs::create_dir_all(path)?;
@@ -10,7 +9,6 @@ pub fn create_directory(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn copy_directory(src: &Path, dst: &Path) -> anyhow::Result<()> {
     // Create the destination directory if it doesn't exist
     create_directory(dst)?;
@@ -52,7 +50,6 @@ pub fn copy_directory(src: &Path, dst: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn copy_dir_contents(from: &Path, to: &Path) -> anyhow::Result<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;

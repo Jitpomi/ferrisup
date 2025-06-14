@@ -41,7 +41,7 @@ fn test_error_handling_in_utils() -> Result<()> {
     fs::remove_file(project_dir.join("Cargo.toml"))?;
     
     // Test reading a non-existent Cargo.toml
-    let result = ferrisup::utils::read_cargo_toml(&project_dir);
+    let result = shared::cargo::read_cargo_toml(&project_dir);
     
     // Verify the operation fails with an error
     assert!(result.is_err());
@@ -87,7 +87,7 @@ members = [
     fs::write(project_dir.join("Cargo.toml"), invalid_workspace_content)?;
     
     // Try to update workspace members
-    let result = ferrisup::utils::update_workspace_members(&project_dir);
+    let result = shared::cargo::update_workspace_members(&project_dir);
     
     // This should succeed even with invalid members, as it just updates the list
     assert!(result.is_ok());
@@ -130,7 +130,6 @@ fn test_error_handling_with_file_operations() -> Result<()> {
 }
 
 #[test]
-#[ignore = "Skipping due to interactive prompts that aren't properly handled by test mode"]
 fn test_transform_execute_full_stack() -> Result<()> {
     // Test transform to full-stack template
     let (temp_dir, project_dir) = setup_test_project()?;
@@ -157,7 +156,6 @@ fn test_transform_execute_full_stack() -> Result<()> {
 }
 
 #[test]
-#[ignore = "Skipping due to interactive prompts that aren't properly handled by test mode"]
 fn test_transform_execute_with_invalid_template() -> Result<()> {
     // Test transform with invalid template
     let (temp_dir, project_dir) = setup_test_project()?;

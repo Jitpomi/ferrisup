@@ -5,9 +5,6 @@ use colored::*;
 // Use the library modules instead of local definitions
 use ferrisup::commands;
 
-// Keep utils for any necessary utility functions
-mod utils;
-
 #[derive(Parser)]
 #[command(
     name = "ferrisup",
