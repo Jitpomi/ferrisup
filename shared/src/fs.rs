@@ -147,6 +147,22 @@ pub fn copy_dir_contents(from: &Path, to: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+// Helper function to visit all files in a directory recursively
+pub fn visit_dirs(dir: &Path, cb: &dyn Fn(&Path) -> anyhow::Result<()>) -> anyhow::Result<()> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_dirs(&path, cb)?;
+            } else {
+                cb(&path)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,6 +312,74 @@ mod tests {
         
         let nested_content = fs::read_to_string(&dst_nested_file)?;
         assert_eq!(nested_content, "Nested file content\n");
+        
+        Ok(())
+    }
+    
+    #[test]
+    fn test_visit_dirs() -> anyhow::Result<()> {
+        // Create a temporary directory structure for testing
+        let temp_dir = tempdir()?;
+        
+        // Create a directory structure with files
+        let root_dir = temp_dir.path();
+        
+        // Create files in the root directory
+        let root_file1 = root_dir.join("root_file1.txt");
+        let mut file1 = File::create(&root_file1)?;
+        writeln!(file1, "Root file 1 content")?;
+        
+        let root_file2 = root_dir.join("root_file2.txt");
+        let mut file2 = File::create(&root_file2)?;
+        writeln!(file2, "Root file 2 content")?;
+        
+        // Create a subdirectory with files
+        let subdir1 = root_dir.join("subdir1");
+        create_directory(&subdir1)?;
+        
+        let subdir1_file = subdir1.join("subdir1_file.txt");
+        let mut sub_file1 = File::create(&subdir1_file)?;
+        writeln!(sub_file1, "Subdir1 file content")?;
+        
+        // Create a nested subdirectory with files
+        let nested_dir = subdir1.join("nested");
+        create_directory(&nested_dir)?;
+        
+        let nested_file = nested_dir.join("nested_file.txt");
+        let mut nested_f = File::create(&nested_file)?;
+        writeln!(nested_f, "Nested file content")?;
+        
+        // Create another subdirectory at the root level
+        let subdir2 = root_dir.join("subdir2");
+        create_directory(&subdir2)?;
+        
+        let subdir2_file = subdir2.join("subdir2_file.txt");
+        let mut sub_file2 = File::create(&subdir2_file)?;
+        writeln!(sub_file2, "Subdir2 file content")?;
+        
+        // Use a vector to collect all visited file paths
+        let visited_files = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let visited_files_clone = visited_files.clone();
+        
+        // Call visit_dirs with a callback that collects file paths
+        visit_dirs(root_dir, &|path| {
+            let mut files = visited_files_clone.lock().unwrap();
+            files.push(path.to_path_buf());
+            Ok(())
+        })?;
+        
+        // Check that all expected files were visited
+        let files = visited_files.lock().unwrap();
+        
+        // We should have 5 files in total
+        assert_eq!(files.len(), 5);
+        
+        // Check that each expected file is in the visited files list
+        assert!(files.iter().any(|p| p == &root_file1));
+        assert!(files.iter().any(|p| p == &root_file2));
+        assert!(files.iter().any(|p| p == &subdir1_file));
+        assert!(files.iter().any(|p| p == &nested_file));
+        assert!(files.iter().any(|p| p == &subdir2_file));
         
         Ok(())
     }

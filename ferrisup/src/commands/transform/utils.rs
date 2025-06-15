@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use toml_edit::{value, DocumentMut};
-use shared::fs::create_directory;
+use shared::fs::{create_directory, visit_dirs};
 use regex::Regex;
 use colored::Colorize;
 
@@ -42,21 +42,7 @@ pub fn update_source_imports(component_dir: &Path, old_name: &str, new_name: &st
     Ok(())
 }
 
-// Helper function to visit all files in a directory recursively
-fn visit_dirs(dir: &Path, cb: &dyn Fn(&Path) -> Result<()>) -> Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_dirs(&path, cb)?;
-            } else {
-                cb(&path)?;
-            }
-        }
-    }
-    Ok(())
-}
+
 
 // Store transformation metadata in .ferrisup directory
 pub fn store_transformation_metadata(
