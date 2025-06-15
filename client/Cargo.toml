@@ -13,6 +13,7 @@ component_type = "client"
 
 [dependencies]
 dioxus = { version = "0.6.0", features = ["router"] }
+dioxus-free-icons = { version = "0.9.0", features = ["font-awesome-brands"] }
 
 [dependencies.shared]
 path = "../shared"
