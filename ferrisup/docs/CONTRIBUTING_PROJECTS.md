@@ -16,7 +16,7 @@ Our architecture ensures these approaches don't interfere with each other, makin
 ### Adding a CLI-based Project
 
 1. Identify a Rust CLI tool that creates projects (e.g., `cargo-leptos`, `cargo-tauri`)
-2. Create a CLI handler in `src/project_handlers/mod.rs` following the pattern:
+2. Create a CLI handler in `src/project/handlers/mod.rs` following the pattern:
 
 ```rust
 // Example: Adding Leptos CLI support
@@ -63,7 +63,7 @@ handlers.push(Box::new(CliProjectHandler::new(
    - `files` - Files to include (with optional conditions)
    - `next_steps` - Guidance for users after creation
 
-3. Register your template in `src/project_handlers/mod.rs`:
+3. Register your template in `src/project/handlers/mod.rs`:
 
 ```rust
 // Example: Adding a new game development template

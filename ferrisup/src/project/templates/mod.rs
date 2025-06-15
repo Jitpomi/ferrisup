@@ -974,58 +974,7 @@ fn prompt_with_default(question: &str, default: &str) -> Result<String> {
     }
 }
 
-/// Copy a directory recursively
-#[allow(dead_code)]
-fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        
-        if path.is_file() {
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
-            
-            // Remove .template extension if present
-            let target_file_name = if file_name_str.ends_with(".template") {
-                file_name_str.replace(".template", "")
-            } else {
-                file_name_str.to_string()
-            };
-            
-            let target_path = dst.join(&target_file_name);
-            
-            if path.extension().map_or(false, |ext| 
-                ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
-                ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
-            ) {
-                // Process template variables
-                let template_content = fs::read_to_string(&path)?;
-                
-                // Write rendered content
-                let mut file = File::create(&target_path)?;
-                file.write_all(template_content.as_bytes())?;
-                
-                // Set executable bit for .sh files
-                if let Some(ext) = target_path.extension() {
-                    if ext == "sh" {
-                        let mut perms = fs::metadata(&target_path)?.permissions();
-                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
-                        fs::set_permissions(&target_path, perms)?;
-                    }
-                }
-            } else {
-                let target_path = dst.join(file_name);
-                fs::copy(&path, &target_path)?;
-            }
-        } else if path.is_dir() {
-            copy_dir_all(&path, &dst.join(entry.file_name()))?;
-        }
-    }
-    
-    Ok(())
-}
+// Removed unused import
 
 #[allow(dead_code)]
 fn check_wasm_target(burn_example: &str) -> Result<()> {

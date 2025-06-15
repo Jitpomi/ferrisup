@@ -50,6 +50,85 @@ pub fn copy_directory(src: &Path, dst: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Copy a directory recursively with template processing
+/// 
+/// This function is similar to copy_directory but adds special handling for template files:
+/// - Removes .template extension from filenames
+/// - Preserves executable permissions for .sh files
+/// - Skips template.json files which are meant for internal use
+pub fn copy_directory_with_template_processing(src: &Path, dst: &Path) -> anyhow::Result<()> {
+    // Create the destination directory if it doesn't exist
+    create_directory(dst)?;
+    
+    // Use walkdir for robust directory traversal
+    for entry in walkdir::WalkDir::new(src).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        // Skip the root directory itself
+        if path == src {
+            continue;
+        }
+        
+        // Skip template.json files as they're for internal use only
+        if path.file_name().map_or(false, |name| name == "template.json") {
+            continue;
+        }
+        
+        // Get the path relative to the source directory
+        let relative = path.strip_prefix(src)?;
+        
+        if path.is_file() {
+            let file_name = path.file_name().unwrap_or_default();
+            let file_name_str = file_name.to_string_lossy();
+            
+            // Remove .template extension if present
+            let target_file_name = if file_name_str.ends_with(".template") {
+                file_name_str.replace(".template", "")
+            } else {
+                file_name_str.to_string()
+            };
+            
+            let target_path = dst.join(relative.parent().unwrap_or_else(|| Path::new(""))).join(&target_file_name);
+            
+            // Create parent directories if needed
+            if let Some(parent) = target_path.parent() {
+                if !parent.exists() {
+                    std::fs::create_dir_all(parent)?;
+                }
+            }
+            
+            // Copy the file
+            std::fs::copy(path, &target_path)
+                .map_err(|e| anyhow::anyhow!("Failed to copy {} to {}: {}", path.display(), target_path.display(), e))?;
+            
+            // Set executable bit for .sh files
+            if let Some(ext) = target_path.extension() {
+                if ext == "sh" {
+                    let mut perms = fs::metadata(&target_path)?.permissions();
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                    }
+                    fs::set_permissions(&target_path, perms)?;
+                }
+            }
+            
+            println!("Copied: {} -> {}", path.display(), target_path.display());
+        } else if path.is_dir() {
+            let target = dst.join(relative);
+            if !target.exists() {
+                // Create the directory if it doesn't exist
+                std::fs::create_dir_all(&target)
+                    .map_err(|e| anyhow::anyhow!("Failed to create directory {}: {}", target.display(), e))?;
+            }
+        }
+    }
+    
+    println!("Successfully copied {} to {} with template processing", src.display(), dst.display());
+    
+    Ok(())
+}
+
 pub fn copy_dir_contents(from: &Path, to: &Path) -> anyhow::Result<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;

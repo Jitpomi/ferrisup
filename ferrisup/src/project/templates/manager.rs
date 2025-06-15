@@ -4,7 +4,7 @@ use handlebars::Handlebars;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io;
+// Removed unused import
 use std::collections::HashSet;
 use colored::Colorize;
 use shared::cargo::*;
@@ -675,25 +675,9 @@ fn parse_condition(condition: &str) -> Option<(&str, &str)> {
     Some((variable, value))
 }
 
-/// Recursively copy a directory
+/// Use the shared module's copy_directory function
 #[allow(dead_code)]
-fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
-    
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        let target = dst.join(entry.file_name());
-        
-        if path.is_dir() {
-            copy_dir_all(&path, &target)?;
-        } else {
-            fs::copy(&path, &target)?;
-        }
-    }
-    
-    Ok(())
-}
+// Removed unused import
 
 /// Evaluate a condition expression against variables
 #[allow(dead_code)]

@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use std::env;
 use std::fs;
-use std::fs::File;
+// Removed unused import
 use std::io::{self, Write, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -252,7 +252,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
             }
             
             // Copy the example to the target directory
-            copy_dir_all(&example_dir, target_dir)?;
+            shared::fs::copy_directory_with_template_processing(&example_dir, target_dir)?;
             
             // We'll keep the original Cargo.toml from the Burn example
             // Just update the project name
@@ -699,7 +699,7 @@ This project was generated using FerrisUp.
                     let target_path = target_dir.join(&file_name);
                     
                     if source_path.is_dir() {
-                        copy_dir_all(&source_path, &target_path)?;
+                        shared::fs::copy_directory_with_template_processing(&source_path, &target_path)?;
                     } else {
                         // Check if it's a template file
                         if source_path.extension().map_or(false, |ext| ext == "template") {
@@ -1588,58 +1588,7 @@ fn prompt_with_default(question: &str, default: &str) -> Result<String> {
     }
 }
 
-/// Recursively copy a directory to a target directory
-fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        
-        if path.is_file() {
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
-            
-            // Remove .template extension if present
-            let target_file_name = if file_name_str.ends_with(".template") {
-                file_name_str.replace(".template", "")
-            } else {
-                file_name_str.to_string()
-            };
-            
-            let target_path = dst.join(&target_file_name);
-            
-            // Process files that need template variable substitution
-            if path.extension().map_or(false, |ext| 
-                ext == "template" || ext == "rs" || ext == "md" || ext == "toml" || 
-                ext == "html" || ext == "css" || ext == "json" || ext == "yml" || ext == "yaml"
-            ) {
-                // Read template content
-                let template_content = fs::read_to_string(&path)?;
-                
-                // Write rendered content
-                let mut file = File::create(&target_path)?;
-                file.write_all(template_content.as_bytes())?;
-                
-                // Set executable bit for .sh files
-                if let Some(ext) = target_path.extension() {
-                    if ext == "sh" {
-                        let mut perms = fs::metadata(&target_path)?.permissions();
-                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
-                        fs::set_permissions(&target_path, perms)?;
-                    }
-                }
-            } else {
-                let target_path = dst.join(file_name);
-                fs::copy(&path, &target_path)?;
-            }
-        } else if path.is_dir() {
-            copy_dir_all(&path, &dst.join(entry.file_name()))?;
-        }
-    }
-    
-    Ok(())
-}
+// Removed unused import
 
 /// Apply Burn compatibility fixes
 fn apply_burn_compatibility_fixes(target_dir: &Path) -> Result<()> {

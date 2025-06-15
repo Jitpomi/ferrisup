@@ -84,7 +84,7 @@ The system is designed to be easily extended:
 
 ### Adding a New CLI Tool
 
-1. Create a CLI handler in `src/project_handlers/mod.rs`
+1. Create a CLI handler in `src/project/handlers/mod.rs`
 2. Define parameter mappings from FerrisUp variables to CLI arguments
 3. Provide installation and version check commands
 4. Define appropriate next steps
@@ -93,7 +93,7 @@ The system is designed to be easily extended:
 
 1. Create a template in `templates/your-template/`
 2. Define prompts, variables, and file conditions in `template.json`
-3. Register the template with a TemplateProjectHandler in `src/project_handlers/mod.rs`
+3. Register the template with a TemplateProjectHandler in `src/project/handlers/mod.rs`
 
 ## Implementation Details
 

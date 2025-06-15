@@ -11,7 +11,7 @@ pub mod dependency;
 pub mod unused_features;
 pub mod import_fixer;
 pub mod test_mode;
-mod new_with_handlers;
+// Removed reference to unused module
 
 // Re-export the Commands enum for the CLI
 use clap::Subcommand;

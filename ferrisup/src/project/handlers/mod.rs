@@ -3,9 +3,7 @@ mod traits;
 mod cli;
 mod template;
 
-use std::path::Path;
-use std::io;
-use std::fs;
+// Removed unused imports
 use serde_json::Value;
 
 pub use traits::ProjectHandler;
@@ -186,21 +184,5 @@ pub fn find_handler(template_name: &str, variables: &Value) -> Option<Box<dyn Pr
     None
 }
 
-// Helper function to recursively copy a directory
-pub fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
-    
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        let target = dst.join(entry.file_name());
-        
-        if path.is_dir() {
-            copy_dir_all(&path, &target)?;
-        } else {
-            fs::copy(&path, &target)?;
-        }
-    }
-    
-    Ok(())
-}
+// Use the shared copy_directory function for directory operations
+// Removed unused import

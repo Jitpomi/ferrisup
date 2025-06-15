@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io;
+// Removed unused import
 use std::process::Command;
 use colored::Colorize;
 use anyhow::{Result, anyhow};
@@ -10,23 +10,7 @@ use serde_json::{self, json, Value};
 use handlebars::Handlebars;
 use shared::{fs::*, to_pascal_case};
 
-// Helper function to recursively copy directories
-fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-        
-        if ty.is_dir() {
-            copy_dir_all(&src_path, &dst_path)?;
-        } else {
-            fs::copy(&src_path, &dst_path)?;
-        }
-    }
-    Ok(())
-}
+// Using the shared module's copy_directory function for directory operations
 
 // Note: For frameworks and libraries that have official CLIs (like Dioxus and Tauri),
 // we use those CLIs directly instead of maintaining our own templates.
@@ -200,7 +184,7 @@ pub fn execute(
                 let target_path = app_path.join("src").join(&file_name);
                 
                 if source_path.is_dir() {
-                    copy_dir_all(&source_path, &target_path)?;
+                    copy_directory(&source_path, &target_path)?;
                 } else {
                     // Read file content
                     let content = fs::read_to_string(&source_path)?;
@@ -319,7 +303,7 @@ pub fn execute(
             let target_path = app_path.join(&file_name);
             
             if source_path.is_dir() {
-                copy_dir_all(&source_path, &target_path)?;
+                copy_directory(&source_path, &target_path)?;
             } else {
                 // Read file content
                 let content = fs::read_to_string(&source_path)?;
@@ -1322,7 +1306,7 @@ npx create-tauri-app {}
                     fs::create_dir_all(target_dir)?;
                 }
                 
-                copy_dir_all(&project_dir, target_dir)?;
+                copy_directory(&project_dir, target_dir)?;
                 
                 // Clean up the temporary directory
                 fs::remove_dir_all(parent_dir)?;
@@ -1917,7 +1901,7 @@ fn handle_edge_template(template: &str, app_path: &Path, name: &str, additional_
         let target_path = app_path.join(&file_name);
         
         if source_path.is_dir() {
-            copy_dir_all(&source_path, &target_path)?;
+            copy_directory(&source_path, &target_path)?;
         } else {
             // Read the source file
             let content = fs::read_to_string(&source_path)?;
