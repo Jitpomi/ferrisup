@@ -194,7 +194,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                 if let Some(deps_table) = deps.as_table_mut() {
                     // Create a path dependency to the shared component
                     let mut dep_table = toml_edit::Table::new();
-                    dep_table.insert("path", value(format!("./{}", component_name)));
+                    dep_table.insert("path", value(format!("./{}" , component_name)));
                     deps_table.insert(component_name, toml_edit::Item::Table(dep_table));
                     println!("{} {}", "Added".green(), 
                         format!("'{}' to workspace.dependencies", component_name).cyan());
@@ -235,7 +235,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
 }
 
 // Helper function to add a shared component as a workspace dependency to a component's Cargo.toml
-// Uses { workspace = true } syntax to reference the dependency defined in the root workspace
+// Uses proper TOML table syntax for dependencies: shared = { workspace = true }
 fn add_shared_workspace_dependency_to_component(cargo_path: &Path, shared_component: &str) -> Result<()> {
     let cargo_content = fs::read_to_string(cargo_path)?;
     let mut doc = cargo_content
