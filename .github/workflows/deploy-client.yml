@@ -42,12 +42,19 @@ jobs:
       - name: Fix paths for GitHub Pages
         run: |
           cd target/dx/client/release/web/public
-          # Create a .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
+          # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
-          # Copy CNAME file to the dist directory if it exists
+          # Copy CNAME file if it exists
           if [ -f "$GITHUB_WORKSPACE/client/public/CNAME" ]; then
             cp "$GITHUB_WORKSPACE/client/public/CNAME" .
           fi
+          
+          # Create assets directory if it doesn't exist
+          mkdir -p assets
+          
+          # Copy all asset files to the assets directory
+          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/
+          
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
           find . -type f | sort
