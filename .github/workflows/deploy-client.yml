@@ -54,19 +54,8 @@ jobs:
       
       - name: Prepare for GitHub Pages
         run: |
-          # Find where Dioxus actually built the files
-          BUILD_DIR=$(find . -name "dist" -type d | head -n 1)
-          if [ -z "$BUILD_DIR" ]; then
-            # If no dist directory is found, look for other possible output directories
-            BUILD_DIR=$(find . -path "*/target/dx/client/release" -type d | head -n 1)
-            if [ -z "$BUILD_DIR" ]; then
-              echo "Could not find build output directory"
-              exit 1
-            fi
-          fi
-          
-          echo "Found build directory: $BUILD_DIR"
-          cd "$BUILD_DIR"
+          # Dioxus 0.6 outputs to target/dx/client/release/web/public
+          cd target/dx/client/release/web/public
           
           # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
@@ -81,12 +70,12 @@ jobs:
           find . -type f | sort
           
           # Store the build directory path for the upload step
-          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
+          echo "BUILD_DIR=target/dx/client/release/web/public" >> $GITHUB_ENV
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '${{ env.BUILD_DIR }}'
+          path: './target/dx/client/release/web/public'
 
   deploy:
     runs-on: ubuntu-latest
