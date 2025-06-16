@@ -11,7 +11,7 @@ watch_path = ["src", "assets"]
 index_on_404 = true
 
 # HTML title tag content
-title = "client"
+title = "FerrisUp - Rust Project Bootstrapping Tool"
 
 # include `assets` in web platform
 [web.resource]
@@ -28,27 +28,4 @@ script = []
 # serve: [dev-server] only
 script = []
 
-# SEO meta tags
-[web.app.meta]
-charset = "utf-8"
-description = "FerrisUp - The Rust project bootstrapping tool"
-viewport = "width=device-width, initial-scale=1.0"
-keywords = "rust, ferrisup, bootstrapping, cli, tool, web development"
-author = "JITPOMI"
-robots = "index, follow"
-
-# Open Graph meta tags
-[web.app.og]
-title = "FerrisUp"
-description = "Start Anywhere, Scale Anywhere with FerrisUp"
-type = "website"
-url = "https://ferrisup.jitpomi.com/"
-image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
-
-# Twitter Card meta tags
-[web.app.twitter]
-card = "summary_large_image"
-title = "FerrisUp"
-description = "The Rust project bootstrapping tool"
-image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
 

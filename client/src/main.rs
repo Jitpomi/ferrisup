@@ -12,10 +12,9 @@ enum Route {
     Home {},
     #[route("/blog/:id")]
     Blog { id: i32 },
-}
+} 
 
 const FAVICON: Asset = asset!("assets/favicon.ico");
-const HEADER_SVG: Asset = asset!("assets/img.png");
 
 const FERRISUP_LOGO_PNG: Asset = asset!("assets/ferrisup-logo.png");
 const FERRISUP_PNG: Asset = asset!("assets/ferrisup.png");
@@ -30,10 +29,32 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
-        // These will be handled by Dioxus.toml configuration
+        // Explicitly set the document title
+        document::Title { "FerrisUp - Rust Project Bootstrapping Tool" }
+        
+        // Meta tags for SEO
+        document::Meta { charset: "utf-8" }
+        document::Meta { name: "description", content: "FerrisUp - The Rust project bootstrapping tool" }
+        document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
+        document::Meta { name: "keywords", content: "rust, ferrisup, bootstrapping, cli, tool, web development" }
+        document::Meta { name: "author", content: "JITPOMI" }
+        document::Meta { name: "robots", content: "index, follow" }
+        
+        // Open Graph meta tags
+        document::Meta { property: "og:title", content: "FerrisUp" }
+        document::Meta { property: "og:description", content: "Start Anywhere, Scale Anywhere with FerrisUp" }
+        document::Meta { property: "og:type", content: "website" }
+        document::Meta { property: "og:url", content: "https://ferrisup.jitpomi.com/" }
+        document::Meta { property: "og:image", content: "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png" }
+        
+        // Twitter Card meta tags
+        document::Meta { name: "twitter:card", content: "summary_large_image" }
+        
+        // Stylesheets and favicon
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Stylesheet { href: TAILWIND_CSS }
+        
         Router::<Route> {}
     }
 }
