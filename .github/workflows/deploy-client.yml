@@ -72,15 +72,26 @@ jobs:
             cp -r "$GITHUB_WORKSPACE/client/public/assets/"* assets/ || echo "No assets found in client/public/assets"
           fi
           
-          # Ensure specific files that we know are referenced are definitely there
-          echo "Ensuring specific assets are present:"
-          for file in favicon.ico img.png ferrisup-logo.png tailwind.css; do
-            if [ ! -f "assets/$file" ]; then
-              # Try to find the file anywhere in the project
-              echo "Looking for $file in the project"
-              find "$GITHUB_WORKSPACE" -name "$file" -not -path "*/node_modules/*" -not -path "*/target/*" | head -1 | xargs -I{} cp "{}" "assets/$file" || echo "Could not find $file"
-            fi
-          done
+          # Copy favicon.ico to the root directory as well (browsers often look for it there)
+          echo "Copying favicon.ico to root directory"
+          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" ./ || echo "favicon.ico not found for root"
+          
+          # Also copy favicon to standard locations browsers might look for it
+          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" ./favicon.ico || echo "favicon.ico not found"
+          
+          # Create a direct link to favicon in the HTML
+          echo "Adding explicit favicon link to HTML"
+          sed -i 's|</head>|<link rel="icon" type="image/x-icon" href="/favicon.ico">\n</head>|' index.html
+          
+          # Fix image paths in the HTML if they're using incorrect paths
+          echo "Fixing image paths in HTML"
+          sed -i 's|src="/assets/img.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
+          sed -i 's|src="/assets/ferrisup-logo.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
+          
+          # Copy images to root as fallback
+          echo "Copying images to root as fallback"
+          cp assets/img.png ./ || echo "img.png not found for root"
+          cp assets/ferrisup-logo.png ./ || echo "ferrisup-logo.png not found for root"
           
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
