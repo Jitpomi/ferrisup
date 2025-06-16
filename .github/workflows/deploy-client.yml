@@ -41,18 +41,18 @@ jobs:
       
       - name: Fix paths for GitHub Pages
         run: |
-          cd client/dist
+          cd target/dx/client/release/web/public
           # Create a .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
           # Copy CNAME file to the dist directory if it exists
-          if [ -f "../public/CNAME" ]; then
-            cp ../public/CNAME .
+          if [ -f "$GITHUB_WORKSPACE/client/public/CNAME" ]; then
+            cp "$GITHUB_WORKSPACE/client/public/CNAME" .
           fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './client/dist'
+          path: './target/dx/client/release/web/public'
 
   deploy:
     runs-on: ubuntu-latest
