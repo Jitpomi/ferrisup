@@ -31,122 +31,41 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       
+      - name: Install Trunk
+        uses: jetli/trunk-action@v0.4.0
+        with:
+          version: 'latest'
+      
       - name: Install Dioxus CLI
         run: cargo install dioxus-cli --locked
       
       - name: Build website
         run: |
           cd client
-          # Ensure the assets directory exists in the output
-          mkdir -p dist/assets
-          # Copy all asset files to ensure they're available during build
-          cp -r assets/* dist/assets/ || true
-          cp -r public/* dist/ || true
-          # Build the website
+          # Build the website using the Dioxus CLI
           dx build --release
       
-      - name: Fix paths for GitHub Pages
+      - name: Prepare for GitHub Pages
         run: |
-          cd target/dx/client/release/web/public
+          # Navigate to the build output directory
+          cd client/dist
+          
           # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
-          # Copy CNAME file if it exists
-          if [ -f "$GITHUB_WORKSPACE/client/public/CNAME" ]; then
-            cp "$GITHUB_WORKSPACE/client/public/CNAME" .
+          
+          # Copy CNAME file if it exists in assets
+          if [ -f "$GITHUB_WORKSPACE/client/assets/CNAME" ]; then
+            cp "$GITHUB_WORKSPACE/client/assets/CNAME" .
           fi
-          
-          # First, let's examine what files the HTML is actually referencing
-          echo "Examining HTML to find referenced assets:"
-          grep -o '/assets/[^"]*' index.html || echo "No asset references found in HTML"
-          
-          # Ensure the assets directory exists at the root level
-          mkdir -p assets
-          
-          # Copy ALL assets from client/assets to ensure we have everything
-          echo "Copying all assets from client/assets to /assets/"
-          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/ || echo "No assets found in client/assets"
-          
-          # Also copy from public/assets if it exists
-          if [ -d "$GITHUB_WORKSPACE/client/public/assets" ]; then
-            echo "Copying assets from client/public/assets"
-            cp -r "$GITHUB_WORKSPACE/client/public/assets/"* assets/ || echo "No assets found in client/public/assets"
-          fi
-          
-          # Copy favicon.ico to the root directory as well (browsers often look for it there)
-          echo "Copying favicon.ico to root directory"
-          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" ./ || echo "favicon.ico not found for root"
-          
-          # Also copy favicon to standard locations browsers might look for it
-          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" ./favicon.ico || echo "favicon.ico not found"
-          
-          # Create a direct link to favicon in the HTML
-          echo "Adding explicit favicon link to HTML"
-          sed -i 's|</head>|<link rel="icon" type="image/x-icon" href="/favicon.ico">\n</head>|' index.html
-          
-          # Fix image paths in the HTML if they're using incorrect paths
-          echo "Fixing image paths in HTML"
-          # Fix double-slash URLs in image sources (//assets/ -> /assets/)
-          sed -i 's|src="//assets/|src="/assets/|g' index.html
-          
-          # Add fallback paths for images
-          sed -i 's|src="/assets/img.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
-          sed -i 's|src="/assets/ferrisup-logo.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
-          sed -i 's|src="/assets/ferrisup.png"|src="/assets/ferrisup.png" onerror="this.onerror=null; this.src=\"/ferrisup.png\";"|g' index.html
-          
-          # Also fix any dynamically generated image paths with the hash suffix
-          sed -i 's|src="//assets/img-[^"]*\.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
-          sed -i 's|src="//assets/ferrisup-logo-[^"]*\.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
-          sed -i 's|src="//assets/ferrisup-[^"]*\.png"|src="/assets/ferrisup.png" onerror="this.onerror=null; this.src=\"/ferrisup.png\";"|g' index.html
-          
-          # Copy images to root as fallback
-          echo "Copying images to root as fallback"
-          cp assets/img.png ./ || echo "img.png not found for root"
-          cp assets/ferrisup-logo.png ./ || echo "ferrisup-logo.png not found for root"
-          cp assets/ferrisup.png ./ || echo "ferrisup.png not found for root"
-          
-          # Add JavaScript to handle image loading failures for dynamically created images
-          echo "Adding image fallback script to HTML"
-          cat >> index.html << 'EOL'
-          <script>
-          // Add event listener after page load
-          window.addEventListener('load', function() {
-            // Find all images on the page
-            var images = document.getElementsByTagName('img');
-            for (var i = 0; i <images.length; i++) {
-              // Add error handler to each image
-              images[i].addEventListener('error', function() {
-                // If image failed to load from /assets/ path, try root path
-                if (this.src.includes('/assets/')) {
-                  var filename = this.src.split('/').pop();
-                  this.src = '/' + filename;
-                }
-              });
-            }
-          });
-          </script>
-          EOL
           
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
           find . -type f | sort
-          
-          echo "Listing files in assets directory:"
-          find ./assets -type f | sort || true
-          
-          # Verify that all referenced assets exist
-          echo "Verifying all referenced assets exist:"
-          for asset in $(grep -o '/assets/[^"]*' index.html | sed 's|/assets/||'); do
-            if [ -f "assets/$asset" ]; then
-              echo "✓ Found: $asset"
-            else
-              echo "✗ Missing: $asset"
-            fi
-          done
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './target/dx/client_old/release/web/public'
+          path: './client/dist'
 
   deploy:
     runs-on: ubuntu-latest
