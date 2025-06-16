@@ -37,6 +37,12 @@ jobs:
       - name: Build website
         run: |
           cd client
+          # Ensure the assets directory exists in the output
+          mkdir -p dist/assets
+          # Copy all asset files to ensure they're available during build
+          cp -r assets/* dist/assets/ || true
+          cp -r public/* dist/ || true
+          # Build the website
           dx build --release
       
       - name: Fix paths for GitHub Pages
@@ -49,15 +55,40 @@ jobs:
             cp "$GITHUB_WORKSPACE/client/public/CNAME" .
           fi
           
-          # Create assets directory if it doesn't exist
+          # Ensure the assets directory exists at the root level (where the HTML will look for it)
           mkdir -p assets
           
-          # Copy all asset files to the assets directory
-          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/
+          # Copy the specific assets that are referenced in the code
+          echo "Copying favicon.ico to /assets/"
+          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" assets/ || echo "favicon.ico not found"
+          
+          echo "Copying img.png to /assets/"
+          cp "$GITHUB_WORKSPACE/client/assets/img.png" assets/ || echo "img.png not found"
+          
+          echo "Copying tailwind.css to /assets/"
+          cp "$GITHUB_WORKSPACE/client/assets/tailwind.css" assets/ || echo "tailwind.css not found in assets"
+          
+          # As a fallback, try copying from other locations if the primary source doesn't exist
+          if [ ! -f "assets/tailwind.css" ]; then
+            echo "Trying to copy tailwind.css from client/public"
+            cp "$GITHUB_WORKSPACE/client/public/tailwind.css" assets/ || echo "tailwind.css not found in public"
+          fi
+          
+          if [ ! -f "assets/tailwind.css" ]; then
+            echo "Trying to copy tailwind.css from client root"
+            cp "$GITHUB_WORKSPACE/client/tailwind.css" assets/ || echo "tailwind.css not found in client root"
+          fi
+          
+          # Copy any other assets that might be needed
+          echo "Copying any other assets from client/assets"
+          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/ || echo "No additional assets found"
           
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
           find . -type f | sort
+          
+          echo "Listing files in assets directory:"
+          find ./assets -type f | sort || true
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

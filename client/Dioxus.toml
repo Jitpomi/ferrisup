@@ -8,11 +8,11 @@ title = "FerrisUp - Start Anywhere, Scale Anywhere"
 # This ensures all assets are loaded correctly
 base_path = "/"
 
-# Asset handling - use the assets directory where tailwind.css is located
-asset_dir = "assets"
-
-# Ensure assets are properly bundled
+# Asset handling configuration
+asset_dir = ["assets", "public"]
 bundle_assets = true
+reload_html = true
+include_assets = ["assets/*", "public/*", "*.css"]
 
 # SEO meta tags
 [web.app.meta]
