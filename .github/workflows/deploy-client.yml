@@ -47,8 +47,12 @@ jobs:
       
       - name: Prepare for GitHub Pages
         run: |
-          # Navigate to the build output directory
-          cd client/dist
+          # Find the build output directory
+          echo "Searching for build output directory:"
+          find . -type d -path "*/dist" -o -path "*/target/dx/client/release" | grep -v "node_modules"
+          
+          # Navigate to the build output directory (using target/dx path for Dioxus 0.6)
+          cd target/dx/client/release
           
           # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
@@ -65,7 +69,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './client/dist'
+          path: './target/dx/client/release'
 
   deploy:
     runs-on: ubuntu-latest
