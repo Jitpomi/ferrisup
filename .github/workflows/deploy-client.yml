@@ -44,6 +44,10 @@ jobs:
           cd client/dist
           # Create a .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
+          # Copy CNAME file to the dist directory if it exists
+          if [ -f "../public/CNAME" ]; then
+            cp ../public/CNAME .
+          fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2

@@ -4,9 +4,9 @@
 # HTML title tag content
 title = "FerrisUp - Start Anywhere, Scale Anywhere"
 
-# Base URL for GitHub Pages deployment
-# This will be overridden by the --public-url flag in the GitHub Actions workflow
-base_path = "/ferrisup/"
+# When using a custom domain, the base_path should be "/" instead of "/ferrisup/"
+# This ensures all assets are loaded correctly
+base_path = "/"
 
 # SEO meta tags
 [web.app.meta]
@@ -22,7 +22,7 @@ robots = "index, follow"
 title = "FerrisUp"
 description = "Start Anywhere, Scale Anywhere with FerrisUp"
 type = "website"
-url = "https://jitpomi.github.io/ferrisup/"
+url = "https://ferrisup.jitpomi.com/"
 image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
 
 # Twitter Card meta tags
