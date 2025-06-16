@@ -87,11 +87,35 @@ jobs:
           echo "Fixing image paths in HTML"
           sed -i 's|src="/assets/img.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
           sed -i 's|src="/assets/ferrisup-logo.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
+          sed -i 's|src="/assets/ferrisup.png"|src="/assets/ferrisup.png" onerror="this.onerror=null; this.src=\"/ferrisup.png\";"|g' index.html
           
           # Copy images to root as fallback
           echo "Copying images to root as fallback"
           cp assets/img.png ./ || echo "img.png not found for root"
           cp assets/ferrisup-logo.png ./ || echo "ferrisup-logo.png not found for root"
+          cp assets/ferrisup.png ./ || echo "ferrisup.png not found for root"
+          
+          # Add JavaScript to handle image loading failures for dynamically created images
+          echo "Adding image fallback script to HTML"
+          cat >> index.html << 'EOL'
+          <script>
+          // Add event listener after page load
+          window.addEventListener('load', function() {
+            // Find all images on the page
+            var images = document.getElementsByTagName('img');
+            for (var i = 0; i <images.length; i++) {
+              // Add error handler to each image
+              images[i].addEventListener('error', function() {
+                // If image failed to load from /assets/ path, try root path
+                if (this.src.includes('/assets/')) {
+                  var filename = this.src.split('/').pop();
+                  this.src = '/' + filename;
+                }
+              });
+            }
+          });
+          </script>
+          EOL
           
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
