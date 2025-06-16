@@ -1,6 +1,6 @@
 [package]
 name = "shared"
-version = "0.1.2"
+version = "0.1.23"
 edition = "2021"
 description = "Shared utilities for ferrisup"
 license = "MIT"
@@ -27,4 +27,3 @@ toml_edit = { workspace = true }
 tempfile = { workspace = true }
 
 [dev-dependencies]
-criterion = "0.5"
