@@ -16,6 +16,8 @@ toml = "0.8.23"
 toml_edit = "0.22.27"
 walkdir = "2.3"
 tempfile = "3.8"
+[workspace.dependencies.shared]
+path = "./shared"
 
 [profile]
 

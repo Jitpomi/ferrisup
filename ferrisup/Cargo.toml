@@ -42,8 +42,7 @@ dirs = "5.0"
 chrono = "0.4"
 
 [dependencies.shared]
-path = "../shared"
-version = "0.1.23"
+workspace = true
 
 [features]
 default = []
