@@ -85,9 +85,18 @@ jobs:
           
           # Fix image paths in the HTML if they're using incorrect paths
           echo "Fixing image paths in HTML"
+          # Fix double-slash URLs in image sources (//assets/ -> /assets/)
+          sed -i 's|src="//assets/|src="/assets/|g' index.html
+          
+          # Add fallback paths for images
           sed -i 's|src="/assets/img.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
           sed -i 's|src="/assets/ferrisup-logo.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
           sed -i 's|src="/assets/ferrisup.png"|src="/assets/ferrisup.png" onerror="this.onerror=null; this.src=\"/ferrisup.png\";"|g' index.html
+          
+          # Also fix any dynamically generated image paths with the hash suffix
+          sed -i 's|src="//assets/img-[^"]*\.png"|src="/assets/img.png" onerror="this.onerror=null; this.src=\"/img.png\";"|g' index.html
+          sed -i 's|src="//assets/ferrisup-logo-[^"]*\.png"|src="/assets/ferrisup-logo.png" onerror="this.onerror=null; this.src=\"/ferrisup-logo.png\";"|g' index.html
+          sed -i 's|src="//assets/ferrisup-[^"]*\.png"|src="/assets/ferrisup.png" onerror="this.onerror=null; this.src=\"/ferrisup.png\";"|g' index.html
           
           # Copy images to root as fallback
           echo "Copying images to root as fallback"
