@@ -41,11 +41,10 @@ toml_edit = { workspace = true }
 dirs = "5.0"
 chrono = "0.4"
 
-# For local development, use the path dependency
-shared = "0.1.2"
 
-[patch.crates-io]
-shared = { path = "../shared" }
+
+[dependencies.shared]
+workspace = true
 
 [features]
 default = []
