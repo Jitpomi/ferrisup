@@ -2,16 +2,14 @@ name: Deploy Client to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -20,19 +18,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      
-      - name: Install Trunk
-        uses: jetli/trunk-action@v0.4.0
+      - uses: jetli/trunk-action@v0.4.0
         with:
           version: 'latest'
       
@@ -42,35 +33,15 @@ jobs:
       - name: Build website
         run: |
           cd client
-          # Build the website using the Dioxus CLI
           dx build --release
-          
-          # Debug - show where the build output is located
-          echo "Finding build output directories:"
-          find .. -name "dist" -type d
-          
-          # Create the dist directory if it doesn't exist
-          mkdir -p dist
       
       - name: Prepare for GitHub Pages
         run: |
-          # Dioxus 0.6 outputs to target/dx/client/release/web/public
           cd target/dx/client/release/web/public
-          
-          # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
-          
-          # Copy CNAME file if it exists in assets
           if [ -f "$GITHUB_WORKSPACE/client/assets/CNAME" ]; then
             cp "$GITHUB_WORKSPACE/client/assets/CNAME" .
           fi
-          
-          # Debug - list files to verify assets are present
-          echo "Listing files in build directory:"
-          find . -type f | sort
-          
-          # Store the build directory path for the upload step
-          echo "BUILD_DIR=target/dx/client/release/web/public" >> $GITHUB_ENV
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
