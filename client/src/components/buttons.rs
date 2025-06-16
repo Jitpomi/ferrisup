@@ -13,6 +13,10 @@ pub struct ButtonProps {
     pub href: Option<String>,
     #[props(default = "_self".to_string())]
     pub target: String,
+    #[props(optional)]
+    pub rel: Option<String>,
+    #[props(optional)]
+    pub aria_label: Option<String>,
     // pub onclick: EventHandler<MouseData>,
 }
 
@@ -37,10 +41,15 @@ pub fn Button(props: ButtonProps) -> Element {
     
     // Render as anchor tag if href is provided, otherwise as button
     if let Some(href) = &props.href {
+        let rel_value = props.rel.clone().unwrap_or_default();
+        let aria_label = props.aria_label.clone();
+        
         rsx! {
             a {
                 href: "{href}",
                 target: "{props.target}",
+                rel: if !rel_value.is_empty() { "{rel_value}" } else { "" },
+                aria_label: aria_label,
                 class: "{base_class} {variant_class} {size_class}",
                 span {
                     class: "absolute inset-0 rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300",
@@ -52,8 +61,11 @@ pub fn Button(props: ButtonProps) -> Element {
             }
         }
     } else {
+        let aria_label = props.aria_label.clone();
+        
         rsx! {
             button {
+                aria_label: aria_label,
                 class: "{base_class} {variant_class} {size_class}",
                 span {
                     class: "absolute inset-0 rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300",

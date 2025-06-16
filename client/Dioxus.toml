@@ -1,21 +1,56 @@
 [application]
 
 [web.app]
-
 # HTML title tag content
-title = "client"
+title = "FerrisUp - Start Anywhere, Scale Anywhere"
+
+# Base URL for GitHub Pages deployment
+# This will be overridden by the --public-url flag in the GitHub Actions workflow
+base_path = "/ferrisup/"
+
+# SEO meta tags
+[web.app.meta]
+charset = "utf-8"
+description = "FerrisUp - The Rust project bootstrapping tool"
+viewport = "width=device-width, initial-scale=1.0"
+keywords = "rust, ferrisup, bootstrapping, cli, tool, web development"
+author = "JITPOMI"
+robots = "index, follow"
+
+# Open Graph meta tags
+[web.app.og]
+title = "FerrisUp"
+description = "Start Anywhere, Scale Anywhere with FerrisUp"
+type = "website"
+url = "https://jitpomi.github.io/ferrisup/"
+image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
+
+# Twitter Card meta tags
+[web.app.twitter]
+card = "summary_large_image"
+title = "FerrisUp"
+description = "The Rust project bootstrapping tool"
+image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
 
 # include `assets` in web platform
 [web.resource]
-
-# Additional CSS style files
-style = []
-
-# Additional JavaScript files
+style = ["assets/tailwind.css"]
 script = []
 
+# Dev-specific resources
 [web.resource.dev]
-
-# Javascript code file
-# serve: [dev-server] only
 script = []
+
+# GitHub Pages specific configuration
+[web.watcher]
+index_on_404 = true
+
+# Build configuration
+[web.build]
+output_name = "ferrisup"
+output_dir = "dist"
+
+# Asset handling
+[web.asset]
+dir = "assets"
+rename = "assets"

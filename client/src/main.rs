@@ -2,7 +2,6 @@
 use dioxus::prelude::*;
 
 mod components;
-use components::buttons::*;
 use components::home::HomePage;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -26,8 +25,9 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
+        // These will be handled by Dioxus.toml configuration
         document::Link { rel: "icon", href: FAVICON }
-        document::Stylesheet{ href: TAILWIND_CSS }
+        document::Stylesheet { href: TAILWIND_CSS }
         Router::<Route> {}
     }
 }
@@ -44,13 +44,16 @@ fn Home() -> Element {
 /// Blog page
 #[component]
 pub fn Blog(id: i32) -> Element {
+    let blog_title = format!("This is blog {}!", id);
+    let blog_desc = format!("In blog {}, we show how the Dioxus router works and how URL parameters can be passed as props to our route components.", id);
+    
     rsx! {
         div {
             id: "blog",
 
             // Content
-            h1 { "This is blog #{id}!" }
-            p { "In blog #{id}, we show how the Dioxus router works and how URL parameters can be passed as props to our route components." }
+            h1 { {blog_title} }
+            p { {blog_desc} }
 
             // Navigation links
             Link {

@@ -26,6 +26,8 @@ fn GitHubButton() -> Element {
         a {
             href: "https://github.com/Jitpomi/ferrisup",
             target: "_blank",
+            rel: "noopener noreferrer",
+            aria_label: "View FerrisUp source code on GitHub",
             class: "inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-xl bg-amber-900/30 text-amber-300 border border-amber-700/50 hover:bg-amber-900/50 transition-colors duration-300",
             
             // GitHub icon
@@ -47,7 +49,7 @@ fn GitHubButton() -> Element {
 #[component]
 fn TerminalHeader() -> Element {
     rsx! {
-        div {
+        header {
             class: "flex items-center bg-gray-800 px-4 py-2 border-b border-gray-700",
             div {
                 class: "flex space-x-2",
@@ -79,8 +81,9 @@ fn SimpleCodeLine( class: &'static str, content: &'static str) -> Element {
 #[component]
 fn CodeTerminal() -> Element {
     rsx! {
-        div {
+        figure {
             class: "bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-amber-500/20",
+            aria_label: "FerrisUp code examples",
             TerminalHeader {}
             CodeSnippet {}
         }
@@ -91,7 +94,7 @@ fn CodeTerminal() -> Element {
 #[component]
 fn CtaContent() -> Element {
     rsx! {
-        div {
+        article {
             class: "lg:w-3/5 text-center lg:text-left",
             // Badge
             div {
@@ -101,6 +104,7 @@ fn CtaContent() -> Element {
             // Heading
             h2 {
                 class: "text-3xl sm:text-4xl font-bold text-white mb-4",
+                id: "features-heading",
                 "What Makes FerrisUp Different?"
             }
             // Description
@@ -112,19 +116,23 @@ fn CtaContent() -> Element {
             // Key features list
             ul {
                 class: "list-disc list-inside text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 space-y-2",
+                aria_labelledby: "features-heading",
                 li { "Project Transformation - Convert single-crate projects to workspaces as they grow" }
                 li { "Component-Based Architecture - Specialized components for different use cases" }
                 li { "Domain-Specific Templates - Optimized templates for web, data science, embedded, and more" }
                 li { "Smart Dependency Management - Interactive dependency handling with feature selection" }
             }
             // Buttons
-            div {
+            nav {
                 class: "flex flex-col sm:flex-row gap-4 justify-center lg:justify-start",
+                aria_label: "Download and source code links",
                 Button {
                     variant: "primary",
                     size: "lg",
                     href: "https://crates.io/crates/ferrisup",
                     target: "_blank",
+                    rel: "noopener noreferrer",
+                    aria_label: "Download FerrisUp from Crates.io",
                     "View on Crates.io"
                 }
                 GitHubButton {}
@@ -139,6 +147,8 @@ pub fn CallToAction() -> Element {
     rsx! {
         section {
             class: "py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden",
+            id: "features",
+            aria_labelledby: "features-heading",
             CtaBackground {}
             div {
                 class: "max-w-5xl mx-auto relative z-10",
@@ -149,6 +159,26 @@ pub fn CallToAction() -> Element {
                         class: "lg:w-2/5 w-full",
                         CodeTerminal {}
                     }
+                }
+            }
+            
+            // Hidden structured data for SEO
+            div {
+                class: "hidden",
+                itemscope: true,
+                itemtype: "https://schema.org/SoftwareApplication",
+                meta { itemprop: "name", content: "FerrisUp" }
+                meta { itemprop: "description", content: "Rust project bootstrapping tool with project transformation capabilities" }
+                meta { itemprop: "applicationCategory", content: "DeveloperApplication" }
+                meta { itemprop: "keywords", content: "Rust, project bootstrapping, workspace management, component architecture" }
+                div {
+                    itemprop: "featureList",
+                    itemscope: true,
+                    itemtype: "https://schema.org/ItemList",
+                    meta { itemprop: "itemListElement", content: "Project Transformation" }
+                    meta { itemprop: "itemListElement", content: "Component-Based Architecture" }
+                    meta { itemprop: "itemListElement", content: "Domain-Specific Templates" }
+                    meta { itemprop: "itemListElement", content: "Smart Dependency Management" }
                 }
             }
         }
@@ -162,6 +192,8 @@ fn CodeSnippet() -> Element {
     rsx! {
         div {
             class: "p-4 bg-gray-950 text-gray-300 font-mono text-sm overflow-x-auto",
+            role: "region",
+            aria_label: "FerrisUp command examples",
             // Quick Start examples from README
             div {
                 class: "mb-2 text-amber-300 font-semibold",
