@@ -42,10 +42,10 @@ dirs = "5.0"
 chrono = "0.4"
 
 # For local development, use the path dependency
-shared = { path = "../shared" }
+shared = "0.1.2"
 
-[package.metadata.cargo-package-dep-version]
-shared = "=0.1.2"
+[patch.crates-io]
+shared = { path = "../shared" }
 
 [features]
 default = []
