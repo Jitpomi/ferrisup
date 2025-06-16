@@ -5,6 +5,29 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.23] - 2025-06-16
+
+### Added
+- Added web homepage for FerrisUp tool at ferrisup.jitpomi.com
+- Added proper GitHub Pages deployment workflow for the Dioxus client
+
+### Changed
+- Significant code refactoring and optimization in the CLI:
+  - Centralized utility functions in shared library (to_pascal_case, to_snake_case)
+  - Improved file system utilities by moving them to shared library
+  - Removed redundant backup utilities
+  - Refactored visit_dirs function to shared module for better code organization
+  - Improved test mode handling with dedicated test_mode module and efficient caching
+  - Cleaned up console output by removing unnecessary println! statements
+  - Reduced code duplication in test utilities
+
+### Fixed
+- Fixed GitHub workflow for Dioxus client deployment to correctly use the proper build output path
+- Updated deployment workflow to be compatible with Dioxus 0.6
+- Fixed shared component dependency handling using workspace dependencies approach
+- Optimized GitHub workflow by removing verbose comments and debug steps
+- Updated Dioxus.toml configuration to explicitly set build output settings
+
 ## [0.1.21] - 2025-06-08
 
 ### Fixed
