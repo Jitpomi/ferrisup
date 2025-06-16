@@ -1,5 +1,7 @@
 [application]
 asset_dir = "assets"     # Directory for static assets; copied during build/serve
+out_dir = "dist"        # <-- New: sets build output directory
+default_platform = "web"
 
 [web.app]
 
