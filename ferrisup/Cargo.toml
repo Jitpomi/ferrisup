@@ -41,9 +41,8 @@ toml_edit = { workspace = true }
 dirs = "5.0"
 chrono = "0.4"
 
-# For local development, use the workspace dependency
-# For publishing, specify the path and version directly
-shared = { path = "../shared", version = "0.1.23" }
+# For local development and publishing, use a version that exists on crates.io
+shared = { path = "../shared", version = "0.1.2" }
 
 [features]
 default = []
