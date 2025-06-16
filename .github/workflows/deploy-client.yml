@@ -47,12 +47,26 @@ jobs:
           
           # Debug - show where the build output is located
           echo "Finding build output directories:"
-          find .. -path "*/dist" -o -path "*/target/dx/client/release" | grep -v "node_modules"
+          find .. -name "dist" -type d
+          
+          # Create the dist directory if it doesn't exist
+          mkdir -p dist
       
       - name: Prepare for GitHub Pages
         run: |
-          # Dioxus 0.6 outputs to dist directory in the client folder
-          cd client/dist
+          # Find where Dioxus actually built the files
+          BUILD_DIR=$(find . -name "dist" -type d | head -n 1)
+          if [ -z "$BUILD_DIR" ]; then
+            # If no dist directory is found, look for other possible output directories
+            BUILD_DIR=$(find . -path "*/target/dx/client/release" -type d | head -n 1)
+            if [ -z "$BUILD_DIR" ]; then
+              echo "Could not find build output directory"
+              exit 1
+            fi
+          fi
+          
+          echo "Found build directory: $BUILD_DIR"
+          cd "$BUILD_DIR"
           
           # Create .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
           touch .nojekyll
@@ -65,11 +79,14 @@ jobs:
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
           find . -type f | sort
+          
+          # Store the build directory path for the upload step
+          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './client/dist'
+          path: '${{ env.BUILD_DIR }}'
 
   deploy:
     runs-on: ubuntu-latest
