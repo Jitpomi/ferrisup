@@ -16,6 +16,7 @@ enum Route {
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const HEADER_SVG: Asset = asset!("/assets/img.png");
+const FERRISUP_PNG: Asset = asset!("/assets/ferrisup.png");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {

@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::buttons::Button;
-use crate::HEADER_SVG;
+use crate::FERRISUP_PNG;
 
 #[component]
 pub fn Hero() -> Element {
@@ -27,7 +27,7 @@ pub fn Hero() -> Element {
                     class: "flex items-center justify-center mb-4",
                     img {
                         class: "w-60 h-60 rounded-full shadow-lg",
-                        src: HEADER_SVG,
+                        src: FERRISUP_PNG,
                         alt: "FerrisUp - Rust Project Bootstrapping Tool Logo",
                         loading: "eager",
                         width: "240",
