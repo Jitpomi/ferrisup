@@ -18,6 +18,7 @@ walkdir = "2.3"
 tempfile = "3.8"
 [workspace.dependencies.shared]
 path = "./shared"
+version = "0.1.23"
 
 [profile]
 
