@@ -37,7 +37,7 @@ jobs:
       - name: Build website
         run: |
           cd client
-          dx build --release
+          dx build --release --public-url /
       
       - name: Fix paths for GitHub Pages
         run: |
