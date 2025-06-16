@@ -55,33 +55,32 @@ jobs:
             cp "$GITHUB_WORKSPACE/client/public/CNAME" .
           fi
           
-          # Ensure the assets directory exists at the root level (where the HTML will look for it)
+          # First, let's examine what files the HTML is actually referencing
+          echo "Examining HTML to find referenced assets:"
+          grep -o '/assets/[^"]*' index.html || echo "No asset references found in HTML"
+          
+          # Ensure the assets directory exists at the root level
           mkdir -p assets
           
-          # Copy the specific assets that are referenced in the code
-          echo "Copying favicon.ico to /assets/"
-          cp "$GITHUB_WORKSPACE/client/assets/favicon.ico" assets/ || echo "favicon.ico not found"
+          # Copy ALL assets from client/assets to ensure we have everything
+          echo "Copying all assets from client/assets to /assets/"
+          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/ || echo "No assets found in client/assets"
           
-          echo "Copying img.png to /assets/"
-          cp "$GITHUB_WORKSPACE/client/assets/img.png" assets/ || echo "img.png not found"
-          
-          echo "Copying tailwind.css to /assets/"
-          cp "$GITHUB_WORKSPACE/client/assets/tailwind.css" assets/ || echo "tailwind.css not found in assets"
-          
-          # As a fallback, try copying from other locations if the primary source doesn't exist
-          if [ ! -f "assets/tailwind.css" ]; then
-            echo "Trying to copy tailwind.css from client/public"
-            cp "$GITHUB_WORKSPACE/client/public/tailwind.css" assets/ || echo "tailwind.css not found in public"
+          # Also copy from public/assets if it exists
+          if [ -d "$GITHUB_WORKSPACE/client/public/assets" ]; then
+            echo "Copying assets from client/public/assets"
+            cp -r "$GITHUB_WORKSPACE/client/public/assets/"* assets/ || echo "No assets found in client/public/assets"
           fi
           
-          if [ ! -f "assets/tailwind.css" ]; then
-            echo "Trying to copy tailwind.css from client root"
-            cp "$GITHUB_WORKSPACE/client/tailwind.css" assets/ || echo "tailwind.css not found in client root"
-          fi
-          
-          # Copy any other assets that might be needed
-          echo "Copying any other assets from client/assets"
-          cp -r "$GITHUB_WORKSPACE/client/assets/"* assets/ || echo "No additional assets found"
+          # Ensure specific files that we know are referenced are definitely there
+          echo "Ensuring specific assets are present:"
+          for file in favicon.ico img.png ferrisup-logo.png tailwind.css; do
+            if [ ! -f "assets/$file" ]; then
+              # Try to find the file anywhere in the project
+              echo "Looking for $file in the project"
+              find "$GITHUB_WORKSPACE" -name "$file" -not -path "*/node_modules/*" -not -path "*/target/*" | head -1 | xargs -I{} cp "{}" "assets/$file" || echo "Could not find $file"
+            fi
+          done
           
           # Debug - list files to verify assets are present
           echo "Listing files in build directory:"
@@ -89,6 +88,16 @@ jobs:
           
           echo "Listing files in assets directory:"
           find ./assets -type f | sort || true
+          
+          # Verify that all referenced assets exist
+          echo "Verifying all referenced assets exist:"
+          for asset in $(grep -o '/assets/[^"]*' index.html | sed 's|/assets/||'); do
+            if [ -f "assets/$asset" ]; then
+              echo "✓ Found: $asset"
+            else
+              echo "✗ Missing: $asset"
+            fi
+          done
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
