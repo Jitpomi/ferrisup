@@ -207,7 +207,7 @@ fn CodeSnippet() -> Element {
             div {
                 class: "mb-2",
                 span { class: "text-green-400", "$ " }
-                span { class: "text-amber-400", "ferrisup new my_client --component-type client --framework leptos" }
+                span { class: "text-amber-400", "ferrisup new my_client --component-type client_old --framework leptos" }
             }
             div {
                 class: "mb-2",

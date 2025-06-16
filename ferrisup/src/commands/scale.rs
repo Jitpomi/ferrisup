@@ -173,7 +173,7 @@ pub fn execute() -> Result<()> {
         ];
         
         let selections = MultiSelect::new()
-            .with_prompt("Select client frameworks to use")
+            .with_prompt("Select client_old frameworks to use")
             .items(&framework_options)
             .interact()?;
         

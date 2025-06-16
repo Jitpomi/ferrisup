@@ -1,6 +1,7 @@
 use dioxus::core_macro::{component, rsx};
 use dioxus::prelude::*;
-use dioxus_free_icons::{Icon, icons::fa_brands_icons::FaRust};
+use dioxus_free_icons::Icon;
+use crate::FERRISUP_PNG;
 
 #[component]
 pub fn Footer() -> Element {
@@ -19,10 +20,14 @@ pub fn Footer() -> Element {
                         class: "md:col-span-2",
                         div {
                             class: "flex items-center mb-4",
-                            Icon {
-                                class: "w-8 h-8 text-amber-500 mr-2",
-                                icon: FaRust,
-                            }
+                    img {
+                        class: "w-8 h-8 rounded-full shadow-lg",
+                        src: FERRISUP_PNG,
+                        alt: "FerrisUp - Rust Project Bootstrapping Tool Logo",
+                        loading: "eager",
+                        width: "240",
+                        height: "240"
+                    }
                             h3 {
                                 class: "text-xl font-bold text-white",
                                 "FerrisUp"

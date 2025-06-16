@@ -23,7 +23,7 @@ Our architecture ensures these approaches don't interfere with each other, makin
 handlers.push(Box::new(CliProjectHandler::new(
     "Leptos",  // Name
     "Full-stack Rust framework for building web applications",  // Description
-    vec!["client-leptos".to_string(), "leptos".to_string()],  // Template names to handle
+    vec!["client_old-leptos".to_string(), "leptos".to_string()],  // Template names to handle
     "cargo leptos",  // Base CLI command
     |project_name, _target_dir, variables| {
         // Function to generate CLI args based on FerrisUp variables

@@ -21,9 +21,9 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Select component type
     let component_types = vec![
-        "client - Frontend web application (Leptos, Yew, or Dioxus)",
+        "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
         "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "shared - Shared code between client and server",
+        "shared - Shared code between client_old and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
         "data-science - Data science and machine learning projects",
@@ -38,14 +38,14 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Map index to component type
     let component_type = match component_idx {
-        0 => "client",
+        0 => "client_old",
         1 => "server",
         2 => "shared",
         3 => "edge",
         4 => "serverless",
         5 => "data-science",
         6 => "embedded",
-        _ => "client", // Default to client
+        _ => "client_old", // Default to client_old
     };
 
     // Prompt for component name with default based on component type
@@ -153,9 +153,9 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 
     // Select component type
     let component_types = vec![
-        "client - Frontend web application (Leptos, Yew, or Dioxus)",
+        "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
         "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "shared - Shared code between client and server",
+        "shared - Shared code between client_old and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
     ];
@@ -168,12 +168,12 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 
     // Map index to component type
     let component_type = match component_idx {
-        0 => "client",
+        0 => "client_old",
         1 => "server",
         2 => "shared",
         3 => "edge",
         4 => "serverless",
-        _ => "client", // Default to client
+        _ => "client_old", // Default to client_old
     };
 
     // Select framework if applicable
@@ -209,7 +209,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 // Helper function to select framework based on component type
 fn select_framework_for_component_type(component_type: &str) -> Result<Option<String>> {
     match component_type {
-        "client" => {
+        "client_old" => {
             let frameworks = vec![
                 "leptos - Reactive web framework with fine-grained reactivity",
                 "dioxus - Elegant React-like framework for desktop, web, and mobile",

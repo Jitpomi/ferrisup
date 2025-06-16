@@ -28,7 +28,7 @@ pub enum Commands {
         #[arg(short, long)]
         component_type: Option<String>,
         
-        /// Framework to use for client, server, or embedded components
+        /// Framework to use for client_old, server, or embedded components
         #[arg(long)]
         framework: Option<String>,
         
@@ -89,7 +89,7 @@ pub enum Commands {
         #[arg(short, long)]
         action: Option<String>,
 
-        /// Component type: client, server, shared, edge, data-science, embedded
+        /// Component type: client_old, server, shared, edge, data-science, embedded
         #[arg(short, long)]
         component_type: Option<String>,
 

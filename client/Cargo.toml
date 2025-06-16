@@ -1,7 +1,7 @@
 [package]
 name = "client"
 version = "0.1.0"
-authors = ["jermsam <jermsam@gmail.com>"]
+authors = ["jermsam <ssali@jitpomi.com>"]
 edition = "2021"
 
 [package.metadata]
@@ -14,9 +14,6 @@ component_type = "client"
 [dependencies]
 dioxus = { version = "0.6.0", features = ["router"] }
 dioxus-free-icons = { version = "0.9.0", features = ["font-awesome-brands"] }
-
-[dependencies.shared]
-path = "../shared"
 
 [features]
 default = ["web"]

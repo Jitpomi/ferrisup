@@ -11,9 +11,9 @@ use toml_edit::{DocumentMut, value};
 /// This function recursively searches through all Rust files in the component
 /// and updates import statements to use the new package name.
 /// 
-/// For example, if a component was created with name "client" but the package
+/// For example, if a component was created with name "client_old" but the package
 /// was renamed to "app_client" in Cargo.toml, this function will update all
-/// imports from "use client::*" to "use app_client::*".
+/// imports from "use client_old::*" to "use app_client::*".
 pub fn fix_component_imports(component_dir: &Path, component_name: &str) -> Result<()> {
     println!("{}", format!("Fixing imports in component: {}", component_name).blue());
     
@@ -69,7 +69,7 @@ pub fn fix_component_imports(component_dir: &Path, component_name: &str) -> Resu
                     Err(_) => continue,
                 };
                 
-                // Replace imports like "use client::*;" with "use app_client::*;"
+                // Replace imports like "use client_old::*;" with "use app_client::*;"
                 // Also handle "use unknown_client::*;" pattern
                 let re_component = match Regex::new(&format!(r"use\s+{}(::|\s+)", regex::escape(component_name))) {
                     Ok(r) => r,

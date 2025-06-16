@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is executed when a user selects the Leptos client framework
+# This script is executed when a user selects the Leptos client_old framework
 # It prompts the user to select a specific Leptos template and then creates the project
 
 echo "🦀 FerrisUp Leptos Template Selector"

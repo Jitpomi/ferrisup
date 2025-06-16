@@ -76,7 +76,7 @@ pub fn detect_framework(src_paths: &[&Path]) -> Option<String> {
 // Map component type to template
 pub fn map_component_to_template(component_type: &str) -> &str {
     match component_type {
-        "client" => "client",
+        "client_old" => "client_old",
         "server" => "server",
         "shared" => "library", // For shared components, we use "library" as the template
         "edge" => "edge",

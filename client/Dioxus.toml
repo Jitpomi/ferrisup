@@ -1,18 +1,30 @@
 [application]
+asset_dir = "assets"     # Directory for static assets; copied during build/serve
 
 [web.app]
-# HTML title tag content
-title = "FerrisUp - Start Anywhere, Scale Anywhere"
 
-# When using a custom domain, the base_path should be "/" instead of "/ferrisup/"
-# This ensures all assets are loaded correctly
-base_path = "/"
-
-# Asset handling configuration
-asset_dir = ["assets", "public"]
-bundle_assets = true
+[web.watcher]
 reload_html = true
-include_assets = ["assets/*", "public/*", "*.css"]
+watch_path = ["src", "assets"]
+index_on_404 = true
+
+# HTML title tag content
+title = "client"
+
+# include `assets` in web platform
+[web.resource]
+
+# Additional CSS style files
+style = []
+
+# Additional JavaScript files
+script = []
+
+[web.resource.dev]
+
+# Javascript code file
+# serve: [dev-server] only
+script = []
 
 # SEO meta tags
 [web.app.meta]
@@ -38,25 +50,3 @@ title = "FerrisUp"
 description = "The Rust project bootstrapping tool"
 image = "https://raw.githubusercontent.com/Jitpomi/ferrisup/main/img.png"
 
-# include `assets` in web platform
-[web.resource]
-style = ["assets/tailwind.css"]
-script = []
-
-# Dev-specific resources
-[web.resource.dev]
-script = []
-
-# GitHub Pages specific configuration
-[web.watcher]
-index_on_404 = true
-
-# Build configuration
-[web.build]
-output_name = "ferrisup"
-output_dir = "dist"
-
-# Asset handling
-[web.asset]
-dir = "assets"
-rename = "assets"

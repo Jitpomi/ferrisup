@@ -205,7 +205,7 @@ mod tests {
         assert_eq!(config.project_name, "rust_workspace");
         assert_eq!(config.template, "minimal");
         
-        // Check client component
+        // Check client_old component
         assert!(config.components.client.is_some(), "Client component should be present");
         let client = config.components.client.as_ref().expect("Client component should be present");
         assert_eq!(client.apps.len(), 2);
