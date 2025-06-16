@@ -37,7 +37,7 @@ jobs:
       - name: Build website
         run: |
           cd client
-          dx build --release --features fullstack
+          dx build --release
       
       - name: Fix paths for GitHub Pages
         run: |
@@ -48,6 +48,9 @@ jobs:
           if [ -f "$GITHUB_WORKSPACE/client/public/CNAME" ]; then
             cp "$GITHUB_WORKSPACE/client/public/CNAME" .
           fi
+          # Debug - list files to verify assets are present
+          echo "Listing files in build directory:"
+          find . -type f | sort
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
