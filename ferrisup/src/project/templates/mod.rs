@@ -14,6 +14,8 @@ use dialoguer::Select;
 use std::process::Command;
 use walkdir::WalkDir;
 use regex::Regex;
+// Cross-platform file permission handling
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use shared::to_pascal_case;
 
@@ -295,7 +297,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
                     // If it's a script, make it executable on Unix
                     #[cfg(unix)]
                     {
-                        use std::os::unix::fs::PermissionsExt;
+                        // We already have the PermissionsExt import at the top level
                         let is_script = target_path.ends_with(".sh") || 
                                         content.starts_with("#!/bin/bash") ||
                                         content.starts_with("#!/usr/bin/env");
@@ -303,6 +305,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
                         if is_script {
                             let metadata = fs::metadata(&target_file)?;
                             let mut perms = metadata.permissions();
+                            #[cfg(unix)]
                             perms.set_mode(0o755); // rwxr-xr-x
                             fs::set_permissions(&target_file, perms)?;
                         }
@@ -401,9 +404,19 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
             
             // Set executable bit for .sh files
             if target_path.extension().map_or(false, |ext| ext == "sh") {
-                let mut perms = fs::metadata(&target_path)?.permissions();
-                perms.set_mode(perms.mode() | 0o111); // Add execute bit
-                fs::set_permissions(&target_path, perms)?;
+                // Set executable permissions in a cross-platform way
+                #[cfg(unix)]
+                {
+                    let mut perms = fs::metadata(&target_path)?.permissions();
+                    perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                    fs::set_permissions(&target_path, perms)?;
+                }
+                // On Windows, we don't need to set execute permissions explicitly
+                #[cfg(not(unix))]
+                {
+                    // Windows doesn't have the concept of executable bit
+                    // The OS determines if a file is executable based on its extension
+                }
             }
         } else if path.is_dir() {
             // Skip .git directory, .github directory, etc.
@@ -498,9 +511,17 @@ fn process_file(
             // Set executable bit for .sh files
             if let Some(ext) = target_path.extension() {
                 if ext == "sh" {
-                    let mut perms = fs::metadata(&target_path)?.permissions();
-                    perms.set_mode(perms.mode() | 0o111); // Add execute bit
-                    fs::set_permissions(&target_path, perms)?;
+                    #[cfg(unix)]
+                    {
+                        let mut perms = fs::metadata(&target_path)?.permissions();
+                        perms.set_mode(perms.mode() | 0o111); // Add execute bit
+                        fs::set_permissions(&target_path, perms)?;
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        // Windows doesn't have the concept of executable bit
+                        // The OS determines if a file is executable based on its extension
+                    }
                 }
             }
         }

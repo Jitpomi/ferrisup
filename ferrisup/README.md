@@ -13,7 +13,7 @@ FerrisUp CLI is a versatile command-line tool for creating and managing Rust pro
 
 ## Features
 
-- **Multiple Templates**: From minimal binaries to full-stack applications
+- **Multiple Component Types**: From minimal binaries to full-stack applications
 - **Transform Capability**: Start with a simple project and scale as you grow
 - **Data Science Support**: Built-in templates for Polars and Linfa
 - **Edge Computing**: WebAssembly and serverless-ready templates
@@ -29,7 +29,7 @@ cargo install ferrisup
 # Or install from source
 git clone https://github.com/Jitpomi/ferrisup.git
 cd ferrisup
-cargo install --path .
+cargo install --path ferrisup
 ```
 
 ## Usage
