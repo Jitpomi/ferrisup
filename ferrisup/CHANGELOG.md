@@ -5,14 +5,14 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.24] - 2025-06-17
+## [0.1.23] - 2025-06-17
 
 ### Fixed
 - Fixed Windows compatibility issues by making file permission handling cross-platform
 - Added conditional compilation directives to ensure Unix-specific code only runs on Unix systems
 - Improved error handling for platform-specific operations
 
-## [0.1.23] - 2025-06-16
+## [0.1.22] - 2025-06-16
 
 ### Added
 - Added web homepage for FerrisUp tool at ferrisup.jitpomi.com
