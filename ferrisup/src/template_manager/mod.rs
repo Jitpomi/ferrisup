@@ -16,7 +16,7 @@ use regex::Regex;
 // Cross-platform file permission handling
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use shared::to_pascal_case;
+use ferrisup_common::to_pascal_case;
 
 lazy_static! {
     static ref CURRENT_VARIABLES: Arc<RwLock<Map<String, Value>>> = Arc::new(RwLock::new(Map::new()));

@@ -17,7 +17,7 @@ use super::workspace_utils::{
     finalize_workspace_setup,
     categorize_files
 };
-use shared::fs::create_directory;
+use ferrisup_common::fs::create_directory;
 
 // Main function to convert a project to a workspace
 pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {

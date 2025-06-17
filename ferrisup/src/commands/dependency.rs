@@ -5,7 +5,7 @@ use dialoguer::{Confirm, Input, MultiSelect};
 use std::path::PathBuf;
 use std::fs;
 use std::process::Command;
-use shared::cargo::update_cargo_with_dependencies;
+use ferrisup_common::cargo::update_cargo_with_dependencies;
 
 #[derive(Debug, Args)]
 pub struct DependencyArgs {

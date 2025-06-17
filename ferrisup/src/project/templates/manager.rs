@@ -7,7 +7,7 @@ use std::fs;
 // Removed unused import
 use std::collections::HashSet;
 use colored::Colorize;
-use shared::cargo::*;
+use ferrisup_common::cargo::*;
 
 /// Get all available templates
 #[allow(dead_code)]

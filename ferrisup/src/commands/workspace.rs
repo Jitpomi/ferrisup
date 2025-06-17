@@ -3,7 +3,7 @@ use colored::Colorize;
 use dialoguer::{Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 use std::fs;
-use shared::{fs::create_directory, cargo::*};
+use ferrisup_common::{fs::create_directory, cargo::*};
 
 
 /// Execute the workspace command to manage Cargo workspaces

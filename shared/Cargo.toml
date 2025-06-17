@@ -1,5 +1,5 @@
 [package]
-name = "shared"
+name = "ferrisup-common"
 version = "0.1.23"
 edition = "2021"
 description = "Shared utilities for ferrisup"

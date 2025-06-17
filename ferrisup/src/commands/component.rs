@@ -3,7 +3,7 @@ use colored::Colorize;
 use dialoguer::{Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 use std::fs;
-use shared::cargo::{read_cargo_toml, update_workspace_members};
+use ferrisup_common::cargo::{read_cargo_toml, update_workspace_members};
 
 /// Execute the component command for adding/removing components
 pub fn execute(action: Option<&str>, component_type: Option<&str>, project_path: Option<&str>) -> Result<()> {

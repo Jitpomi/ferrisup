@@ -2,7 +2,7 @@
 use anyhow::Result;
 use dialoguer::{Input, Select, Confirm};
 use serde_json::{Value, json, Map};
-use shared::*;
+use ferrisup_common::*;
 
 /// Process variables for a template
 ///

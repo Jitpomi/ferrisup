@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use toml_edit::{value, DocumentMut};
-use shared::fs::{create_directory, visit_dirs};
+use ferrisup_common::fs::{create_directory, visit_dirs};
 use regex::Regex;
 use colored::Colorize;
 

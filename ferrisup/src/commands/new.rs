@@ -8,7 +8,7 @@ use dialoguer::{Select, Input};
 use crate::template_manager;
 use serde_json::{self, json, Value};
 use handlebars::Handlebars;
-use shared::{fs::*, to_pascal_case};
+use ferrisup_common::{fs::*, to_pascal_case};
 
 // Using the shared module's copy_directory function for directory operations
 

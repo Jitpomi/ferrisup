@@ -6,9 +6,9 @@ use colored::Colorize;
 use dialoguer::MultiSelect;
 use crate::commands::test_mode::is_test_mode;
 use super::utils::update_root_file_references;
-use shared::fs::copy_directory;
+use ferrisup_common::fs::copy_directory;
 use super::ui::{create_root_readme, create_root_gitignore};
-// Removed unused import: use shared::fs::create_directory;
+// Removed unused import: use ferrisup_common::fs::create_directory;
 
 // Helper function to categorize files for workspace conversion
 pub fn categorize_files(

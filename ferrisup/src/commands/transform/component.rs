@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use colored::Colorize;
 use std::path::Path;
 use std::fs;
-use shared::fs::create_directory;
+use ferrisup_common::fs::create_directory;
 use toml_edit::{DocumentMut};
 
 use crate::commands::test_mode::is_test_mode;
