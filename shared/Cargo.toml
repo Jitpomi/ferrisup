@@ -4,7 +4,7 @@ version = "0.1.23"
 edition = "2021"
 description = "Shared utilities for ferrisup"
 license = "MIT"
-repository = "https://github.com/ferrisup/ferrisup"
+repository = "https://github.com/Jitpomi/ferrisup"
 
 [package.metadata]
 
