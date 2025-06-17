@@ -254,7 +254,7 @@ pub fn apply_template(template_name: &str, target_dir: &Path, project_name: &str
             }
             
             // Copy the example to the target directory
-            shared::fs::copy_directory_with_template_processing(&example_dir, target_dir)?;
+            ferrisup_common::fs::copy_directory_with_template_processing(&example_dir, target_dir)?;
             
             // We'll keep the original Cargo.toml from the Burn example
             // Just update the project name
@@ -702,7 +702,7 @@ This project was generated using FerrisUp.
                     let target_path = target_dir.join(&file_name);
                     
                     if source_path.is_dir() {
-                        shared::fs::copy_directory_with_template_processing(&source_path, &target_path)?;
+                        ferrisup_common::fs::copy_directory_with_template_processing(&source_path, &target_path)?;
                     } else {
                         // Check if it's a template file
                         if source_path.extension().map_or(false, |ext| ext == "template") {

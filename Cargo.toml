@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "ferrisup"
-, "client", "shared"]
+, "client", "ferrisup_common"]
 resolver = "2"
 
 [workspace.package]
@@ -17,7 +17,7 @@ toml_edit = "0.22.27"
 walkdir = "2.3"
 tempfile = "3.8"
 [workspace.dependencies.ferrisup-common]
-path = "./shared"
+path = "ferrisup_common"
 version = "0.1.23"
 
 [profile]

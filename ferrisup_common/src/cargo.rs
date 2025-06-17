@@ -74,7 +74,7 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
     let mut crates_to_add = Vec::new();
 
     // Check common workspace directories
-    for dir in &["client_old", "server", "shared", "libs", "crates"] {
+    for dir in &["client_old", "server", "ferrisup_common", "libs", "crates"] {
         let dir_path = project_dir.join(dir);
         if dir_path.exists() && dir_path.is_dir() {
             // Check if we have the wildcard pattern already

@@ -675,7 +675,7 @@ fn parse_condition(condition: &str) -> Option<(&str, &str)> {
     Some((variable, value))
 }
 
-/// Use the shared module's copy_directory function
+/// Use the ferrisup_common module's copy_directory function
 #[allow(dead_code)]
 // Removed unused import
 

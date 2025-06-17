@@ -135,9 +135,9 @@ pub fn store_component_type_in_cargo(component_dir: &Path, component_type: &str)
     Ok(())
 }
 
-// Function to make a shared component accessible to all workspace members
+// Function to make a ferrisup_common component accessible to all workspace members
 pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str) -> Result<()> {
-    // Update workspace Cargo.toml to include the shared component in the members list
+    // Update workspace Cargo.toml to include the ferrisup_common component in the members list
     // and add it to workspace.dependencies
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     if !workspace_cargo_path.exists() {
@@ -149,7 +149,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
         .parse::<DocumentMut>()
         .context("Failed to parse workspace Cargo.toml")?;
 
-    // Add the shared component to the members list
+    // Add the ferrisup_common component to the members list
     if let Some(workspace) = workspace_doc.get_mut("workspace") {
         if let Some(workspace_table) = workspace.as_table_mut() {
             if let Some(members) = workspace_table.get_mut("members") {
@@ -171,14 +171,14 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                 }
             }
             
-            // Add the shared component to workspace.dependencies
+            // Add the ferrisup_common component to workspace.dependencies
             if workspace_table.get("dependencies").is_none() {
                 workspace_table.insert("dependencies", toml_edit::Item::Table(toml_edit::Table::new()));
             }
             
             if let Some(deps) = workspace_table.get_mut("dependencies") {
                 if let Some(deps_table) = deps.as_table_mut() {
-                    // Create a path dependency to the shared component
+                    // Create a path dependency to the ferrisup_common component
                     let mut dep_table = toml_edit::Table::new();
                     dep_table.insert("path", value(format!("./{}" , component_name)));
                     deps_table.insert(component_name, toml_edit::Item::Table(dep_table));
@@ -192,7 +192,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
     // Write updated workspace Cargo.toml
     fs::write(workspace_cargo_path, workspace_doc.to_string())?;
     
-    // Now find all other component directories and add the shared component as a workspace dependency
+    // Now find all other component directories and add the ferrisup_common component as a workspace dependency
     // to each component's Cargo.toml
     if let Some(workspace) = workspace_doc.get("workspace") {
         if let Some(workspace_table) = workspace.as_table() {
@@ -200,12 +200,12 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                 if let Some(members_array) = members.as_array() {
                     for member in members_array {
                         if let Some(member_str) = member.as_str() {
-                            // Skip the shared component itself
+                            // Skip the ferrisup_common component itself
                             if member_str == component_name {
                                 continue;
                             }
                             
-                            // Add the shared component as a workspace dependency to this component
+                            // Add the ferrisup_common component as a workspace dependency to this component
                             let component_cargo_path = project_dir.join(member_str).join("Cargo.toml");
                             if component_cargo_path.exists() {
                                 add_shared_workspace_dependency_to_component(&component_cargo_path, component_name)?;
@@ -220,15 +220,15 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
     Ok(())
 }
 
-// Helper function to add a shared component as a workspace dependency to a component's Cargo.toml
-// Uses proper TOML table syntax for dependencies: shared = { workspace = true }
+// Helper function to add a ferrisup_common component as a workspace dependency to a component's Cargo.toml
+// Uses proper TOML table syntax for dependencies: ferrisup_common = { workspace = true }
 fn add_shared_workspace_dependency_to_component(cargo_path: &Path, shared_component: &str) -> Result<()> {
     let cargo_content = fs::read_to_string(cargo_path)?;
     let mut doc = cargo_content
         .parse::<DocumentMut>()
         .context("Failed to parse component Cargo.toml")?;
     
-    // Add the shared component as a workspace dependency
+    // Add the ferrisup_common component as a workspace dependency
     if let Some(dependencies) = doc.get_mut("dependencies") {
         if let Some(deps_table) = dependencies.as_table_mut() {
             // Only add if it doesn't already exist

@@ -10,7 +10,7 @@ use serde_json::{self, json, Value};
 use handlebars::Handlebars;
 use ferrisup_common::{fs::*, to_pascal_case};
 
-// Using the shared module's copy_directory function for directory operations
+// Using the ferrisup_common module's copy_directory function for directory operations
 
 // Note: For frameworks and libraries that have official CLIs (like Dioxus and Tauri),
 // we use those CLIs directly instead of maintaining our own templates.

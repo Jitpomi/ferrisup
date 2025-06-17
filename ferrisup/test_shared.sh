@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test script to debug shared component creation
+# Test script to debug ferrisup_common component creation
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
@@ -22,7 +22,7 @@ ferrisup new test_app server poem
 echo -e "${GREEN}Navigating to test app directory...${NC}"
 cd test_app || { echo "Failed to change directory to test_app"; exit 1; }
 
-# Transform it and add a shared component
+# Transform it and add a ferrisup_common component
 echo -e "${GREEN}Transforming the app and adding a shared component...${NC}"
 ferrisup transform
 

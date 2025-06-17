@@ -23,7 +23,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     let component_types = vec![
         "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
         "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "shared - Shared code between client_old and server",
+        "ferrisup_common - Shared code between client_old and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
         "data-science - Data science and machine learning projects",
@@ -40,7 +40,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     let component_type = match component_idx {
         0 => "client_old",
         1 => "server",
-        2 => "shared",
+        2 => "ferrisup_common",
         3 => "edge",
         4 => "serverless",
         5 => "data-science",
@@ -81,8 +81,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     );
 
     // Map component type to template
-    // For shared components, we need to explicitly use "library" as the template
-    let template = if component_type == "shared" {
+    // For ferrisup_common components, we need to explicitly use "library" as the template
+    let template = if component_type == "ferrisup_common" {
         "library"
     } else {
         map_component_to_template(component_type)
@@ -126,8 +126,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
-    // If this is a shared component, make it accessible to all workspace members
-    if component_type == "shared" {
+    // If this is a ferrisup_common component, make it accessible to all workspace members
+    if component_type == "ferrisup_common" {
         make_shared_component_accessible(project_dir, &component_name)?;
     }
 
@@ -155,7 +155,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     let component_types = vec![
         "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
         "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "shared - Shared code between client_old and server",
+        "ferrisup_common - Shared code between client_old and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
     ];
@@ -170,7 +170,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     let component_type = match component_idx {
         0 => "client_old",
         1 => "server",
-        2 => "shared",
+        2 => "ferrisup_common",
         3 => "edge",
         4 => "serverless",
         _ => "client_old", // Default to client_old

@@ -126,7 +126,7 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     let template = match component_name.as_str() {
         "client_old" => "client_old",
         "server" => "server",
-        "shared" => "shared",
+        "ferrisup_common" => "ferrisup_common",
         "edge" => "edge",
         "serverless" => "serverless",
         "data-science" => "data-science",

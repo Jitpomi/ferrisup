@@ -330,7 +330,7 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
         }
         
         // Shared libraries
-        tree.push_str("└── shared/\n");
+        tree.push_str("└── ferrisup_common/\n");
         tree.push_str("    ├── core/\n");
         tree.push_str("    │   ├── Cargo.toml\n");
         tree.push_str("    │   └── src/\n");

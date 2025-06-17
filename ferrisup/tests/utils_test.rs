@@ -1,7 +1,7 @@
 use std::fs;
 use tempfile::TempDir;
 use anyhow::Result;
-use shared::fs::{create_directory, copy_directory};
+use ferrisup_common::fs::{create_directory, copy_directory};
 
 #[test]
 fn test_create_directory_success() -> Result<()> {
@@ -44,7 +44,7 @@ fn test_read_cargo_toml_nonexistent() -> Result<()> {
     let non_existent_dir = temp_dir.path().join("non_existent");
     
     // Try to read Cargo.toml from a non-existent directory
-    let result = shared::cargo::read_cargo_toml(&non_existent_dir);
+    let result = ferrisup_common::cargo::read_cargo_toml(&non_existent_dir);
     
     // Verify the operation fails with the expected error
     assert!(result.is_err());

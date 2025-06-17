@@ -89,7 +89,7 @@ pub enum Commands {
         #[arg(short, long)]
         action: Option<String>,
 
-        /// Component type: client_old, server, shared, edge, data-science, embedded
+        /// Component type: client_old, server, ferrisup_common, edge, data-science, embedded
         #[arg(short, long)]
         component_type: Option<String>,
 

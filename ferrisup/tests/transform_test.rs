@@ -41,7 +41,7 @@ fn test_error_handling_in_utils() -> Result<()> {
     fs::remove_file(project_dir.join("Cargo.toml"))?;
     
     // Test reading a non-existent Cargo.toml
-    let result = shared::cargo::read_cargo_toml(&project_dir);
+    let result = ferrisup_common::cargo::read_cargo_toml(&project_dir);
     
     // Verify the operation fails with an error
     assert!(result.is_err());
@@ -59,7 +59,7 @@ fn test_error_handling_with_nonexistent_directory() {
     let non_existent_dir = PathBuf::from("/non/existent/path");
     
     // Try to create a directory inside a non-existent path
-    let result = shared::fs::create_directory(&non_existent_dir.join("test"));
+    let result = ferrisup_common::fs::create_directory(&non_existent_dir.join("test"));
     
     // Verify the operation fails with an error
     assert!(result.is_err());
@@ -87,7 +87,7 @@ members = [
     fs::write(project_dir.join("Cargo.toml"), invalid_workspace_content)?;
     
     // Try to update workspace members
-    let result = shared::cargo::update_workspace_members(&project_dir);
+    let result = ferrisup_common::cargo::update_workspace_members(&project_dir);
     
     // This should succeed even with invalid members, as it just updates the list
     assert!(result.is_ok());

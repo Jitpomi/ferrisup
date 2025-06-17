@@ -78,7 +78,7 @@ pub fn map_component_to_template(component_type: &str) -> &str {
     match component_type {
         "client_old" => "client_old",
         "server" => "server",
-        "shared" => "library", // For shared components, we use "library" as the template
+        "ferrisup_common" => "library", // For ferrisup_common components, we use "library" as the template
         "edge" => "edge",
         "serverless" => "serverless",
         "data-science" => "data-science",

@@ -124,7 +124,7 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
     // Full Stack Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Full Stack",
-        "Complete application with client_old, server, and shared libraries",
+        "Complete application with client_old, server, and ferrisup_common libraries",
         vec!["full-stack".to_string()]
     )));
     
@@ -184,5 +184,5 @@ pub fn find_handler(template_name: &str, variables: &Value) -> Option<Box<dyn Pr
     None
 }
 
-// Use the shared copy_directory function for directory operations
+// Use the ferrisup_common copy_directory function for directory operations
 // Removed unused import
