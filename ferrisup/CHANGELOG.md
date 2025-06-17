@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.23] - 2025-06-17
 
+### Changed
+- Renamed shared component to `ferrisup_common` for better clarity and to avoid naming conflicts on crates.io
+
 ### Fixed
 - Fixed Windows compatibility issues by making file permission handling cross-platform
 - Added conditional compilation directives to ensure Unix-specific code only runs on Unix systems

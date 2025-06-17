@@ -23,6 +23,14 @@ FerrisUp CLI is a versatile command-line tool for creating and managing Rust pro
 - **Dependency Management** (`dependency`, `unused-features`): Manage dependencies and optimize feature usage
 - **Cross-Platform**: Works on Unix-based systems and Windows
 
+## Project Structure
+
+FerrisUp is organized as a Cargo workspace with the following components:
+
+- **ferrisup**: The main CLI application
+- **ferrisup_common**: Shared utilities and functions used across the project
+- **client**: Web interface for FerrisUp (optional)
+
 ## Commands
 
 ```

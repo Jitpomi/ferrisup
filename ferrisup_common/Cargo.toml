@@ -2,7 +2,7 @@
 name = "ferrisup-common"
 version = "0.1.23"
 edition = "2021"
-description = "Shared utilities for ferrisup"
+description = "Shared utilities and common functionality for the FerrisUp project"
 license = "MIT"
 repository = "https://github.com/Jitpomi/ferrisup"
 
@@ -14,7 +14,7 @@ component_type = "library"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "shared"
+name = "ferrisup_common"
 path = "src/lib.rs"
 
 [dependencies]
