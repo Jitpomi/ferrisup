@@ -22,9 +22,9 @@ FerrisUp is a versatile Rust project bootstrapping tool that enables developers 
 
 - **Project Transformation** - Convert single-crate projects to workspaces as they grow
 - **Component-Based Architecture** - Specialized components for different use cases
-- **Domain-Specific Templates** - Optimized templates for web, data science, embedded, and more
+- **Domain-Specific Components** - Optimized components for web, data science, embedded, and more
 - **Smart Dependency Management** - Interactive dependency handling with feature selection
-- **Framework Support** - Direct support for popular Rust frameworks (Axum, Actix, Leptos, etc.)
+- **Framework Support** - Direct support for popular Rust frameworks per component type.
 - **Cloud Provider Integration** - Optimized configurations for major cloud providers
 
 ## 🔍 What Makes FerrisUp Different?

@@ -15,9 +15,8 @@ FerrisUp CLI is a versatile command-line tool for creating and managing Rust pro
 
 - **Project Creation** (`new`): Create new Rust projects with interactive configuration
 - **Project Transformation** (`transform`): Convert existing projects with interactive configuration
-- **Template Management** (`list`, `preview`): List and preview available templates
-- **Project Scaling** (`scale`): Interactively scale projects with custom components
-- **Component Management** (`component`): Add, remove, and list project components
+- **Component Insights** (`list`, `preview`): List and preview available components
+- **Component Management** (`component`): Add and remove project components
 - **Configuration Management** (`config`): Export and import configurations
 - **Workspace Management** (`workspace`): Manage Cargo workspaces
 - **Dependency Management** (`dependency`, `unused-features`): Manage dependencies and optimize feature usage
@@ -38,7 +37,6 @@ Commands:
   new              Create a new Rust project with interactive configuration
   transform        Transform an existing project with interactive configuration
   list             List available templates
-  scale            Interactively scale a project with custom components
   preview          Preview a template without actually creating files
   component        Manage project components (add/remove/list) with consistent component types
   config           Manage configurations (export/import)
