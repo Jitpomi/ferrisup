@@ -38,7 +38,7 @@ pub fn confirm_action(prompt: &str, default: bool) -> Result<bool> {
 }
 
 // Select an option from a list
-pub fn select_option(prompt: &str, options: &[&str], default: usize) -> Result<usize> {
+pub fn select_option(prompt: &str, options: &Vec<String>, default: usize) -> Result<usize> {
     if is_test_mode() {
         return Ok(default);
     }

@@ -74,7 +74,22 @@ fn main() -> Result<()> {
                     "project".green().bold()
                 )
             }
-            commands::new::execute(name.as_deref(), component_type.as_deref(), framework.as_deref(), provider.as_deref(), application_type.as_deref(), git, build, no_interactive, project_type.as_deref())
+            
+            // Convert ComponentType to &str safely
+            let component_type_str = component_type.as_ref().map(|ct| ct.to_string());
+            let component_type_ref = component_type_str.as_deref();
+            
+            commands::new::execute(
+                name.as_deref(), 
+                component_type_ref, 
+                framework.as_deref(), 
+                provider.as_deref(), 
+                application_type.as_deref(), 
+                git, 
+                build, 
+                no_interactive, 
+                project_type.as_deref()
+            )
         }
         Some(commands::Commands::Transform { project, template }) => {
             match &project {
@@ -106,7 +121,16 @@ fn main() -> Result<()> {
         #[cfg(not(feature = "workspace_test"))]
         Some(commands::Commands::Component { action, component_type, project }) => {
             println!("{}", "Managing components".green().bold());
-            commands::component::execute(action.as_deref(), component_type.as_deref(), project.as_deref())
+            
+            // Convert ComponentType to &str safely
+            let component_type_str = component_type.as_ref().map(|ct| ct.to_string());
+            let component_type_ref = component_type_str.as_deref();
+            
+            commands::component::execute(
+                action.as_deref(), 
+                component_type_ref, 
+                project.as_deref()
+            )
         }
         #[cfg(not(feature = "workspace_test"))]
         Some(commands::Commands::Config { export, import, path }) => {

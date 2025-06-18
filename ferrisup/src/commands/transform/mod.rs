@@ -15,6 +15,7 @@ pub mod component;
 pub mod utils;
 pub mod ui;
 pub mod workspace_utils;
+pub mod constants;
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     ui::print_banner();

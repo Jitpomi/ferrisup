@@ -10,6 +10,7 @@ use crate::commands::test_mode::is_test_mode;
 use super::project_structure::{analyze_project_structure, map_component_to_template};
 use super::utils::{store_transformation_metadata, store_component_type_in_cargo, make_shared_component_accessible, update_root_file_references};
 use super::ui::{get_input_with_default, select_option};
+use super::constants::{get_formatted_component_types, get_component_type_names};
 
 // Function to add a component to a workspace
 pub fn add_component(project_dir: &Path) -> Result<()> {
@@ -21,15 +22,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     create_directory(&ferrisup_dir)?;
 
     // Select component type
-    let component_types = vec![
-        "client - Frontend web application",
-        "server - Backend API server",
-        "shared - Shared code between client and server",
-        "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
-        "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
-        "data-science - Data science and machine learning projects",
-        "embedded - Embedded systems firmware",
-    ];
+    let component_types = get_formatted_component_types();
 
     let component_idx = if is_test_mode() {
         0 // Default to first option in test mode
@@ -38,16 +31,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     };
 
     // Map index to component type
-    let component_type = match component_idx {
-        0 => "client",
-        1 => "server",
-        2 => "shared",
-        3 => "edge",
-        4 => "serverless",
-        5 => "data-science",
-        6 => "embedded",
-        _ => "client", // Default to client
-    };
+    let component_type = get_component_type_names()[component_idx];
 
     // Prompt for component name with default based on component type
     let mut component_name = get_input_with_default(
@@ -194,13 +178,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     let project_name = &structure.project_name;
 
     // Select component type
-    let component_types = vec![
-        "client - Frontend web application",
-        "server - Backend API server",
-        "shared - Shared code between client and server",
-        "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
-        "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
-    ];
+    let component_types = get_formatted_component_types();
 
     let component_idx = if is_test_mode() {
         0 // Default to first option in test mode
@@ -209,14 +187,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     };
 
     // Map index to component type
-    let component_type = match component_idx {
-        0 => "client",
-        1 => "server",
-        2 => "shared",
-        3 => "edge",
-        4 => "serverless",
-        _ => "client", // Default to client
-    };
+    let component_type = get_component_type_names()[component_idx];
 
     // Select framework if applicable
     let framework = select_framework_for_component_type(component_type)?;
@@ -253,9 +224,9 @@ fn select_framework_for_component_type(component_type: &str) -> Result<Option<St
     match component_type {
         "client" => {
             let frameworks = vec![
-                "leptos - Reactive web framework with fine-grained reactivity",
-                "dioxus - Elegant React-like framework for desktop, web, and mobile",
-                "tauri - Build smaller, faster, and more secure desktop applications",
+                "leptos - Reactive web framework with fine-grained reactivity".to_string(),
+                "dioxus - Elegant React-like framework for desktop, web, and mobile".to_string(),
+                "tauri - Build smaller, faster, and more secure desktop applications".to_string(),
             ];
 
             let framework_idx = if is_test_mode() {
@@ -273,9 +244,9 @@ fn select_framework_for_component_type(component_type: &str) -> Result<Option<St
         }
         "server" => {
             let frameworks = vec![
-                "axum - Ergonomic and modular web framework by Tokio",
-                "actix - Powerful, pragmatic, and extremely fast web framework",
-                "poem - Full-featured and easy-to-use web framework",
+                "axum - Ergonomic and modular web framework by Tokio".to_string(),
+                "actix - Powerful, pragmatic, and extremely fast web framework".to_string(),
+                "poem - Full-featured and easy-to-use web framework".to_string(),
             ];
 
             let framework_idx = if is_test_mode() {
@@ -293,10 +264,10 @@ fn select_framework_for_component_type(component_type: &str) -> Result<Option<St
         }
         "edge" => {
             let providers = vec![
-                "cloudflare - Cloudflare Workers",
-                "vercel - Vercel Edge Functions",
-                "fastly - Fastly Compute@Edge",
-                "aws - AWS Lambda@Edge",
+                "cloudflare - Cloudflare Workers".to_string(),
+                "vercel - Vercel Edge Functions".to_string(),
+                "fastly - Fastly Compute@Edge".to_string(),
+                "aws - AWS Lambda@Edge".to_string(),
             ];
 
             let provider_idx = if is_test_mode() {
@@ -315,8 +286,8 @@ fn select_framework_for_component_type(component_type: &str) -> Result<Option<St
         }
         "data-science" => {
             let frameworks = vec![
-                "polars - Fast DataFrame library",
-                "linfa - Machine learning framework",
+                "polars - Fast DataFrame library".to_string(),
+                "linfa - Machine learning framework".to_string(),
             ];
 
             let framework_idx = if is_test_mode() {

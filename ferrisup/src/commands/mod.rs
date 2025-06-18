@@ -14,7 +14,37 @@ pub mod test_mode;
 // Removed reference to unused module
 
 // Re-export the Commands enum for the CLI
-use clap::Subcommand;
+use clap::{Subcommand, ValueEnum};
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum ComponentType {
+    Client,
+    Server,
+    Shared,
+    Edge,
+    Serverless,
+    DataScience,
+    Embedded,
+    Library,
+    Minimal,
+}
+
+impl std::fmt::Display for ComponentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ComponentType::Client => "client",
+            ComponentType::Server => "server",
+            ComponentType::Shared => "shared",
+            ComponentType::Edge => "edge",
+            ComponentType::Serverless => "serverless",
+            ComponentType::DataScience => "data-science",
+            ComponentType::Embedded => "embedded",
+            ComponentType::Library => "library",
+            ComponentType::Minimal => "minimal",
+        };
+        write!(f, "{}", s)
+    }
+}
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -26,7 +56,7 @@ pub enum Commands {
 
         /// Component type to use (optional, will prompt if not provided)
         #[arg(short, long)]
-        component_type: Option<String>,
+        component_type: Option<ComponentType>,
         
         /// Framework to use for client, server, or embedded components
         #[arg(long)]
@@ -91,7 +121,7 @@ pub enum Commands {
 
         /// Component type: client, server, ferrisup_common, edge, data-science, embedded
         #[arg(short, long)]
-        component_type: Option<String>,
+        component_type: Option<ComponentType>,
 
         /// Path to the project (optional, will use current directory if not provided)
         #[arg(short, long)]
