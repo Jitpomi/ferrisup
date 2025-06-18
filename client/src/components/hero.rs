@@ -56,7 +56,7 @@ pub fn Hero() -> Element {
                 // Version badge - adds a premium touch
                 div {
                     class: "mt-4 mb-8 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-900/30 text-amber-400 border border-amber-700/50",
-                    "v0.1.23"
+                    "v0.1.24"
                 }
                 
                 // Call to action buttons with improved styling and accessibility
