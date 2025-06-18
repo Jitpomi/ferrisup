@@ -1,6 +1,5 @@
 use dioxus::core_macro::{component, rsx};
 use dioxus::prelude::*;
-use dioxus_free_icons::Icon;
 use crate::FERRISUP_PNG;
 
 #[component]

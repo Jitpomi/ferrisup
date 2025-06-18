@@ -14,5 +14,5 @@ anyhow = "1.0"
 criterion = "0.5"
 
 [lib]
-name = "{{project_name}}"
+name = "{{project_name_snake_case}}"
 path = "src/lib.rs"

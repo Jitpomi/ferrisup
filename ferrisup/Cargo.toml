@@ -41,8 +41,6 @@ toml_edit = { workspace = true }
 dirs = "5.0"
 chrono = "0.4"
 
-
-
 [dependencies.ferrisup-common]
 workspace = true
 

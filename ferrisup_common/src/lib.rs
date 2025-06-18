@@ -3,6 +3,7 @@
 pub mod fs;
 pub mod cargo;
 
+
 /// Convert a string to PascalCase
 /// For example: "hello_world" -> "HelloWorld"
 pub fn to_pascal_case(input: &str) -> String {

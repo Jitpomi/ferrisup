@@ -3,6 +3,7 @@ use colored::Colorize;
 use std::path::Path;
 use std::fs;
 use ferrisup_common::fs::create_directory;
+use ferrisup_common::cargo;
 use toml_edit::{DocumentMut};
 
 use crate::commands::test_mode::is_test_mode;
@@ -21,9 +22,9 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Select component type
     let component_types = vec![
-        "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
-        "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "ferrisup_common - Shared code between client_old and server",
+        "client - Frontend web application",
+        "server - Backend API server",
+        "shared - Shared code between client and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
         "data-science - Data science and machine learning projects",
@@ -38,21 +39,62 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Map index to component type
     let component_type = match component_idx {
-        0 => "client_old",
+        0 => "client",
         1 => "server",
-        2 => "ferrisup_common",
+        2 => "shared",
         3 => "edge",
         4 => "serverless",
         5 => "data-science",
         6 => "embedded",
-        _ => "client_old", // Default to client_old
+        _ => "client", // Default to client
     };
 
     // Prompt for component name with default based on component type
-    let component_name = get_input_with_default(
+    let mut component_name = get_input_with_default(
         &format!("Component name [{}]", component_type),
         component_type
     )?;
+    
+    // For shared components, check if the crate name is available on crates.io
+    if component_type == "shared" {
+        // Keep prompting until we get an available name
+        let mut is_available = false;
+        while !is_available {
+            match cargo::is_crate_name_available(&component_name) {
+                Ok(available) => {
+                    if available {
+                        is_available = true;
+                        println!(
+                            "{} {}",
+                            "Success:".green().bold(),
+                            format!("Crate name '{}' is available on crates.io", component_name).green()
+                        );
+                    } else {
+                        println!(
+                            "{} {}",
+                            "Warning:".yellow().bold(),
+                            format!("Crate name '{}' is already taken on crates.io", component_name).yellow()
+                        );
+                        
+                        // Prompt for a different name
+                        component_name = get_input_with_default(
+                            "Please enter a different name for your shared component",
+                            &format!("{}-common", project_dir.file_name().unwrap_or_default().to_string_lossy())
+                        )?;
+                    }
+                },
+                Err(e) => {
+                    println!(
+                        "{} {}",
+                        "Warning:".yellow().bold(),
+                        format!("Could not check crate name availability: {}", e).yellow()
+                    );
+                    // If we can't check, just proceed with the name
+                    is_available = true;
+                }
+            }
+        }
+    }
 
     // Define component directory path (but don't create it yet)
     let component_dir = project_dir.join(&component_name);
@@ -81,8 +123,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     );
 
     // Map component type to template
-    // For ferrisup_common components, we need to explicitly use "library" as the template
-    let template = if component_type == "ferrisup_common" {
+    // For shared components, we need to explicitly use "library" as the template
+    let template = if component_type == "shared" {
         "library"
     } else {
         map_component_to_template(component_type)
@@ -126,8 +168,8 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
-    // If this is a ferrisup_common component, make it accessible to all workspace members
-    if component_type == "ferrisup_common" {
+    // If this is a shared component, make it accessible to all workspace members
+    if component_type == "shared" {
         make_shared_component_accessible(project_dir, &component_name)?;
     }
 
@@ -153,9 +195,9 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 
     // Select component type
     let component_types = vec![
-        "client_old - Frontend web application (Leptos, Yew, or Dioxus)",
-        "server - Web server with API endpoints (Axum, Actix, or Poem)",
-        "ferrisup_common - Shared code between client_old and server",
+        "client - Frontend web application",
+        "server - Backend API server",
+        "shared - Shared code between client and server",
         "edge - Edge computing applications (Cloudflare, Vercel, Fastly)",
         "serverless - Serverless functions (AWS Lambda, Cloudflare Workers)",
     ];
@@ -168,12 +210,12 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 
     // Map index to component type
     let component_type = match component_idx {
-        0 => "client_old",
+        0 => "client",
         1 => "server",
-        2 => "ferrisup_common",
+        2 => "shared",
         3 => "edge",
         4 => "serverless",
-        _ => "client_old", // Default to client_old
+        _ => "client", // Default to client
     };
 
     // Select framework if applicable
@@ -209,7 +251,7 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
 // Helper function to select framework based on component type
 fn select_framework_for_component_type(component_type: &str) -> Result<Option<String>> {
     match component_type {
-        "client_old" => {
+        "client" => {
             let frameworks = vec![
                 "leptos - Reactive web framework with fine-grained reactivity",
                 "dioxus - Elegant React-like framework for desktop, web, and mobile",

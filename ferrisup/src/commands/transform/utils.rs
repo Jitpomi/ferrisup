@@ -5,7 +5,7 @@ use toml_edit::{value, DocumentMut};
 use ferrisup_common::fs::{create_directory, visit_dirs};
 use regex::Regex;
 use colored::Colorize;
-
+use dialoguer;
 
 // Function to update source imports to use the new package name
 pub fn update_source_imports(component_dir: &Path, old_name: &str, new_name: &str) -> Result<()> {
@@ -41,8 +41,6 @@ pub fn update_source_imports(component_dir: &Path, old_name: &str, new_name: &st
 
     Ok(())
 }
-
-
 
 // Store transformation metadata in .ferrisup directory
 pub fn store_transformation_metadata(
@@ -135,9 +133,9 @@ pub fn store_component_type_in_cargo(component_dir: &Path, component_type: &str)
     Ok(())
 }
 
-// Function to make a ferrisup_common component accessible to all workspace members
+// Function to make a shared component accessible to all workspace members
 pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str) -> Result<()> {
-    // Update workspace Cargo.toml to include the ferrisup_common component in the members list
+    // Update workspace Cargo.toml to include the shared component in the members list
     // and add it to workspace.dependencies
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     if !workspace_cargo_path.exists() {
@@ -149,7 +147,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
         .parse::<DocumentMut>()
         .context("Failed to parse workspace Cargo.toml")?;
 
-    // Add the ferrisup_common component to the members list
+    // Add the shared component to the members list
     if let Some(workspace) = workspace_doc.get_mut("workspace") {
         if let Some(workspace_table) = workspace.as_table_mut() {
             if let Some(members) = workspace_table.get_mut("members") {
@@ -171,28 +169,76 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                 }
             }
             
-            // Add the ferrisup_common component to workspace.dependencies
+            // Add the shared component to workspace.dependencies
             if workspace_table.get("dependencies").is_none() {
                 workspace_table.insert("dependencies", toml_edit::Item::Table(toml_edit::Table::new()));
             }
             
             if let Some(deps) = workspace_table.get_mut("dependencies") {
                 if let Some(deps_table) = deps.as_table_mut() {
-                    // Create a path dependency to the ferrisup_common component
+                    // Ask the user if they want to set up for publishing
+                    let setup_for_publishing = dialoguer::Confirm::new()
+                        .with_prompt(format!("Would you like to set up '{}' for publishing to crates.io?", component_name))
+                        .default(true)
+                        .interact()
+                        .unwrap_or(false);
+                    
+                    // Create a dependency table with path always included
                     let mut dep_table = toml_edit::Table::new();
-                    dep_table.insert("path", value(format!("./{}" , component_name)));
-                    deps_table.insert(component_name, toml_edit::Item::Table(dep_table));
-                    println!("{} {}", "Added".green(), 
-                        format!("'{}' to workspace.dependencies", component_name).cyan());
+                    dep_table.insert("path", value(format!("./{}", component_name)));
+                    
+                    if setup_for_publishing {
+                        // Add version if setting up for publishing
+                        dep_table.insert("version", value("0.1.0"));
+                        deps_table.insert(component_name, toml_edit::Item::Table(dep_table));
+                        println!("{} {}", "Added".green(), 
+                            format!("'{}' to workspace.dependencies with path and version", component_name).cyan());
+                        
+                        println!("{} {}", "Note:".blue().bold(), 
+                            "When you publish this crate to crates.io, update the version number in the workspace Cargo.toml".blue());
+                    } else {
+                        // Just use path dependency
+                        deps_table.insert(component_name, toml_edit::Item::Table(dep_table));
+                        println!("{} {}", "Added".green(), 
+                            format!("'{}' to workspace.dependencies with path", component_name).cyan());
+                    }
                 }
             }
         }
     }
 
+    // Store whether we're setting up for publishing to use later
+    let setup_for_publishing = if let Some(workspace) = workspace_doc.get("workspace") {
+        if let Some(workspace_table) = workspace.as_table() {
+            if let Some(deps) = workspace_table.get("dependencies") {
+                if let Some(deps_table) = deps.as_table() {
+                    if let Some(shared_dep) = deps_table.get(component_name) {
+                        if let Some(shared_table) = shared_dep.as_table() {
+                            // If it has a version key, it's set up for publishing
+                            shared_table.get("version").is_some()
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     // Write updated workspace Cargo.toml
     fs::write(workspace_cargo_path, workspace_doc.to_string())?;
     
-    // Now find all other component directories and add the ferrisup_common component as a workspace dependency
+    // Now find all other component directories and add the shared component as a workspace dependency
     // to each component's Cargo.toml
     if let Some(workspace) = workspace_doc.get("workspace") {
         if let Some(workspace_table) = workspace.as_table() {
@@ -200,15 +246,25 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                 if let Some(members_array) = members.as_array() {
                     for member in members_array {
                         if let Some(member_str) = member.as_str() {
-                            // Skip the ferrisup_common component itself
+                            // Skip the shared component itself
                             if member_str == component_name {
                                 continue;
                             }
                             
-                            // Add the ferrisup_common component as a workspace dependency to this component
+                            // Add the shared component as a workspace dependency to this component
                             let component_cargo_path = project_dir.join(member_str).join("Cargo.toml");
                             if component_cargo_path.exists() {
-                                add_shared_workspace_dependency_to_component(&component_cargo_path, component_name)?;
+                                if setup_for_publishing {
+                                    // Add as a workspace dependency (will use the version from workspace)
+                                    add_shared_workspace_dependency_to_component(&component_cargo_path, component_name)?;
+                                    println!("{} {}", "Added".green(), 
+                                        format!("'{}' as a workspace dependency to component '{}'", component_name, member_str).cyan());
+                                } else {
+                                    // Traditional path dependency approach
+                                    add_shared_workspace_dependency_to_component(&component_cargo_path, component_name)?;
+                                    println!("{} {}", "Added".green(), 
+                                        format!("'{}' as a workspace dependency to component '{}'", component_name, member_str).cyan());
+                                }
                             }
                         }
                     }
@@ -217,18 +273,27 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
         }
     }
     
+    // If we're setting up for publishing, provide additional guidance
+    if setup_for_publishing {
+        println!("{}", "\nShared Component Publishing Setup:".blue().bold());
+        println!("{} {}", "•".yellow(), "Your shared component is now set up for publishing to crates.io".blue());
+        println!("{} {}", "•".yellow(), "Before publishing, update the version, description, and other metadata in the component's Cargo.toml".blue());
+        println!("{} {}", "•".yellow(), "After publishing, update the version in the workspace Cargo.toml to match the published version".blue());
+        println!("{} {}", "•".yellow(), format!("Run 'cd {} && cargo publish' to publish your shared component", component_name).blue());
+    }
+    
     Ok(())
 }
 
-// Helper function to add a ferrisup_common component as a workspace dependency to a component's Cargo.toml
-// Uses proper TOML table syntax for dependencies: ferrisup_common = { workspace = true }
+// Helper function to add a shared component as a workspace dependency to a component's Cargo.toml
+// Uses proper TOML table syntax for dependencies: shared = { workspace = true }
 fn add_shared_workspace_dependency_to_component(cargo_path: &Path, shared_component: &str) -> Result<()> {
     let cargo_content = fs::read_to_string(cargo_path)?;
     let mut doc = cargo_content
         .parse::<DocumentMut>()
         .context("Failed to parse component Cargo.toml")?;
     
-    // Add the ferrisup_common component as a workspace dependency
+    // Add the shared component as a workspace dependency
     if let Some(dependencies) = doc.get_mut("dependencies") {
         if let Some(deps_table) = dependencies.as_table_mut() {
             // Only add if it doesn't already exist
@@ -295,8 +360,11 @@ fn add_import_to_source_files(component_dir: &Path, shared_component: &str) -> R
 fn add_import_to_file(file_path: &Path, shared_component: &str) -> Result<()> {
     let content = fs::read_to_string(file_path)?;
     
+    // Convert hyphens to underscores for the import statement (Rust modules use underscores)
+    let module_name = shared_component.replace('-', "_");
+    
     // Check if import already exists
-    let import_statement = format!("use {}::*;", shared_component);
+    let import_statement = format!("use {}::*;", module_name);
     if content.contains(&import_statement) {
         return Ok(());
     }
@@ -306,7 +374,7 @@ fn add_import_to_file(file_path: &Path, shared_component: &str) -> Result<()> {
     fs::write(file_path, updated_content)?;
     
     println!("{} {}", "Added".green(), 
-        format!("'{}::*' import to {}", shared_component, file_path.file_name().unwrap().to_string_lossy()).cyan());
+        format!("'{}::*' import to {}", module_name, file_path.file_name().unwrap().to_string_lossy()).cyan());
     
     Ok(())
 }

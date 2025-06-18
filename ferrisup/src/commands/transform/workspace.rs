@@ -3,12 +3,14 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 use dialoguer::Confirm;
+use ferrisup_common::cargo;
 // Removed unused import: use toml_edit::DocumentMut;
 
 use crate::commands::test_mode::{is_test_mode, test_mode_or};
 use super::project_structure::{analyze_project_structure, detect_framework};
 use super::utils::{store_transformation_metadata, store_component_type_in_cargo, update_source_imports};
-use super::ui::{get_input_with_default};
+use super::ui::get_input_with_default;
+
 use super::workspace_utils::{
     select_files_to_keep_at_root, 
     move_files_to_component, 
@@ -33,12 +35,55 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     let default_name = project_name;
     
     // Prompt for component name with default based on component type
-    let component_name = test_mode_or(default_name.to_string(), || {
+    let mut component_name = test_mode_or(default_name.to_string(), || {
         get_input_with_default(
             &format!("What would you like to name the first component? [{}]", default_name),
             default_name
         )
     })?;
+    
+    // If the component name indicates it's a shared component, check if the crate name is available on crates.io
+    if component_name == "ferrisup_common" || component_name == "shared" || component_name.ends_with("-common") || component_name.ends_with("_common") {
+        if !is_test_mode() {
+            // Keep prompting until we get an available name
+            let mut is_available = false;
+            while !is_available {
+                match cargo::is_crate_name_available(&component_name) {
+                    Ok(available) => {
+                        if available {
+                            is_available = true;
+                            println!(
+                                "{} {}",
+                                "Success:".green().bold(),
+                                format!("Crate name '{}' is available on crates.io", component_name).green()
+                            );
+                        } else {
+                            println!(
+                                "{} {}",
+                                "Warning:".yellow().bold(),
+                                format!("Crate name '{}' is already taken on crates.io", component_name).yellow()
+                            );
+                            
+                            // Prompt for a different name
+                            component_name = get_input_with_default(
+                                "Please enter a different name for your shared component",
+                                &format!("{}-common", project_name)
+                            )?;
+                        }
+                    },
+                    Err(e) => {
+                        println!(
+                            "{} {}",
+                            "Warning:".yellow().bold(),
+                            format!("Could not check crate name availability: {}", e).yellow()
+                        );
+                        // If we can't check, just proceed with the name
+                        is_available = true;
+                    }
+                }
+            }
+        }
+    }
 
     // Create component directory and src subdirectory
     let component_dir = project_dir.join(&component_name);

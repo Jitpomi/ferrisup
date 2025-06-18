@@ -1,7 +1,9 @@
 [workspace]
 members = [
-    "ferrisup"
-, "client", "ferrisup_common"]
+    "ferrisup",
+    "client",
+    "ferrisup_common"
+]
 resolver = "2"
 
 [workspace.package]
@@ -27,7 +29,4 @@ inherits = "dev"
 opt-level = 1
 
 [profile.server-dev]
-inherits = "dev"
-
-[profile.android-dev]
 inherits = "dev"
