@@ -154,8 +154,8 @@ process_config() {
     
     # Process component configurations
     if [[ " ${ACTIVE_COMPONENTS[@]} " =~ " client " ]]; then
-        CLIENT_APPS=($(jq -r '.components.client_old.apps | .[]' "$CONFIG_FILE"))
-        CLIENT_FRAMEWORKS=($(jq -r '.components.client_old.frameworks | .[]' "$CONFIG_FILE"))
+        CLIENT_APPS=($(jq -r '.components.client.apps | .[]' "$CONFIG_FILE"))
+        CLIENT_FRAMEWORKS=($(jq -r '.components.client.frameworks | .[]' "$CONFIG_FILE"))
         
         # Validate number of frameworks matches number of apps
         if [ ${#CLIENT_APPS[@]} -ne ${#CLIENT_FRAMEWORKS[@]} ]; then
@@ -711,12 +711,12 @@ EOL
         
         case "$component" in
             "client")
-                # Set up client_old component
+                # Set up client component
                 mkdir -p "$PROJECT_DIR/client"
-                local CLIENT_APPS=($(jq -r '.components.client_old.apps | .[]' "$CONFIG_FILE"))
-                local CLIENT_FRAMEWORKS=($(jq -r '.components.client_old.frameworks | .[]' "$CONFIG_FILE"))
+                local CLIENT_APPS=($(jq -r '.components.client.apps | .[]' "$CONFIG_FILE"))
+                local CLIENT_FRAMEWORKS=($(jq -r '.components.client.frameworks | .[]' "$CONFIG_FILE"))
                 
-                # Create client_old apps
+                # Create client apps
                 for ((i=0; i<${#CLIENT_APPS[@]}; i++)); do
                     local app="${CLIENT_APPS[$i]}"
                     local framework="${CLIENT_FRAMEWORKS[$i]}"
@@ -1130,10 +1130,10 @@ fi
 
 if [[ " ${ACTIVE_COMPONENTS[@]} " =~ " client " ]]; then
     log_info "Generating client code..."
-    # Create client_old/common
+    # Create client/common
     create_cargo_file "$PROJECT_NAME/client/common" "common" ""
     
-    # Create client_old apps
+    # Create client apps
     for i in "${!CLIENT_APPS[@]}"; do
         app=${CLIENT_APPS[$i]}
         framework=${CLIENT_FRAMEWORKS[$i]}

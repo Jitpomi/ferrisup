@@ -55,7 +55,7 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
     handlers.push(Box::new(CliProjectHandler::new(
         "Dioxus",
         "Cross-platform UI toolkit for Rust",
-        vec!["client_old-dioxus".to_string(), "dioxus".to_string()],
+        vec!["client-dioxus".to_string(), "dioxus".to_string()],
         "dioxus create",
         |project_name, _target_dir, variables| {
             let mut args = vec![project_name.to_string()];
@@ -102,7 +102,7 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
     handlers.push(Box::new(CliProjectHandler::new(
         "Tauri",
         "Build desktop applications with web technologies",
-        vec!["client_old-tauri".to_string(), "tauri".to_string()],
+        vec!["client-tauri".to_string(), "tauri".to_string()],
         "cargo tauri",
         |project_name, _target_dir, _variables| {
             vec!["init".to_string(), "--app".to_string(), project_name.to_string()]
@@ -124,7 +124,7 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
     // Full Stack Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Full Stack",
-        "Complete application with client_old, server, and ferrisup_common libraries",
+        "Complete application with client, server, and ferrisup_common libraries",
         vec!["full-stack".to_string()]
     )));
     

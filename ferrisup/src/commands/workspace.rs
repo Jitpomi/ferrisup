@@ -77,7 +77,7 @@ fn init_workspace(project_dir: &Path) -> Result<()> {
     
     // Ask for workspace members
     let default_dirs = vec![
-        "client_old/*".to_string(),
+        "client/*".to_string(),
         "server/*".to_string(),
         "ferrisup_common/*".to_string(),
     ];
@@ -90,7 +90,7 @@ fn init_workspace(project_dir: &Path) -> Result<()> {
         println!("\n{}", "Converting existing project to workspace".green());
         
         let options = vec![
-            "Use default workspace structure (client_old/*, server/*, ferrisup_common/*)",
+            "Use default workspace structure (client/*, server/*, ferrisup_common/*)",
             "Discover existing crates",
             "Manually specify members",
         ];
@@ -219,7 +219,7 @@ log = "0.4"
     println!("{} {}", "Workspace members:".green(), dirs.join(", "));
     
     // Create default directories if they don't exist
-    for dir in &["client_old", "server", "ferrisup_common"] {
+    for dir in &["client", "server", "ferrisup_common"] {
         let path = project_dir.join(dir);
         if !path.exists() {
             create_directory(&path)?;
@@ -239,7 +239,7 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     }
     
     // Get crate type
-    let crate_types = vec!["client_old", "server", "ferrisup_common", "custom"];
+    let crate_types = vec!["client", "server", "ferrisup_common", "custom"];
     let selection = Select::new()
         .with_prompt("Select crate type")
         .items(&crate_types)
@@ -255,7 +255,7 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     
     // Determine crate path based on type
     let crate_path = match crate_type {
-        "client_old" => project_dir.join("../../../client_old").join(&crate_name),
+        "client" => project_dir.join("../../../client").join(&crate_name),
         "server" => project_dir.join("server").join(&crate_name),
         "ferrisup_common" => project_dir.join("../../../ferrisup_common").join(&crate_name),
         _ => project_dir.join(&crate_name),
@@ -265,7 +265,7 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     create_directory(&crate_path)?;
     
     // Get crate template
-    let is_bin = if crate_type == "client_old" || crate_type == "server" {
+    let is_bin = if crate_type == "client" || crate_type == "server" {
         true
     } else {
         Confirm::new()
@@ -493,8 +493,8 @@ fn discover_crates(project_dir: &Path) -> Result<Vec<String>> {
     
     // If nothing found in subdirectories, check for common patterns
     if crates.is_empty() {
-        // Check for client_old/server/ferrisup_common directories
-        for dir in &["client_old", "server", "ferrisup_common"] {
+        // Check for client/server/ferrisup_common directories
+        for dir in &["client", "server", "ferrisup_common"] {
             let dir_path = project_dir.join(dir);
             if dir_path.exists() && dir_path.is_dir() {
                 crates.push(format!("{}/*", dir));

@@ -686,15 +686,15 @@ pub fn execute(
         }
     }
 
-    // Handle special cases for client_old frameworks
+    // Handle special cases for client frameworks
     let mut _framework = String::new();
 
-    // For client_old template, prompt for framework selection
-    if template == "client_old" {
-        println!("Template description: Custom template: client_old");
-        println!("Using template: client_old");
+    // For client template, prompt for framework selection
+    if template == "client" {
+        println!("Template description: Custom template: client");
+        println!("Using template: client");
         
-        // Get client_old framework
+        // Get client framework
         let frameworks = vec!["dioxus", "tauri", "leptos"];
         
         // Use the framework parameter if provided, otherwise prompt for selection
@@ -702,11 +702,11 @@ pub fn execute(
             if frameworks.contains(&fw) {
                 fw.to_string()
             } else {
-                println!("Warning: Provided framework '{}' is not valid for client_old components", fw);
+                println!("Warning: Provided framework '{}' is not valid for client components", fw);
                 println!("Valid options are: dioxus, tauri, leptos");
                 
                 let selection = Select::new()
-                    .with_prompt("Select Rust client_old framework")
+                    .with_prompt("Select Rust client framework")
                     .items(&frameworks)
                     .default(0)
                     .interact()?;
@@ -715,7 +715,7 @@ pub fn execute(
             }
         } else {
             let selection = Select::new()
-                .with_prompt("Select Rust client_old framework")
+                .with_prompt("Select Rust client framework")
                 .items(&frameworks)
                 .default(0)
                 .interact()?;
@@ -797,7 +797,7 @@ pub fn execute(
             println!("🔧 Creating new Leptos project with {} template...", template);
             
             // Use template_manager to apply the template instead of hardcoded functions
-            let template_path = format!("client_old/leptos/{}", template);
+            let template_path = format!("client/leptos/{}", template);
             
             // Apply the template using the template manager
             template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
@@ -1469,8 +1469,8 @@ npx create-tauri-app {}
             }
         }
     } else if template == "counter" || template == "router" || template == "todo" {
-        // For Leptos templates, prepend "client_old/leptos/"
-        let template_path = format!("client_old/leptos/{}", template);
+        // For Leptos templates, prepend "client/leptos/"
+        let template_path = format!("client/leptos/{}", template);
         template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
     } else {
         // For data science templates, handle the prompts directly

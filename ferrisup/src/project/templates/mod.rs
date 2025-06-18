@@ -51,7 +51,7 @@ pub fn get_all_templates() -> Result<Vec<String>> {
         "library".to_string(),
         "embedded".to_string(),
         "server".to_string(),
-        "client_old".to_string(),
+        "client".to_string(),
         "serverless".to_string(),
         "data-science".to_string(),
         "edge".to_string(),
@@ -94,7 +94,7 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
         ("library".to_string(), "Rust library crate with a lib.rs file".to_string()),
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
         ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
-        ("client_old".to_string(), "Frontend web application (Leptos, Yew, or Dioxus)".to_string()),
+        ("client".to_string(), "Frontend web application (Dioxus, Tauri, or Leptos)".to_string()),
         ("serverless".to_string(), "Serverless function (AWS Lambda, Cloudflare Workers, etc.)".to_string()),
         ("data-science".to_string(), "Data science and machine learning projects".to_string()),
         ("edge".to_string(), "Edge computing applications (Cloudflare, Vercel, Fastly, AWS, etc.)".to_string()),
@@ -655,7 +655,7 @@ fn get_template_dir(template_name: &str) -> Result<PathBuf> {
         return Ok(direct_path);
     }
     
-    // Check if it's a nested template (e.g., client_old/leptos/counter)
+    // Check if it's a nested template (e.g., client/leptos/counter)
     let parts: Vec<&str> = template_name.split('/').collect();
     if parts.len() > 1 {
         let nested_path = Path::new(&templates_dir).join(parts.join("/"));
@@ -737,7 +737,7 @@ pub fn find_template_directory(template_name: &str) -> Result<PathBuf> {
         return Ok(direct_path);
     }
     
-    // Check if it's a nested template (e.g., client_old/leptos/counter)
+    // Check if it's a nested template (e.g., client/leptos/counter)
     let parts: Vec<&str> = template_name.split('/').collect();
     if parts.len() > 1 {
         let nested_path = Path::new(&templates_dir).join(parts.join("/"));

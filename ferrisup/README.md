@@ -94,8 +94,8 @@ ferrisup new my_project
 # Create a new minimal project
 ferrisup new my_project --component-type minimal
 
-# Create a  leptos client_old project
-ferrisup new my_client --component-type client_old --framework leptos
+# Create a  leptos client project
+ferrisup new my_client --component-type client --framework leptos
 
 # Create a data science project
 ferrisup new my_data_app --component-type data-science --framework polars
@@ -249,7 +249,7 @@ Manage project components (add/remove/list) with the same component types availa
 ferrisup component --action add
 
 # Add a specific component type
-ferrisup component --action add --component-type client_old
+ferrisup component --action add --component-type client
 
 # List components in a project
 ferrisup component --action list

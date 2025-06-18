@@ -275,7 +275,7 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
     } else if template_type == "full-stack" || template_type == "gen-ai" || template_type == "edge-app" {
         // Client
         if let Some(client) = &components.client {
-            tree.push_str("├── client_old/\n");
+            tree.push_str("├── client/\n");
             if client.apps.contains(&"web".to_string()) {
                 tree.push_str("│   ├── web/\n");
                 tree.push_str("│   │   ├── Cargo.toml\n");
@@ -548,7 +548,7 @@ mod tests {
             },
             "full-stack" => {
                 let mut files = HashMap::new();
-                files.insert("client_old/web/src/main.rs", r#"use dioxus::prelude::*;
+                files.insert("client/web/src/main.rs", r#"use dioxus::prelude::*;
 
 fn main() {
     dioxus::web::launch(App);

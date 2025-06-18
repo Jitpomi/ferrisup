@@ -44,12 +44,12 @@ After generating your project with FerrisUp, follow these steps:
 
 5. Run the client (choose one):
    ```bash
-   # For Dioxus web client_old
-   cd client_old/app1
+   # For Dioxus web client
+   cd client/app1
    trunk serve
    
-   # For Tauri desktop client_old
-   cd client_old/app2
+   # For Tauri desktop client
+   cd client/app2
    cargo tauri dev
    ```
 

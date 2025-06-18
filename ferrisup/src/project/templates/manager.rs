@@ -19,7 +19,7 @@ pub fn get_all_templates() -> Result<Vec<String>> {
         "embedded".to_string(),
         "server".to_string(),
         "serverless".to_string(),
-        "client_old".to_string(),
+        "client".to_string(),
         "data-science".to_string(),
     ];
     
@@ -60,7 +60,7 @@ pub fn list_templates() -> Result<Vec<(String, String)>> {
         ("embedded".to_string(), "Embedded systems firmware for microcontrollers".to_string()),
         ("server".to_string(), "Web server with API endpoints (Axum, Actix, or Poem)".to_string()),
         ("serverless".to_string(), "Serverless functions for cloud deployment".to_string()),
-        ("client_old".to_string(), "Frontend client_old application".to_string()),
+        ("client".to_string(), "Frontend web application".to_string()),
         ("data-science".to_string(), "Data science and machine learning projects".to_string()),
     ];
     
@@ -708,7 +708,7 @@ fn evaluate_condition(condition: &str, variables: &Value) -> bool {
 pub fn get_template_dir(template_name: &str) -> Result<PathBuf> {
     let templates_dir = get_templates_dir()?;
     
-    // Handle template names with subdirectories (like client_old/leptos/counter)
+    // Handle template names with subdirectories (like client/leptos/counter)
     let template_dir = templates_dir.join(template_name);
     if template_dir.exists() && template_dir.is_dir() {
         return Ok(template_dir);

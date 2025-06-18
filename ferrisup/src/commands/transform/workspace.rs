@@ -169,7 +169,7 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
 
     // Determine the component type based on the component name and detected framework
     let template = match component_name.as_str() {
-        "client_old" => "client_old",
+        "client" => "client",
         "server" => "server",
         "ferrisup_common" => "ferrisup_common",
         "edge" => "edge",

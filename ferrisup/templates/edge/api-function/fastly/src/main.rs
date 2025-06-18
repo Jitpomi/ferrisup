@@ -23,7 +23,7 @@ struct ErrorResponse {
 
 /// The main entry point for your application.
 ///
-/// This function is triggered when your service receives a client_old request.
+/// This function is triggered when your service receives a client request.
 /// It could be used for routing, or as a template for implementation logic.
 #[fastly::main]
 fn main(req: Request) -> Result<Response, Error> {

@@ -76,7 +76,7 @@ pub fn detect_framework(src_paths: &[&Path]) -> Option<String> {
 // Map component type to template
 pub fn map_component_to_template(component_type: &str) -> &str {
     match component_type {
-        "client_old" => "client_old",
+        "client" => "client",
         "server" => "server",
         "ferrisup_common" => "library", // For ferrisup_common components, we use "library" as the template
         "edge" => "edge",

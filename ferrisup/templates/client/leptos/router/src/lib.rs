@@ -31,7 +31,7 @@ pub fn App() -> impl IntoView {
             </div>
             
             <nav>
-                // Using <A> component for client_old-side navigation with proper aria-current attribute
+                // Using <A> component for client-side navigation with proper aria-current attribute
                 <A href="/">"Home"</A>
                 <A href="/about">"About"</A>
                 <A href="/settings">"Settings"</A>
@@ -66,7 +66,7 @@ fn HomePage() -> impl IntoView {
         <div class="page">
             <h1>"Welcome to {{project_name}}"</h1>
             <p>"This is a simple example of routing with Leptos."</p>
-            <p>"The router handles client_old-side navigation without full page reloads."</p>
+            <p>"The router handles client-side navigation without full page reloads."</p>
             <ul>
                 <li><A href="/about">"About"</A></li>
                 <li><A href="/settings">"Settings"</A></li>
@@ -111,8 +111,8 @@ fn Settings() -> impl IntoView {
                 <input type="submit" />
                 <p>
                     "This uses the " <code>"<Form/>"</code>
-                    " component, which enhances forms by using client_old-side navigation for "
-                    <code>"GET"</code> " requests, and client_old-side requests for " <code>"POST"</code>
+                    " component, which enhances forms by using client-side navigation for "
+                    <code>"GET"</code> " requests, and client-side requests for " <code>"POST"</code>
                     " requests, without requiring a full page reload."
                 </p>
             </Form>
