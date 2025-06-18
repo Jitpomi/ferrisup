@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use colored::*;
+use colored::Colorize;
 
 // Use the library modules instead of local definitions
 use ferrisup::commands;
@@ -19,9 +19,40 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
-    // Simple welcome message
-    println!("{}", "FerrisUp - A tool for bootstrapping Rust projects".green().bold());
-    println!("{}", "Start anywhere, scale anywhere\n".green());
+    // High-quality ASCII art of Ferris (Rust mascot)
+    // Convert img.png to ASCII art using image-to-ascii library
+
+    println!("{}", r#"
+
+                                                  
+                 ------                           
+              --------                            
+            ---------  --                         
+           --------- ----                         
+           --------------                         
+          *--------------                         
+           -------------                          
+          -----------                             
+         ---------- -----------                   
+         -----  ------------------                
+         ---------------------------              
+         ------------ --------------              
+           ------------------ -------             
+            -------------------------             
+            ----------   -**-----------           
+          --------------  ---------------         
+        ----------------------------------        
+       -----------------------------------        
+       ---*-----  -------------------------       
+           ---       -*-----*--------------       
+           ---              --------------        
+                              ----------          
+                              --------            
+               FERRISUP CLI                                   
+            
+"#.bright_green().bold());
+    println!("{}", "A tool for bootstrapping Rust projects".bright_green().bold());
+    println!("{}", "Start anywhere, scale anywhere\n".bright_green());
 
     env_logger::init();
     let cli = Cli::parse();
