@@ -189,7 +189,7 @@ pub fn Footer() -> Element {
                     class: "flex flex-col md:flex-row justify-between items-center",
                     p {
                         class: "text-gray-500 mb-4 md:mb-0",
-                        " 2025 FerrisUp. Built with Rust and Dioxus."
+                        "© 2025 FerrisUp. Built with Ferrisup CLI, Rust and Dioxus."
                     }
                     
                     // Version badge
