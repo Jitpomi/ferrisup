@@ -110,9 +110,11 @@ fn main() -> Result<()> {
             commands::list::execute()
         }
         #[cfg(not(feature = "workspace_test"))]
-        Some(commands::Commands::Preview { template }) => {
-            println!("{}", "Previewing template".green().bold());
-            commands::preview::execute(template.as_deref())
+        Some(commands::Commands::Preview { component_type, framework, provider, application_type }) => {
+            println!("{}", "Previewing component type".green().bold());
+            // Convert ComponentType to &str for the preview command
+            let component_type_str = component_type.map(|ct| ct.to_string());
+            commands::preview::execute(component_type_str.as_deref(), framework.as_deref(), provider.as_deref(), application_type.as_deref())
         }
         #[cfg(not(feature = "workspace_test"))]
         Some(commands::Commands::Component { action, component_type, project }) => {

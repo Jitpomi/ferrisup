@@ -10,10 +10,13 @@ use crate::core::Config;
 struct Components {
     client: Option<Client>,
     server: Option<Server>,
-    database: Option<Database>,
-    ai: Option<AI>,
+    shared: Option<Shared>,
     edge: Option<Edge>,
+    serverless: Option<Serverless>,
+    data_science: Option<DataScience>,
     embedded: Option<Embedded>,
+    library: Option<Library>,
+    minimal: Option<Minimal>,
 }
 
 #[derive(Default, Debug)]
@@ -40,9 +43,9 @@ struct Database {
 }
 
 #[derive(Default, Debug)]
-struct AI {
-    models: Vec<String>,
-    frameworks: Vec<String>,
+struct Shared {
+    libraries: Vec<String>,
+    utilities: Vec<String>,
 }
 
 #[derive(Default, Debug)]
@@ -52,18 +55,59 @@ struct Edge {
 }
 
 #[derive(Default, Debug)]
+struct Serverless {
+    functions: Vec<String>,
+    providers: Vec<String>,
+}
+
+#[derive(Default, Debug)]
+struct DataScience {
+    models: Vec<String>,
+    frameworks: Vec<String>,
+}
+
+#[derive(Default, Debug)]
 struct Embedded {
     devices: Vec<String>,
     platforms: Vec<String>,
 }
 
+#[derive(Default, Debug)]
+struct Library {
+    name: String,
+    features: Vec<String>,
+}
+
+#[derive(Default, Debug)]
+struct Minimal {
+    name: String,
+}
+
+/// Options for customizing the preview output
+#[derive(Default, Debug)]
+struct PreviewOptions {
+    /// Framework to use for client, server, or embedded components
+    framework: Option<String>,
+    
+    /// Cloud provider for serverless components
+    provider: Option<String>,
+    
+    /// Application type for edge components
+    application_type: Option<String>,
+}
+
 /// Execute the preview command to visualize a template without actually creating files
-pub fn execute(template_name: Option<&str>) -> Result<()> {
+pub fn execute(
+    component_type: Option<&str>,
+    framework: Option<&str>,
+    provider: Option<&str>,
+    application_type: Option<&str>
+) -> Result<()> {
     println!("{}", "FerrisUp Template Preview".bold().green());
     println!("Preview template structure without creating files\n");
     
-    // Get template name interactively if not provided
-    let selected_template = if let Some(name) = template_name {
+    // Get component type interactively if not provided
+    let selected_template = if let Some(name) = component_type {
         name.to_string()
     } else {
         // List available templates for selection
@@ -76,13 +120,20 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
             .collect();
         
         let selection = Select::new()
-            .with_prompt("Select a template to preview")
+            .with_prompt("Select a component type to preview")
             .items(&display_items)
             .default(0)
             .interact()?;
         
         // Extract just the name from the selected template tuple
         templates[selection].0.clone()
+    };
+    
+    // Store provided options for specialized previews
+    let options = PreviewOptions {
+        framework: framework.map(|f| f.to_string()),
+        provider: provider.map(|p| p.to_string()),
+        application_type: application_type.map(|a| a.to_string()),
     };
     
     // Get template metadata
@@ -97,125 +148,127 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
     
     // Set up different components based on template type
     match selected_template.as_str() {
-        "full-stack" => {
+        "client" => {
+            // Use the specified framework if provided, otherwise show default options
+            let frameworks = if let Some(framework) = &options.framework {
+                vec![framework.clone()]
+            } else {
+                vec!["dioxus".to_string(), "tauri".to_string(), "leptos".to_string(), "yew".to_string()]
+            };
+            
             components.client = Some(Client {
                 apps: vec!["web".to_string(), "desktop".to_string()],
-                frameworks: vec!["dioxus".to_string(), "dioxus".to_string()],
+                frameworks,
             });
+            
+            if let Some(framework) = &options.framework {
+                println!("{}\n", format!("Using framework: {}", framework).blue());
+            }
+        },
+        "server" => {
+            // Use the specified framework if provided, otherwise show default options
+            let frameworks = if let Some(framework) = &options.framework {
+                vec![framework.clone()]
+            } else {
+                vec!["axum".to_string(), "poem".to_string(), "actix".to_string(), "rocket".to_string()]
+            };
             
             components.server = Some(Server {
                 services: vec!["api".to_string(), "auth".to_string()],
-                frameworks: vec!["poem".to_string(), "poem".to_string()],
+                frameworks,
             });
             
-            components.database = Some(Database {
-                enabled: true,
-                engines: vec!["postgresql".to_string()],
-                migration_tool: "diesel".to_string(),
-                cache_engine: Some("redis".to_string()),
-                vector_engine: None,
-                graph_engine: None,
+            if let Some(framework) = &options.framework {
+                println!("{}\n", format!("Using framework: {}", framework).blue());
+            }
+        },
+        "shared" => {
+            components.shared = Some(Shared {
+                libraries: vec!["common".to_string(), "models".to_string()],
+                utilities: vec!["validation".to_string(), "helpers".to_string()],
             });
         },
-        "gen-ai" => {
-            components.client = Some(Client {
-                apps: vec!["web".to_string()],
-                frameworks: vec!["dioxus".to_string()],
-            });
+        "edge" => {
+            // Use the specified application type if provided, otherwise show default options
+            let apps = if let Some(app_type) = &options.application_type {
+                vec![app_type.clone()]
+            } else {
+                vec!["worker".to_string(), "function".to_string()]
+            };
             
-            components.server = Some(Server {
-                services: vec!["inference".to_string(), "api".to_string()],
-                frameworks: vec!["axum".to_string(), "axum".to_string()],
-            });
-            
-            components.ai = Some(AI {
-                models: vec!["llama".to_string(), "whisper".to_string()],
-                frameworks: vec!["candle".to_string(), "tract".to_string()],
-            });
-        },
-        "edge-app" => {
-            components.client = Some(Client {
-                apps: vec!["web".to_string()],
-                frameworks: vec!["leptos".to_string()],
-            });
+            // Use the specified provider if provided, otherwise show default options
+            let platforms = if let Some(provider) = &options.provider {
+                vec![provider.clone()]
+            } else {
+                vec!["cloudflare".to_string(), "deno".to_string(), "fastly".to_string()]
+            };
             
             components.edge = Some(Edge {
-                apps: vec!["worker".to_string()],
-                platforms: vec!["cloudflare".to_string(), "deno".to_string()],
+                apps,
+                platforms,
             });
             
-            components.database = Some(Database {
-                enabled: true,
-                engines: vec!["dynamodb".to_string()],
-                migration_tool: "aws-sdk".to_string(),
-                cache_engine: None,
-                vector_engine: None,
-                graph_engine: None,
-            });
-        },
-        "embedded" | "iot-device" => {
-            components.embedded = Some(Embedded {
-                devices: vec!["rp2040".to_string()],
-                platforms: vec!["raspberry-pi-pico".to_string()],
-            });
+            if let Some(app_type) = &options.application_type {
+                println!("{}\n", format!("Using application type: {}", app_type).blue());
+            }
+            
+            if let Some(provider) = &options.provider {
+                println!("{}\n", format!("Using provider: {}", provider).blue());
+            }
         },
         "serverless" => {
-            components.server = Some(Server {
-                services: vec!["function".to_string()],
-                frameworks: vec!["lambda".to_string()],
+            // Use the specified provider if provided, otherwise show default options
+            let providers = if let Some(provider) = &options.provider {
+                vec![provider.clone()]
+            } else {
+                vec!["aws".to_string(), "vercel".to_string(), "azure".to_string(), "gcp".to_string()]
+            };
+            
+            components.serverless = Some(Serverless {
+                functions: vec!["api".to_string(), "processor".to_string()],
+                providers,
             });
             
-            components.database = Some(Database {
-                enabled: true,
-                engines: vec!["dynamodb".to_string()],
-                migration_tool: "aws-sdk".to_string(),
-                cache_engine: None,
-                vector_engine: None,
-                graph_engine: None,
-            });
-        },
-        "ml-pipeline" => {
-            components.server = Some(Server {
-                services: vec!["pipeline".to_string(), "api".to_string()],
-                frameworks: vec!["axum".to_string(), "axum".to_string()],
-            });
-            
-            components.ai = Some(AI {
-                models: vec!["custom".to_string()],
-                frameworks: vec!["tract".to_string()],
-            });
-            
-            components.database = Some(Database {
-                enabled: true,
-                engines: vec!["postgresql".to_string()],
-                migration_tool: "sqlx".to_string(),
-                cache_engine: None,
-                vector_engine: None,
-                graph_engine: None,
-            });
+            if let Some(provider) = &options.provider {
+                println!("{}\n", format!("Using provider: {}", provider).blue());
+            }
         },
         "data-science" => {
-            components.server = Some(Server {
-                services: vec!["api".to_string()],
-                frameworks: vec!["rocket".to_string()],
+            components.data_science = Some(DataScience {
+                models: vec!["prediction".to_string(), "classification".to_string()],
+                frameworks: vec!["linfa".to_string(), "smartcore".to_string()],
+            });
+        },
+        "embedded" => {
+            // Use the specified framework if provided, otherwise show default options
+            let _frameworks = if let Some(framework) = &options.framework {
+                vec![framework.clone()]
+            } else {
+                vec!["embassy".to_string(), "rtic".to_string(), "bare-metal".to_string()]
+            };
+            
+            components.embedded = Some(Embedded {
+                devices: vec!["rp2040".to_string(), "stm32".to_string(), "esp32".to_string()],
+                platforms: vec!["raspberry-pi-pico".to_string(), "nucleo".to_string(), "esp-dev-kit".to_string()],
             });
             
-            components.ai = Some(AI {
-                models: vec!["notebook".to_string()],
-                frameworks: vec!["polars".to_string()],
+            if let Some(framework) = &options.framework {
+                println!("{}\n", format!("Using framework: {}", framework).blue());
+            }
+        },
+        "library" => {
+            components.library = Some(Library {
+                name: "rust-lib".to_string(),
+                features: vec!["async".to_string(), "serde".to_string()],
             });
-            
-            components.database = Some(Database {
-                enabled: true,
-                engines: vec!["postgresql".to_string(), "duckdb".to_string()],
-                migration_tool: "sqlx".to_string(),
-                cache_engine: None,
-                vector_engine: None,
-                graph_engine: None,
+        },
+        "minimal" => {
+            components.minimal = Some(Minimal {
+                name: "hello-world".to_string(),
             });
         },
         _ => {
-            // Minimal or library templates don't need special configuration
+            return Err(anyhow!("Unknown component type: {}", selected_template));
         }
     }
     
@@ -231,11 +284,11 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
     
     // Display notable components and features
     println!("\n{}", "Notable Features:".bold());
-    display_template_features(&selected_template, &components, &config);
+    display_template_features(&selected_template, &components, &config, &options);
     
     // Show file previews
     println!("\n{}", "Sample Files:".bold());
-    display_sample_files(&selected_template);
+    display_sample_files(&selected_template, &options);
     
     // Ask if user wants to create a project with this template
     if Confirm::new()
@@ -243,11 +296,31 @@ pub fn execute(template_name: Option<&str>) -> Result<()> {
         .default(false)
         .interact()?
     {
-        // Call the new command with the selected template
-        println!("Using template: {}", selected_template);
+        // Call the new command with the selected template and options
+        println!("Using component type: {}", selected_template);
         
-        // Create a temporary project with the selected template
-        if let Err(e) = crate::commands::new::execute(None, Some(&selected_template), None, None, None, false, false, false, None) {
+        // Pass along any framework, provider, or application_type options
+        if let Some(framework) = &options.framework {
+            println!("Using framework: {}", framework);
+        }
+        
+        if let Some(provider) = &options.provider {
+            println!("Using provider: {}", provider);
+        }
+        
+        if let Some(app_type) = &options.application_type {
+            println!("Using application type: {}", app_type);
+        }
+        
+        // Create a project with the selected template and options
+        if let Err(e) = crate::commands::new::execute(
+            None, 
+            Some(&selected_template), 
+            options.framework.as_deref(),
+            options.provider.as_deref(), 
+            options.application_type.as_deref(),
+            false, false, false, None
+        ) {
             return Err(anyhow!("Failed to create preview: {}", e));
         }
     }
@@ -267,23 +340,11 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
     
     // Different structure based on template type
     if template_type == "minimal" {
-        tree.push_str("└── src/\n");
-        tree.push_str("    └── main.rs\n");
-    } else if template_type == "library" {
-        tree.push_str("└── src/\n");
-        tree.push_str("    └── lib.rs\n");
-    } else if template_type == "full-stack" || template_type == "gen-ai" || template_type == "edge-app" {
         // Client
         if let Some(client) = &components.client {
             tree.push_str("├── client/\n");
-            if client.apps.contains(&"web".to_string()) {
-                tree.push_str("│   ├── web/\n");
-                tree.push_str("│   │   ├── Cargo.toml\n");
-                tree.push_str("│   │   └── src/\n");
-                tree.push_str("│   │       └── main.rs\n");
-            }
-            if client.apps.contains(&"desktop".to_string()) {
-                tree.push_str("│   ├── desktop/\n");
+            for (_i, app) in client.apps.iter().enumerate() {
+                tree.push_str(&format!("│   ├── {}\n", app));
                 tree.push_str("│   │   ├── Cargo.toml\n");
                 tree.push_str("│   │   └── src/\n");
                 tree.push_str("│   │       └── main.rs\n");
@@ -293,64 +354,144 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
         // Server
         if let Some(server) = &components.server {
             tree.push_str("├── server/\n");
-            tree.push_str("│   ├── api/\n");
-            tree.push_str("│   │   ├── Cargo.toml\n");
-            tree.push_str("│   │   └── src/\n");
-            tree.push_str("│   │       └── main.rs\n");
-            if server.services.contains(&"auth".to_string()) {
-                tree.push_str("│   ├── auth/\n");
+            for service in &server.services {
+                tree.push_str(&format!("│   ├── {}\n", service));
                 tree.push_str("│   │   ├── Cargo.toml\n");
                 tree.push_str("│   │   └── src/\n");
                 tree.push_str("│   │       └── main.rs\n");
             }
         }
         
-        // Database
-        if let Some(_database) = &components.database {
-            tree.push_str("├── database/\n");
-            tree.push_str("│   ├── Cargo.toml\n");
-            tree.push_str("│   ├── migrations/\n");
-            tree.push_str("│   └── src/\n");
-            tree.push_str("│       ├── lib.rs\n");
-            tree.push_str("│       ├── models.rs\n");
-            tree.push_str("│       └── schema.rs\n");
-        }
-        
-        // AI components
-        if let Some(ai) = &components.ai {
-            tree.push_str("├── ai/\n");
-            tree.push_str("│   ├── models/\n");
-            for model in &ai.models {
-                tree.push_str(&format!("│   │   ├── {}/\n", model));
+        // Shared
+        if let Some(shared) = &components.shared {
+            tree.push_str("├── shared/\n");
+            for lib in &shared.libraries {
+                tree.push_str(&format!("│   ├── {}\n", lib));
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── lib.rs\n");
             }
-            tree.push_str("│   ├── inference/\n");
-            tree.push_str("│   │   ├── Cargo.toml\n");
-            tree.push_str("│   │   └── src/\n");
-            tree.push_str("│   │       └── main.rs\n");
         }
         
-        // Shared libraries
-        tree.push_str("└── ferrisup_common/\n");
-        tree.push_str("    ├── core/\n");
-        tree.push_str("    │   ├── Cargo.toml\n");
-        tree.push_str("    │   └── src/\n");
-        tree.push_str("    │       └── lib.rs\n");
-        tree.push_str("    ├── models/\n");
-        tree.push_str("    │   ├── Cargo.toml\n");
-        tree.push_str("    │   └── src/\n");
-        tree.push_str("    │       └── lib.rs\n");
-        tree.push_str("    └── auth/\n");
-        tree.push_str("        ├── Cargo.toml\n");
-        tree.push_str("        └── src/\n");
-        tree.push_str("            └── lib.rs\n");
+        // Edge
+        if let Some(edge) = &components.edge {
+            tree.push_str("├── edge/\n");
+            for app in &edge.apps {
+                tree.push_str(&format!("│   ├── {}\n", app));
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── main.rs\n");
+            }
+        }
+        
+        // Serverless
+        if let Some(serverless) = &components.serverless {
+            tree.push_str("├── serverless/\n");
+            for function in &serverless.functions {
+                tree.push_str(&format!("│   ├── {}\n", function));
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── main.rs\n");
+            }
+        }
+        
+        // Data Science
+        if let Some(data_science) = &components.data_science {
+            tree.push_str("├── data-science/\n");
+            for model in &data_science.models {
+                tree.push_str(&format!("│   ├── {}\n", model));
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── lib.rs\n");
+            }
+        }
+        
+        // Embedded
+        if let Some(embedded) = &components.embedded {
+            tree.push_str("├── embedded/\n");
+            for device in &embedded.devices {
+                tree.push_str(&format!("│   ├── {}\n", device));
+                tree.push_str("│   │   ├── Cargo.toml\n");
+                tree.push_str("│   │   ├── memory.x\n");
+                tree.push_str("│   │   └── src/\n");
+                tree.push_str("│   │       └── main.rs\n");
+            }
+        }
+        
+        // Library
+        if let Some(_library) = &components.library {
+            tree.push_str("├── lib/\n");
+            tree.push_str("│   ├── Cargo.toml\n");
+            tree.push_str("│   └── src/\n");
+            tree.push_str("│       └── lib.rs\n");
+        }
+        
+        // Minimal
+        if let Some(_minimal) = &components.minimal {
+            tree.push_str("└── src/\n");
+            tree.push_str("    └── main.rs\n");
+        }
     }
     
     tree
 }
 
 /// Display notable features for a given template
-fn display_template_features(template_name: &str, components: &Components, _config: &Config) {
+fn display_template_features(template_name: &str, components: &Components, _config: &Config, options: &PreviewOptions) {
     let mut features_from_metadata = Vec::new();
+    
+    // Add framework-specific features if a framework is specified
+    if let Some(framework) = &options.framework {
+        match framework.as_str() {
+            "dioxus" => {
+                features_from_metadata.push("Dioxus reactive web framework".to_string());
+                features_from_metadata.push("Hot-reloading for development".to_string());
+            },
+            "leptos" => {
+                features_from_metadata.push("Leptos reactive web framework".to_string());
+                features_from_metadata.push("Server-side rendering support".to_string());
+            },
+            "axum" => {
+                features_from_metadata.push("Axum web server framework".to_string());
+                features_from_metadata.push("Async request handling".to_string());
+            },
+            "tauri" => {
+                features_from_metadata.push("Tauri desktop application framework".to_string());
+                features_from_metadata.push("Cross-platform desktop support".to_string());
+            },
+            _ => {}
+        }
+    }
+    
+    // Add provider-specific features if a provider is specified
+    if let Some(provider) = &options.provider {
+        match provider.as_str() {
+            "aws" => {
+                features_from_metadata.push("AWS Lambda integration".to_string());
+                features_from_metadata.push("AWS SAM deployment support".to_string());
+            },
+            "cloudflare" => {
+                features_from_metadata.push("Cloudflare Workers support".to_string());
+                features_from_metadata.push("Edge deployment capabilities".to_string());
+            },
+            _ => {}
+        }
+    }
+    
+    // Add application-type specific features
+    if let Some(app_type) = &options.application_type {
+        match app_type.as_str() {
+            "wasm" => {
+                features_from_metadata.push("WebAssembly compilation target".to_string());
+                features_from_metadata.push("Browser integration".to_string());
+            },
+            "worker" => {
+                features_from_metadata.push("Background worker processing".to_string());
+                features_from_metadata.push("Async task handling".to_string());
+            },
+            _ => {}
+        }
+    }
     
     if let Ok(template_dir) = find_template_directory(template_name) {
         let template_json_path = template_dir.join("template.json");
@@ -373,121 +514,172 @@ fn display_template_features(template_name: &str, components: &Components, _conf
         features_from_metadata.iter().map(|s| s.as_str()).collect::<Vec<&str>>()
     } else {
         match template_name {
-            "minimal" => vec![
-                "Single binary application",
-                "Clean workspace structure",
-                "Ready for expansion",
+            "client" => vec![
+                "Client-side applications",
+                "Web and desktop UI components",
+                "Dioxus and Tauri integration",
+                "State management patterns",
+            ],
+            "server" => vec![
+                "API server with Axum/Poem",
+                "Authentication and authorization",
+                "Request validation",
+                "Middleware support",
+            ],
+            "shared" => vec![
+                "Common code libraries",
+                "Shared models and types",
+                "Validation utilities",
+                "Cross-component helpers",
+            ],
+            "edge" => vec![
+                "Edge computing with Cloudflare Workers",
+                "Serverless functions",
+                "Web API endpoints",
+                "Lightweight deployment",
+            ],
+            "serverless" => vec![
+                "AWS Lambda functions",
+                "Vercel serverless integration",
+                "API Gateway setup",
+                "Event-driven architecture",
+            ],
+            "data-science" => vec![
+                "Data processing pipelines",
+                "Machine learning models",
+                "Statistical analysis tools",
+                "Visualization utilities",
+            ],
+            "embedded" => vec![
+                "Embedded Rust for microcontrollers",
+                "No-std environment setup",
+                "Hardware abstraction layers",
+                "Memory-safe device drivers",
             ],
             "library" => vec![
                 "Library crate with lib.rs",
                 "Documentation setup",
                 "Test infrastructure",
+                "Feature flags support",
             ],
-            "full-stack" => vec![
-                "Client applications using Dioxus/Tauri",
-                "Server services with Poem/Axum",
-                "Shared libraries for code reuse",
-                "Database integration",
-                "Workspace structure for efficient development",
+            "minimal" => vec![
+                "Single binary application",
+                "Clean workspace structure",
+                "Ready for expansion",
+                "Minimal dependencies",
             ],
-            "gen-ai" => vec![
-                "AI model integration (LLaMA, BERT, Whisper, Stable Diffusion)",
-                "Inference server architecture",
-                "Model management and serving",
-                "Web UI for interaction",
-            ],
-            "edge-app" => vec![
-                "WebAssembly compilation targets",
-                "Edge deployment configurations", 
-                "Cloudflare Workers integration",
-                "Deno Deploy support",
-            ],
-            "embedded" => vec![
-                "No-std Rust configuration",
-                "Hardware abstraction layers",
-                "Memory-safe peripheral management",
-                "Support for RP2040, ESP32, STM32, Arduino",
-            ],
-            "iot-device" => vec![
-                "Connectivity protocols (MQTT, HTTP, BLE)",
-                "Secure boot and OTA updates",
-                "Power management utilities",
-                "Server integration for device management",
-            ],
-            "serverless" => vec![
-                "AWS Lambda/Azure Functions compatible",
-                "Deployment configurations",
-                "Local development environment",
-                "Database connectors for serverless",
-            ],
-            "ml-pipeline" => vec![
-                "Data ingestion components",
-                "Transformation pipeline",
-                "Model training infrastructure",
-                "Inference API endpoints",
-            ],
-            "data-science" => vec![
-                "Data loading and processing utilities",
-                "Statistical analysis components",
-                "Visualization and reporting tools",
-                "Integration with popular data science libraries",
-            ],
-            _ => vec![
-                "Basic Rust project structure",
-                "Command-line interface",
-            ],
+            _ => vec!["Custom component features"],
         }
     };
     
+    // Print features based on template type
+    println!("{}", "\nFeatures:".bold());
     for feature in features {
-        println!("  ✓ {}", feature);
+        println!("  • {}", feature);
     }
     
-    println!("\n{}", "Technology Stack:".bold());
+    // Print tech stack based on components
+    println!("{}", "\nTech Stack:".bold());
     
     if let Some(client) = &components.client {
-        println!("  ✓ Client Framework: {}", client.frameworks.join(", "));
+        println!("  • Client: {}", client.frameworks.join(", "));
     }
     
     if let Some(server) = &components.server {
-        println!("  ✓ Server Framework: {}", server.frameworks.join(", "));
+        println!("  • Server: {}", server.frameworks.join(", "));
     }
     
-    if let Some(db) = &components.database {
-        if let Some(primary_db) = db.engines.first() {
-            println!("  ✓ Database: {} with {}", primary_db, db.migration_tool);
-        }
-    }
-    
-    if let Some(ai) = &components.ai {
-        println!("  ✓ AI Models: {}", ai.models.join(", "));
-        println!("  ✓ AI Frameworks: {}", ai.frameworks.join(", "));
+    if let Some(shared) = &components.shared {
+        println!("  • Shared Libraries: {}", shared.libraries.join(", "));
+        println!("  • Utilities: {}", shared.utilities.join(", "));
     }
     
     if let Some(edge) = &components.edge {
-        println!("  ✓ Edge Platforms: {}", edge.platforms.join(", "));
-        println!("  ✓ Edge Apps: {}", edge.apps.join(", "));
+        println!("  • Edge Platforms: {}", edge.platforms.join(", "));
+    }
+    
+    if let Some(serverless) = &components.serverless {
+        println!("  • Serverless Functions: {}", serverless.functions.join(", "));
+        println!("  • Cloud Providers: {}", serverless.providers.join(", "));
+    }
+    
+    if let Some(data_science) = &components.data_science {
+        println!("  • Data Science Models: {}", data_science.models.join(", "));
+        println!("  • Frameworks: {}", data_science.frameworks.join(", "));
     }
     
     if let Some(embedded) = &components.embedded {
-        println!("  ✓ Devices: {}", embedded.devices.join(", "));
-        println!("  ✓ Embedded Platforms: {}", embedded.platforms.join(", "));
+        println!("  • Embedded Devices: {}", embedded.devices.join(", "));
+        println!("  • Platforms: {}", embedded.platforms.join(", "));
+    }
+    
+    if let Some(library) = &components.library {
+        println!("  • Library: {}", library.name);
+        println!("  • Features: {}", library.features.join(", "));
+    }
+    
+    if let Some(minimal) = &components.minimal {
+        println!("  • Minimal Application: {}", minimal.name);
     }
 }
 
 /// Display sample files from the template
-fn display_sample_files(template_name: &str) {
+fn display_sample_files(template_name: &str, options: &PreviewOptions) {
     println!("  📄 Sample files from template:");
     
     if let Ok(template_dir) = find_template_directory(template_name) {
-        let key_files = vec![
+        // Determine which files to show based on template and options
+        let mut key_files = vec![
             "src/main.rs",
             "src/lib.rs",
             "Cargo.toml",
-            "README.md",
-            "index.html",
-            "style.css"
+            "README.md"
         ];
+        
+        // Add framework-specific files if a framework is specified
+        if let Some(framework) = &options.framework {
+            match framework.as_str() {
+                "dioxus" => {
+                    key_files.push("index.html");
+                    key_files.push("dioxus.toml");
+                },
+                "leptos" => {
+                    key_files.push("index.html");
+                    key_files.push("leptos.config.json");
+                },
+                "axum" => {
+                    key_files.push(".env");
+                    key_files.push("src/routes/mod.rs");
+                },
+                "tauri" => {
+                    key_files.push("tauri.conf.json");
+                    key_files.push("src-tauri/tauri.conf.json");
+                },
+                _ => {
+                    // Default web files for other frameworks
+                    key_files.push("index.html");
+                    key_files.push("style.css");
+                }
+            }
+        } else if template_name == "client" {
+            // Default web files if no framework specified for client
+            key_files.push("index.html");
+            key_files.push("style.css");
+        }
+        
+        // Add provider-specific files if a provider is specified
+        if let Some(provider) = &options.provider {
+            match provider.as_str() {
+                "aws" => {
+                    key_files.push("template.yaml");
+                    key_files.push(".aws-sam/build.toml");
+                },
+                "cloudflare" => {
+                    key_files.push("wrangler.toml");
+                },
+                _ => {}
+            }
+        }
         
         let mut found_files = false;
         
@@ -501,10 +693,27 @@ fn display_sample_files(template_name: &str) {
                 
                 match std::fs::read_to_string(&file_path) {
                     Ok(content) => {
-                        let preview_content = if content.len() > 500 {
-                            format!("{}...\n(Content truncated, showing first 500 characters)", &content[..500])
+                        // Replace template variables with placeholder values
+                        let mut processed_content = content
+                            .replace("{{project_name}}", "example-project")
+                            .replace("{{crate_name}}", "example_project")
+                            .replace("{{description}}", "Example project created with FerrisUp")
+                            .replace("{{author}}", "FerrisUp User")
+                            .replace("{{mcu_target}}", "rp2040");
+                            
+                        // Handle Handlebars conditionals for preview purposes
+                        processed_content = processed_content
+                            .replace("{{#if (eq mcu_target \"rp2040\")}}", "")
+                            .replace("{{/if}}", "")
+                            .replace("{{#if (eq mcu_target \"stm32\")}}", "<!-- Not selected: ")
+                            .replace("{{#if (eq mcu_target \"esp32\")}}", "<!-- Not selected: ")
+                            .replace("{{#if (eq mcu_target \"nrf52\")}}", "<!-- Not selected: ");
+                        
+                        // If content is too long, truncate it
+                        let preview_content = if processed_content.len() > 500 {
+                            format!("{}...\n(Content truncated, showing first 500 characters)", &processed_content[..500])
                         } else {
-                            content
+                            processed_content
                         };
                         println!("{}", preview_content);
                     },
@@ -546,7 +755,7 @@ mod tests {
 }"#);
                 files
             },
-            "full-stack" => {
+            "client" => {
                 let mut files = HashMap::new();
                 files.insert("client/web/src/main.rs", r#"use dioxus::prelude::*;
 
@@ -559,23 +768,135 @@ fn App(cx: Scope) -> Element {
         div { "Hello from Dioxus!" }
     })
 }"#);
-                
-                files.insert("server/api/src/main.rs", r#"use poem::{get, handler, Route, Server};
-use poem::web::{Html, Path};
+                files
+            },
+            "server" => {
+                let mut files = HashMap::new();
+                files.insert("server/api/src/main.rs", r#"use axum::{routing::get, Router};
 
-#[handler]
-fn hello(Path(name): Path<String>) -> Html<String> {
-    Html(format!("<h1>Hello, {}!</h1>", name))
+async fn hello() -> &'static str {
+    "Hello from Axum server!"
 }
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
-    let app = Route::new().at("/hello/:name", get(hello));
+async fn main() {
+    let app = Router::new().route("/", get(hello));
     
     println!("Server starting at http://localhost:3000");
-    Server::new(([0, 0, 0, 0], 3000))
-        .run(app)
+    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+        .serve(app.into_make_service())
         .await
+        .unwrap();
+}"#);
+                files
+            },
+            "shared" => {
+                let mut files = HashMap::new();
+                files.insert("shared/models/src/lib.rs", r#"//! Shared models for the application
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct User {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApiResponse<T> {
+    pub success: bool,
+    pub data: Option<T>,
+    pub error: Option<String>,
+}"#);
+                files
+            },
+            "edge" => {
+                let mut files = HashMap::new();
+                files.insert("edge/worker/src/main.rs", r#"use worker::*;
+
+#[event(fetch)]
+pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
+    Router::new()
+        .get("/", |_, _| Response::ok("Hello from Cloudflare Workers!"))
+        .get("/api", |_, _| Response::ok("API endpoint"))
+        .run(req, env)
+        .await
+}"#);
+                files
+            },
+            "serverless" => {
+                let mut files = HashMap::new();
+                files.insert("serverless/api/src/main.rs", r#"use lambda_runtime::{service_fn, LambdaEvent, Error};
+use serde_json::{json, Value};
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    lambda_runtime::run(service_fn(handler)).await?;
+    Ok(())
+}
+
+async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
+    let (event, _context) = event.into_parts();
+    
+    Ok(json!({
+        "statusCode": 200,
+        "body": json!({
+            "message": "Hello from AWS Lambda!",
+            "event": event
+        }).to_string()
+    }))
+}"#);
+                files
+            },
+            "data-science" => {
+                let mut files = HashMap::new();
+                files.insert("data-science/prediction/src/lib.rs", r#"use ndarray::Array2;
+use linfa::prelude::*;
+
+pub struct Model {
+    // Model state would go here
+}
+
+impl Model {
+    pub fn new() -> Self {
+        Self {}
+    }
+    
+    pub fn predict(&self, data: &Array2<f64>) -> Array2<f64> {
+        // Prediction logic would go here
+        println!("Predicting with data shape: {:?}", data.shape());
+        Array2::zeros((data.nrows(), 1))
+    }
+}"#);
+                files
+            },
+            "embedded" => {
+                let mut files = HashMap::new();
+                files.insert("embedded/rp2040/src/main.rs", r#"#![no_std]
+#![no_main]
+
+use panic_halt as _;
+use rp2040_hal as hal;
+
+#[rp2040_hal::entry]
+fn main() -> ! {
+    let mut pac = hal::pac::Peripherals::take().unwrap();
+    let core = hal::pac::CorePeripherals::take().unwrap();
+    
+    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+    let sio = hal::Sio::new(pac.SIO);
+    
+    let clocks = hal::clocks::init_clocks_and_plls(
+        rp2040_hal::XOSC_CRYSTAL_FREQ,
+        pac.XOSC,
+        pac.CLOCKS,
+        pac.PLL_SYS,
+        pac.PLL_USB,
+        &mut pac.RESETS,
+        &mut watchdog,
+    ).ok().unwrap();
+    
+    // Infinite loop
+    loop {}
 }"#);
                 files
             },
@@ -606,7 +927,24 @@ cargo run
         for (path, content) in sample_files {
             println!("\n{} {}", "File:".cyan().bold(), path.cyan());
             println!("{}", "----------------------------------------".dimmed());
-            println!("{}", content);
+            
+            // Replace template variables with placeholder values
+            let mut processed_content = content
+                .replace("{{project_name}}", "example-project")
+                .replace("{{crate_name}}", "example_project")
+                .replace("{{description}}", "Example project created with FerrisUp")
+                .replace("{{author}}", "FerrisUp User")
+                .replace("{{mcu_target}}", "rp2040");
+                
+            // Handle Handlebars conditionals for preview purposes
+            processed_content = processed_content
+                .replace("{{#if (eq mcu_target \"rp2040\")}}", "")
+                .replace("{{/if}}", "")
+                .replace("{{#if (eq mcu_target \"stm32\")}}", "<!-- Not selected: ")
+                .replace("{{#if (eq mcu_target \"esp32\")}}", "<!-- Not selected: ")
+                .replace("{{#if (eq mcu_target \"nrf52\")}}", "<!-- Not selected: ");
+                
+            println!("{}", processed_content);
             println!("{}", "----------------------------------------".dimmed());
         }
     }
@@ -632,21 +970,25 @@ mod tests {
     fn test_display_template_features() {
         let components = Components::default();
         let config = Config::default();
-        display_template_features("minimal", &components, &config);
+        let options = PreviewOptions::default();
+        display_template_features("minimal", &components, &config, &options);
         
         let components = Components::default();
         let config = Config::default();
-        display_template_features("full-stack", &components, &config);
+        let options = PreviewOptions::default();
+        display_template_features("full-stack", &components, &config, &options);
         
         let components = Components::default();
         let config = Config::default();
-        display_template_features("gen-ai", &components, &config);
+        let options = PreviewOptions::default();
+        display_template_features("gen-ai", &components, &config, &options);
     }
     
     #[test]
     fn test_display_sample_files() {
-        display_sample_files("minimal");
-        display_sample_files("library");
-        display_sample_files("full-stack");
+        let options = PreviewOptions::default();
+        display_sample_files("minimal", &options);
+        display_sample_files("library", &options);
+        display_sample_files("full-stack", &options);
     }
 }

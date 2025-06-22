@@ -100,12 +100,24 @@ pub enum Commands {
     /// List available component types
     List,
 
-    /// Preview a template without actually creating files
+    /// Preview a component type without actually creating files
     #[cfg(not(feature = "workspace_test"))]
     Preview {
-        /// Template to preview (optional, will prompt if not provided)
+        /// Component type to preview (optional, will prompt if not provided)
         #[arg(short, long)]
-        template: Option<String>,
+        component_type: Option<ComponentType>,
+        
+        /// Framework to use for client, server, or embedded components
+        #[arg(long)]
+        framework: Option<String>,
+        
+        /// Cloud provider for serverless components
+        #[arg(long)]
+        provider: Option<String>,
+        
+        /// Application type for edge components
+        #[arg(long)]
+        application_type: Option<String>,
     },
 
     /// Manage project components (add/remove/list) with consistent component types
