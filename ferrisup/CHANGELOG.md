@@ -5,6 +5,21 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-06-22
+
+### Added
+- Enhanced preview command with additional flags: `--framework`, `--provider`, and `--application-type`
+- Added PreviewOptions struct to customize preview output based on selected options
+- Added framework-specific and provider-specific sample files and features to preview output
+
+### Fixed
+- Fixed important bug in remove command
+- Updated preview command to use `--component-type` instead of `--template` for consistency
+
+### Changed
+- Documented preview command as work in progress with known limitations
+- Added TODO comments throughout preview command code to mark areas for improvement
+
 ## [0.2.1] - 2025-06-18
 
 ### Changed
