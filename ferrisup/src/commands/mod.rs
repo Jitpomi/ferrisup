@@ -100,7 +100,13 @@ pub enum Commands {
     /// List available component types
     List,
 
-    /// Preview a component type without actually creating files
+    /// Preview a component type without creating files
+    /// 
+    /// NOTE: This command is a work in progress and has several limitations:
+    /// - Not all template variables are properly replaced
+    /// - Some framework-specific features may not be accurately displayed
+    /// - File previews may not reflect actual generated content
+    /// - Limited support for complex template combinations
     #[cfg(not(feature = "workspace_test"))]
     Preview {
         /// Component type to preview (optional, will prompt if not provided)

@@ -37,7 +37,7 @@ Commands:
   new              Create a new Rust project with interactive configuration
   transform        Transform an existing project with interactive configuration
   list             List available component types
-  preview          Preview a template without actually creating files
+  preview          Preview a component  without actually creating files
   component        Manage project components (add/remove/list) with consistent component types
   config           Manage configurations (export/import)
   workspace        Manage Cargo workspaces
@@ -71,8 +71,11 @@ ferrisup new
 # List available component types
 ferrisup list
 
-# Preview a component type
+# Preview a component type (work in progress)
 ferrisup preview --component-type server --framework axum
+
+# Preview a client component with specific framework
+ferrisup preview --component-type client --framework dioxus
 
 # Transform an existing project
 ferrisup transform
@@ -148,6 +151,29 @@ ferrisup new [PROJECT_NAME] [--component-type TYPE] [--application-type APPLICAT
 - `--git`: Initialize a git repository
 - `--build`: Run cargo build after creation
 
+### `preview` (Work in Progress)
+
+Preview a component type without actually creating files. This command shows what files and features would be included in a project of the specified component type.
+
+```bash
+ferrisup preview [--component-type TYPE] [--framework FRAMEWORK] [--provider PROVIDER] [--application-type APPLICATION_TYPE]
+```
+
+- `--component-type`: Specify a component type to preview (server, client, data-science, edge, binary, etc.)
+- `--framework`: Specify a framework for client, server, or embedded components
+- `--provider`: Specify a cloud provider for serverless or edge components
+- `--application-type`: Specify an application type for edge components
+
+**Note: The preview command is currently a work in progress with several known limitations:**
+
+- Template variable replacement is incomplete and may not accurately represent final output
+- Framework-specific features and files may not be fully represented
+- Some complex template combinations may not preview correctly
+- File content previews are simplified and may differ from actual generated files
+- Not all component options are fully supported
+
+Future improvements will address these limitations to provide a more accurate preview experience.
+
 ### `transform`
 
 Transform an existing project into a different structure or add components. This command enables the "Start Anywhere, Scale Anywhere" philosophy by allowing you to evolve your project structure as your needs grow.
@@ -206,7 +232,7 @@ ferrisup list
 
 ### `preview`
 
-Preview a component type without creating any files.
+Preview a component without creating any files.
 
 ```bash
 ferrisup preview [--component-type TYPE] [--framework FRAMEWORK]
@@ -353,10 +379,10 @@ For major contributions or if you'd like to discuss implementation details befor
 FerrisUp is currently in active development. Here's the current status of various features:
 
 ### Fully Implemented Features
-- Core templates (minimal, library, server, data-science, edge, embedded, serverless)
+- Core component types (minimal, library, server, data-science, edge, embedded, serverless)
 - Basic project creation with the `new` command
-- Template listing with the `list` command
-- Template preview with the `preview` command
+- Component type listing with the `list` command
+- Component preview with the `preview` command
 - Transform command for converting projects to workspaces and adding components
 - Unused features detection
 
@@ -371,15 +397,15 @@ The following features are prioritized for the next releases as we work toward v
 - **Error Handling Improvements**: More user-friendly error messages and recovery suggestions
 
 #### Developer Experience
-- **Interactive Template Preview**: Preview templates before project creation
+- **Interactive Component Preview**: Preview components before project creation
 - **Project Scaffolding Wizard**: Step-by-step guided project creation for beginners
-- **Template Customization**: Allow users to customize templates during project creation
+- **Component Customization**: Allow users to customize components during project creation
 - **Dependency Version Management**: Smart handling of dependency version conflicts
 
 #### Stability and Testing
 - **Integration Test Suite**: Comprehensive test coverage for all commands
 - **Cross-Platform Validation**: Ensure consistent behavior across operating systems
-- **Template Validation**: Automated testing of all template combinations
+- **Component Validation**: Automated testing of all component combinations
 - **Performance Optimization**: Reduce startup and execution time
 
 ## Future Work

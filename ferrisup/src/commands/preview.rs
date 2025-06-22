@@ -97,6 +97,18 @@ struct PreviewOptions {
 }
 
 /// Execute the preview command to visualize a template without actually creating files
+/// 
+/// # Work in Progress
+/// 
+/// This command is currently a work in progress with several known limitations:
+/// 
+/// * Template variable replacement is incomplete and may not accurately represent final output
+/// * Framework-specific features and files may not be fully represented
+/// * Some complex template combinations may not preview correctly
+/// * File content previews are simplified and may differ from actual generated files
+/// * Not all component options are fully supported
+/// 
+/// Future improvements will address these limitations to provide a more accurate preview experience.
 pub fn execute(
     component_type: Option<&str>,
     framework: Option<&str>,
@@ -437,7 +449,13 @@ fn generate_project_tree(components: &Components, _config: &Config) -> String {
 }
 
 /// Display notable features for a given template
+/// 
+/// Note: This is a work in progress and may not accurately represent all features
+/// of the selected template, especially for complex template combinations.
 fn display_template_features(template_name: &str, components: &Components, _config: &Config, options: &PreviewOptions) {
+    // TODO: Improve feature detection to better match actual template capabilities
+    // TODO: Add support for more complex feature combinations based on framework/provider/application-type
+    // TODO: Integrate with actual template rendering to show more accurate features
     let mut features_from_metadata = Vec::new();
     
     // Add framework-specific features if a framework is specified
@@ -624,7 +642,14 @@ fn display_template_features(template_name: &str, components: &Components, _conf
 }
 
 /// Display sample files from the template
+/// 
+/// Note: This is a work in progress and may not show all files that would be generated.
+/// The content of displayed files may also differ from actual generated content.
 fn display_sample_files(template_name: &str, options: &PreviewOptions) {
+    // TODO: Improve sample file display to show more accurate content
+    // TODO: Better integrate with actual template rendering system
+    // TODO: Add support for showing framework-specific file content
+    // TODO: Handle complex template combinations more accurately
     println!("  📄 Sample files from template:");
     
     if let Ok(template_dir) = find_template_directory(template_name) {
@@ -929,6 +954,10 @@ cargo run
             println!("{}", "----------------------------------------".dimmed());
             
             // Replace template variables with placeholder values
+            // TODO: Improve template variable replacement to handle more variables and complex patterns
+            // TODO: Add support for framework-specific variables based on PreviewOptions
+            // TODO: Improve template variable replacement to handle more variables and complex patterns
+            // TODO: Add support for framework-specific variables based on PreviewOptions
             let mut processed_content = content
                 .replace("{{project_name}}", "example-project")
                 .replace("{{crate_name}}", "example_project")
@@ -937,6 +966,8 @@ cargo run
                 .replace("{{mcu_target}}", "rp2040");
                 
             // Handle Handlebars conditionals for preview purposes
+            // TODO: Improve conditional handling for more complex templates
+            // TODO: Support framework-specific conditionals based on PreviewOptions
             processed_content = processed_content
                 .replace("{{#if (eq mcu_target \"rp2040\")}}", "")
                 .replace("{{/if}}", "")
