@@ -3,7 +3,6 @@ pub mod new;
 pub mod list;
 pub mod preview;
 pub mod transform;
-pub mod scale;
 pub mod config;
 pub mod workspace;
 pub mod component;
@@ -98,11 +97,8 @@ pub enum Commands {
         template: Option<String>,
     },
 
-    /// List available templates
+    /// List available component types
     List,
-
-    /// Interactively scale a project with custom components
-    Scale,
 
     /// Preview a template without actually creating files
     #[cfg(not(feature = "workspace_test"))]

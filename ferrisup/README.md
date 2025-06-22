@@ -36,7 +36,7 @@ FerrisUp is organized as a Cargo workspace with the following components:
 Commands:
   new              Create a new Rust project with interactive configuration
   transform        Transform an existing project with interactive configuration
-  list             List available templates
+  list             List available component types
   preview          Preview a template without actually creating files
   component        Manage project components (add/remove/list) with consistent component types
   config           Manage configurations (export/import)

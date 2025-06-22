@@ -106,12 +106,8 @@ fn main() -> Result<()> {
             commands::transform::execute(project.as_deref(), template.as_deref())
         }
         Some(commands::Commands::List) => {
-            println!("{}", "Listing available templates".blue().bold());
+            println!("{}", "Listing available component types".blue().bold());
             commands::list::execute()
-        }
-        Some(commands::Commands::Scale) => {
-            println!("{}", "Scaling project".green().bold());
-            commands::scale::execute()
         }
         #[cfg(not(feature = "workspace_test"))]
         Some(commands::Commands::Preview { template }) => {
