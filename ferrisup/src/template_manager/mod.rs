@@ -657,15 +657,13 @@ This project was generated using FerrisUp.
                 let target_main_rs = target_dir.join("src").join("main.rs");
                 // Read the source file
                 let content = fs::read_to_string(&mcu_main_rs)?;
-                
                 // Create handlebars instance for templating
                 let mut handlebars = Handlebars::new();
                 handlebars.register_escape_fn(handlebars::no_escape);
                 
                 // Apply templating
-                let rendered = handlebars.render_template(&content, &template_vars)
-                    .map_err(|e| anyhow::anyhow!("Failed to render template: {}", e))?;
-                    
+                let rendered = handlebars.render_template(&content, &template_vars)?;
+                
                 // Write to target file
                 fs::write(target_main_rs, rendered)?;
             }
@@ -965,8 +963,16 @@ fn process_template_directory(src: &Path, dst: &Path, template_vars: &Value, han
                 }
                 
                 // Read file content
-                let file_content = fs::read_to_string(&path)
-                    .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))?;
+                let file_content = match fs::read_to_string(&path) {
+                    Ok(content) => content,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        return Err(anyhow!(
+                            "Template file not found: {}. Please ensure it exists and that the path is correct.",
+                            path.display()
+                        ));
+                    }
+                    Err(e) => return Err(anyhow!("Failed to read file {}: {}", path.display(), e)),
+                };
                 
                 // Process conditional blocks
                 let processed_content = process_conditional_blocks(&file_content, template_vars)?;

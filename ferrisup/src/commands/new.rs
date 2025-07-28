@@ -519,9 +519,9 @@ pub fn execute(
                                 
                             app_type_options[app_type_selection].to_string()
                         };
-                        
+
                         println!("Selected application type: {}", selected_app_type);
-                        
+
                         // Second level: Get provider options for the selected type
                         let provider_field = match selected_app_type.as_str() {
                             "static-site" => "static_site_provider",
@@ -799,8 +799,14 @@ pub fn execute(
             // Use template_manager to apply the template instead of hardcoded functions
             let template_path = format!("client/leptos/{}", template);
             
-            // Apply the template using the template manager
-            template_manager::apply_template(&template_path, app_path, &name, additional_vars.clone())?;
+            if let Err(e) = template_manager::apply_template(
+                &template,
+                app_path,
+                &name,
+                additional_vars,
+            ) {
+                return Err(e);
+            }
             
             // DO NOT print next steps here; let the template manager handle it
             return Ok(());
