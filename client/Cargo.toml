@@ -1,6 +1,6 @@
 [package]
 name = "client"
-version = "0.2.1"
+version = "0.2.3"
 authors = ["jermsam <ssali@jitpomi.com>"]
 edition = "2021"
 
