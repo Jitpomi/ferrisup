@@ -1,9 +1,7 @@
 use dioxus::core_macro::{component, rsx};
 use dioxus::prelude::*;
 use crate::components::hero::Hero;
-use crate::components::features::Features;
-use crate::components::cta::CallToAction;
-use crate::components::footer::Footer;
+use crate::components::lazy_sections::LazySections;
 
 #[component]
 pub fn HomePage() -> Element {
@@ -12,17 +10,11 @@ pub fn HomePage() -> Element {
             style: "background-color: #121212; color: white;",
             class: "min-h-screen",
 
-            // Hero section
+            // Hero section - loads immediately for FCP
             Hero {}
 
-            // Features section
-            Features {}
-
-            // CTA section
-            CallToAction {}
-
-            // Footer
-            Footer {}
+            // Lazy-loaded sections for better performance
+            LazySections {}
         }
     }
 }

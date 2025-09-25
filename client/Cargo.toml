@@ -14,6 +14,7 @@ component_type = "client"
 [dependencies]
 dioxus = { version = "0.7.0-rc.0", features = ["router"] }
 dioxus-free-icons = { version = "0.9.0", features = ["font-awesome-brands"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
 
 [features]
 default = ["web"]

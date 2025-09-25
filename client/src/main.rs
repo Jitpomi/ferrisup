@@ -34,11 +34,19 @@ fn App() -> Element {
         
         // Meta tags for SEO
         document::Meta { charset: "utf-8" }
-        document::Meta { name: "description", content: "FerrisUp - The Rust project bootstrapping tool" }
+        document::Meta { name: "description", content: "FerrisUp - Powerful Rust project bootstrapping tool. Create, transform, and scale Rust projects with intelligent workspace management, component-based architecture, and framework-specific templates." }
         document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
-        document::Meta { name: "keywords", content: "rust, ferrisup, bootstrapping, cli, tool, web development" }
+        document::Meta { name: "keywords", content: "rust, ferrisup, bootstrapping, cli, tool, web development, rust framework, project generator, rust templates, workspace management, rust components" }
         document::Meta { name: "author", content: "JITPOMI" }
         document::Meta { name: "robots", content: "index, follow" }
+        document::Meta { name: "theme-color", content: "#fbbf24" }
+        document::Meta { name: "color-scheme", content: "dark" }
+        
+        // Performance hints
+        document::Meta { http_equiv: "x-dns-prefetch-control", content: "on" }
+        document::Link { rel: "dns-prefetch", href: "//fonts.googleapis.com" }
+        document::Link { rel: "dns-prefetch", href: "//github.com" }
+        document::Link { rel: "dns-prefetch", href: "//crates.io" }
         
         // Open Graph meta tags
         document::Meta { property: "og:title", content: "FerrisUp" }
@@ -50,10 +58,89 @@ fn App() -> Element {
         // Twitter Card meta tags
         document::Meta { name: "twitter:card", content: "summary_large_image" }
         
-        // Stylesheets and favicon
+        // Structured data for SEO
+        script {
+            r#type: "application/ld+json",
+            {format!(r#"{{
+                "@context": "https://schema.org",
+                "@type": "SoftwareApplication",
+                "name": "FerrisUp",
+                "description": "Powerful Rust project bootstrapping tool for creating, transforming, and scaling Rust projects",
+                "url": "https://ferrisup.jitpomi.com",
+                "applicationCategory": "DeveloperApplication",
+                "operatingSystem": "Cross-platform",
+                "programmingLanguage": "Rust",
+                "author": {{
+                    "@type": "Organization",
+                    "name": "JITPOMI",
+                    "url": "https://jitpomi.com"
+                }},
+                "downloadUrl": "https://crates.io/crates/ferrisup",
+                "codeRepository": "https://github.com/Jitpomi/ferrisup",
+                "license": "MIT",
+                "keywords": ["rust", "cli", "bootstrapping", "project-generator", "templates"]
+            }}"#)}
+        }
+        
+        // Favicon and critical CSS
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS }
-        document::Stylesheet { href: TAILWIND_CSS }
+        
+        // Critical inline CSS for FCP optimization
+        style { 
+            {format!(r#"
+                body {{
+                    background-color: #101828;
+                    color: #ffffff;
+                    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.5;
+                }}
+                .hero-container {{
+                    background-color: #111827;
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    padding: 2rem 1rem;
+                }}
+                .hero-title {{
+                    font-size: 3rem;
+                    font-weight: 700;
+                    color: white;
+                    margin-bottom: 1rem;
+                    line-height: 1.2;
+                }}
+                .hero-subtitle {{
+                    font-size: 1.5rem;
+                    color: #fbbf24;
+                    margin-bottom: 1.5rem;
+                }}
+                .hero-logo {{
+                    width: 240px;
+                    height: 240px;
+                    border-radius: 50%;
+                    margin-bottom: 2rem;
+                }}
+                @media (max-width: 768px) {{
+                    .hero-title {{ font-size: 2rem; }}
+                    .hero-subtitle {{ font-size: 1.25rem; }}
+                    .hero-logo {{ width: 180px; height: 180px; }}
+                }}
+            "#)}
+        }
+        
+        // Preload critical assets
+        document::Link { rel: "preload", href: FERRISUP_LOGO_PNG, r#as: "image" }
+        
+        // Defer non-critical CSS
+        document::Link { rel: "preload", href: TAILWIND_CSS, r#as: "style", onload: "this.onload=null;this.rel='stylesheet'" }
+        noscript {
+            document::Link { rel: "stylesheet", href: TAILWIND_CSS }
+        }
+        document::Link { rel: "stylesheet", href: MAIN_CSS, media: "print", onload: "this.media='all'" }
         
         Router::<Route> {}
     }

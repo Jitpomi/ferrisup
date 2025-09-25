@@ -5,3 +5,4 @@ pub mod feature_card;
 pub mod features;
 pub mod cta;
 pub mod footer;
+pub mod lazy_sections;

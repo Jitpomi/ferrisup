@@ -8,42 +8,35 @@ pub fn Hero() -> Element {
     rsx! {
         // Using article for better semantic structure
         article {
-            class: "relative py-20 bg-gray-900 overflow-hidden font-['Inter',system-ui,sans-serif]",
+            class: "hero-container",
             // Adding role for accessibility and SEO
             role: "banner",
             aria_labelledby: "hero-heading",
             
-            // Container for content centering and max-width
-            div {
-                class: "container mx-auto px-4 relative z-10",
-            }
-            
-            // Hero content with flex layout for better alignment
+            // Hero content with optimized structure for FCP
             main {
-                class: "flex flex-col items-center text-center",
-                
-                // Logo area with FerrisUp image - improved alt text
+                // Logo area with FerrisUp image - optimized for FCP
                 figure {
-                    class: "flex items-center justify-center mb-4",
                     img {
-                        class: "w-60 h-60 rounded-full shadow-lg",
+                        class: "hero-logo",
                         src: FERRISUP_LOGO_PNG,
                         alt: "FerrisUp - Rust Project Bootstrapping Tool Logo",
                         loading: "eager",
                         width: "240",
-                        height: "240"
+                        height: "240",
+                        fetchpriority: "high"
                     }
                 }
                 
                 h1 {
-                    class: "text-4xl md:text-5xl lg:text-6xl font-bold text-white font-montserrat leading-tight",
+                    class: "hero-title",
                     id: "hero-heading",
-                    "Rust Project Bootstrapping Tool"
+                    "FerrisUp"
                 }
                 
                 // Tagline with improved semantic structure
                 h2 {
-                    class: "mt-4 text-xl md:text-2xl text-amber-300 font-medium font-roboto tracking-wide",
+                    class: "hero-subtitle",
                     "Start Anywhere, Scale Anywhere with Rust"
                 }
                 
