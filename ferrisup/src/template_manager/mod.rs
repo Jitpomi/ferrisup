@@ -1351,7 +1351,13 @@ fn process_dependencies(dependencies: &Value, _target_dir: &Path, section: &str)
 }
 
 fn get_template_dir(template_name: &str) -> Result<PathBuf> {
-    let templates_dir = format!("{}/templates", env!("CARGO_MANIFEST_DIR"));
+    // First try to use the templates from the build output directory
+    let templates_dir = if let Ok(templates_dir) = env::var("FERRISUP_TEMPLATES_DIR") {
+        format!("{}/templates", templates_dir)
+    } else {
+        // Fallback to the source directory for development
+        format!("{}/templates", env!("CARGO_MANIFEST_DIR"))
+    };
     
     // Check if it's a direct template
     let direct_path = Path::new(&templates_dir).join(template_name);

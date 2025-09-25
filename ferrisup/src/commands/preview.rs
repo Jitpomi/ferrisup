@@ -987,7 +987,9 @@ mod tests {
     
     #[test]
     fn test_create_preview_config() {
-        let components = Components::default();
+        let mut components = Components::default();
+        // Add a minimal component to generate the expected structure
+        components.minimal = Some(Minimal { name: "example".to_string() });
         let config = Config::default();
         let tree = generate_project_tree(&components, &config);
         
