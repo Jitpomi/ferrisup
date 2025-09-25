@@ -145,6 +145,70 @@ pub fn Features() -> Element {
                     }
                 }
             }
+            
+            // Latest Updates section
+            div {
+                class: "mt-20 bg-gradient-to-r from-amber-900/20 to-orange-900/20 rounded-2xl p-8 border border-amber-700/30",
+                div {
+                    class: "text-center mb-8",
+                    span {
+                        class: "inline-block px-3 py-1 text-sm font-medium bg-green-900/30 text-green-400 rounded-full mb-4",
+                        "Latest Update"
+                    }
+                    h3 {
+                        class: "text-2xl font-bold text-white mb-2",
+                        "FerrisUp v0.2.4 Released!"
+                    }
+                    p {
+                        class: "text-gray-400",
+                        "Critical bug fixes and improved stability for all users."
+                    }
+                }
+                
+                div {
+                    class: "grid grid-cols-1 md:grid-cols-2 gap-6",
+                    
+                    // Bug fix highlight
+                    div {
+                        class: "bg-gray-800/30 p-6 rounded-xl border border-gray-700/50",
+                        div {
+                            class: "flex items-center mb-3",
+                            span {
+                                class: "text-green-400 mr-3 text-xl",
+                                "🔧"
+                            }
+                            h4 {
+                                class: "font-semibold text-white",
+                                "Template Path Resolution Fixed"
+                            }
+                        }
+                        p {
+                            class: "text-gray-400 text-sm",
+                            "Resolved critical 'No such file or directory' errors when creating new projects. FerrisUp now works reliably in all environments."
+                        }
+                    }
+                    
+                    // Stability improvement
+                    div {
+                        class: "bg-gray-800/30 p-6 rounded-xl border border-gray-700/50",
+                        div {
+                            class: "flex items-center mb-3",
+                            span {
+                                class: "text-blue-400 mr-3 text-xl",
+                                "⚡"
+                            }
+                            h4 {
+                                class: "font-semibold text-white",
+                                "Enhanced Stability"
+                            }
+                        }
+                        p {
+                            class: "text-gray-400 text-sm",
+                            "Improved build system and template handling ensures consistent behavior across development and production environments."
+                        }
+                    }
+                }
+            }
         }
     }
 }

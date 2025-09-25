@@ -1,6 +1,6 @@
 [package]
 name = "client"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["jermsam <ssali@jitpomi.com>"]
 edition = "2021"
 
@@ -12,7 +12,7 @@ component_type = "client"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.6.0", features = ["router"] }
+dioxus = { version = "0.7.0-rc.0", features = ["router"] }
 dioxus-free-icons = { version = "0.9.0", features = ["font-awesome-brands"] }
 
 [features]
