@@ -5,11 +5,12 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.4] - 2025-01-24
 
 ### Fixed
 - Fixed critical template path resolution issue where `get_template_dir` was using `CARGO_MANIFEST_DIR` instead of `FERRISUP_TEMPLATES_DIR`
 - Resolved "No such file or directory (os error 2)" errors when creating new projects with compiled binaries
+- Fixed failing preview test by adding proper minimal component structure
 
 ## [0.2.2] - 2025-06-22
 
