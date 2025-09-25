@@ -23,12 +23,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - uses: jetli/trunk-action@v0.4.0
-        with:
-          version: 'latest'
       
-      - name: Install Dioxus CLI
-        run: cargo install dioxus-cli --locked
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Install Dioxus CLI 0.7.0-rc.0
+        run: cargo install dioxus-cli --version 0.7.0-rc.0 --locked
       
       - name: Build website
         run: |
