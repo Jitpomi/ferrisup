@@ -89,6 +89,29 @@ pub fn Hero() -> Element {
                             }
                         }
                     }
+                    
+                    // GitHub Sponsors button
+                    a {
+                        href: "https://github.com/sponsors/Jitpomi",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        aria_label: "Sponsor FerrisUp Development",
+                        class: "group relative inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-xl bg-pink-600 text-white border border-pink-500 transition-all duration-300 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 shadow-lg hover:shadow-pink-500/25",
+                        span {
+                            class: "flex items-center gap-2",
+                            // Heart icon
+                            svg {
+                                class: "w-4 h-4 transition-transform duration-300 group-hover:scale-110",
+                                xmlns: "http://www.w3.org/2000/svg",
+                                fill: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    d: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                }
+                            }
+                            "Sponsor"
+                        }
+                    }
                 }
                 
                 // Terminal-like display showing example code with better semantic structure
