@@ -84,6 +84,18 @@ To add a new component to the workspace:
 ferrisup transform
 ```
 
+## 💖 Support FerrisUp
+
+If FerrisUp helps you build amazing Rust projects, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/Jitpomi?style=for-the-badge&logo=github&logoColor=white&label=Sponsor&color=EA4AAA)](https://github.com/sponsors/Jitpomi)
+
+Your support helps:
+- 🚀 **Accelerate Development** - More time for new features and improvements
+- 🐛 **Better Bug Fixes** - Faster response to issues and community needs  
+- 📚 **Enhanced Documentation** - Comprehensive guides and tutorials
+- 🌟 **New Templates** - Support for emerging Rust frameworks and tools
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
