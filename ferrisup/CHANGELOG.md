@@ -5,6 +5,68 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-01-05
+
+### Added
+- **GitHub Sponsors Integration**: Added comprehensive sponsorship support across the project
+  - Created `.github/FUNDING.yml` with GitHub Sponsors configuration
+  - Added sponsor buttons to website hero section and footer
+  - Enhanced README with sponsorship section and benefits
+- **Discord Community Integration**: Added Discord server support for community engagement
+  - Updated website footer with Discord link (`https://discord.gg/P3h7bkUR`)
+  - Enhanced community section on website
+- **Website Enhancements**: Improved FerrisUp website with better user experience
+  - Added prominent sponsor buttons with heart icons and hover animations
+  - Updated footer social links (GitHub, Sponsors, Crates.io, Discord)
+  - Simplified hero CTA buttons for better conversion
+  - Updated version displays to v0.2.5 throughout
+
+### Changed
+- **Comprehensive Template Dependency Upgrades**: Updated all 37 template files to latest stable versions
+  - **Leptos**: 0.7.8 → 0.8.10 (with leptos_router 0.8.8, leptos_meta 0.8.5)
+  - **Axum**: 0.8.3 → 0.8.6 with Tokio 1.47, Tower 0.5.2
+  - **Actix**: 4.10.2 → 4.10.3 with improved logging
+  - **Poem**: 3.1.8 → 3.2.0 with Tokio 1.47
+  - **Polars**: 0.46.0 → 0.51.0 across all data science templates
+  - **AWS Lambda**: lambda_runtime 0.9 → 0.14.4, aws_lambda_events 0.12 → 0.18.0
+  - **Cloudflare Workers**: worker 0.0.15 → 0.4.0
+  - **Embedded**: cortex-m 0.7 → 0.7.8, embedded-hal 0.2 → 1.0.0
+  - **Common Updates**: serde 1.0.228, tokio 1.47, wasm-bindgen 0.2.100, web-sys 0.3.77
+
+### Fixed
+- **Critical Leptos Template Bug**: Fixed compilation errors with hyphenated project names
+  - Updated `{{project_name}}` to `{{project_name_snake_case}}` in use statements
+  - Fixed counter, router, and todo template main.rs files
+  - Ensures proper Rust identifier compatibility
+- **Transform Command Bug**: Fixed workspace members not being added to root Cargo.toml
+  - Improved workspace management during project transformation
+  - Better handling of component integration in workspaces
+- **Website Footer Links**: Updated all dead links with functional URLs
+  - Documentation → GitHub README
+  - Getting Started → Installation section
+  - Examples → Examples section in README
+  - Templates → Templates directory
+  - Community → Discord server
+  - Repository → Main GitHub repository
+  - Changelog → CHANGELOG.md file
+  - Report a Bug → GitHub Issues
+
+### Tested
+- **Comprehensive Template Testing**: All templates verified to compile and function correctly
+  - Leptos client templates (counter, router, todo) ✅
+  - Server templates (Axum, Actix, Poem) ✅
+  - Data science templates (Polars, Linfa) ✅
+  - Serverless templates (AWS Lambda) ✅
+  - Edge computing templates ✅
+  - Embedded templates ✅
+  - Library templates ✅
+- **Quality Assurance**: No breaking changes introduced, all tests pass
+
+### Security
+- Updated all dependencies to latest versions for improved security
+- Enhanced dependency management across all template types
+- Better performance and compatibility with latest Rust ecosystem
+
 ## [0.2.4] - 2025-01-24
 
 ### Fixed

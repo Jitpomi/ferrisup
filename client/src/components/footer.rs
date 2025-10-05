@@ -130,28 +130,32 @@ pub fn Footer() -> Element {
                             class: "space-y-2",
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/README.md",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Documentation"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/README.md#-installation",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Getting Started"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/README.md#-examples",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Examples"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/tree/main/ferrisup/templates",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Templates"
                                 }
@@ -170,28 +174,32 @@ pub fn Footer() -> Element {
                             class: "space-y-2",
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://discord.gg/P3h7bkUR",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Community"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
-                                    "Blog"
+                                    "Repository"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/CHANGELOG.md",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Changelog"
                                 }
                             }
                             li {
                                 a {
-                                    href: "#",
+                                    href: "https://github.com/Jitpomi/ferrisup/issues/new",
+                                    target: "_blank",
                                     class: "text-gray-400 hover:text-amber-400 transition-colors duration-300",
                                     "Report a Bug"
                                 }
