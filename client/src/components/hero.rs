@@ -65,7 +65,7 @@ pub fn Hero() -> Element {
                         "View on Crates.io"
                     }
                     
-                    a {
+                   /*  a {
                         href: "https://github.com/Jitpomi/ferrisup",
                         target: "_blank",
                         rel: "noopener noreferrer",
@@ -88,7 +88,7 @@ pub fn Hero() -> Element {
                                 }
                             }
                         }
-                    }
+                    } */
                     
                     // GitHub Sponsors button
                     a {
