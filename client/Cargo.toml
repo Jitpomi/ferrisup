@@ -3,6 +3,13 @@ name = "client"
 version = "0.2.5"
 authors = ["jermsam <ssali@jitpomi.com>"]
 edition = "2021"
+description = "FerrisUp website client built with Dioxus"
+license = "MIT"
+repository = "https://github.com/Jitpomi/ferrisup"
+homepage = "https://ferrisup.jitpomi.com"
+keywords = ["ferrisup", "website", "dioxus", "rust", "web"]
+categories = ["web-programming"]
+publish = false
 
 [package.metadata]
 
