@@ -133,10 +133,8 @@ pub fn store_component_type_in_cargo(component_dir: &Path, component_type: &str)
     Ok(())
 }
 
-// Function to make a shared component accessible to all workspace members
-pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str) -> Result<()> {
-    // Update workspace Cargo.toml to include the shared component in the members list
-    // and add it to workspace.dependencies
+// Function to add a component to workspace members
+pub fn add_component_to_workspace(project_dir: &Path, component_name: &str) -> Result<()> {
     let workspace_cargo_path = project_dir.join("Cargo.toml");
     if !workspace_cargo_path.exists() {
         return Ok(());
@@ -147,7 +145,7 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
         .parse::<DocumentMut>()
         .context("Failed to parse workspace Cargo.toml")?;
 
-    // Add the shared component to the members list
+    // Add the component to the members list
     if let Some(workspace) = workspace_doc.get_mut("workspace") {
         if let Some(workspace_table) = workspace.as_table_mut() {
             if let Some(members) = workspace_table.get_mut("members") {
@@ -168,7 +166,34 @@ pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str
                     }
                 }
             }
-            
+        }
+    }
+
+    // Write updated Cargo.toml
+    fs::write(workspace_cargo_path, workspace_doc.to_string())?;
+    
+    Ok(())
+}
+
+// Function to make a shared component accessible to all workspace members
+pub fn make_shared_component_accessible(project_dir: &Path, component_name: &str) -> Result<()> {
+    // First add the component to workspace members
+    add_component_to_workspace(project_dir, component_name)?;
+    
+    // Now add it to workspace.dependencies
+    let workspace_cargo_path = project_dir.join("Cargo.toml");
+    if !workspace_cargo_path.exists() {
+        return Ok(());
+    }
+
+    let workspace_cargo_content = fs::read_to_string(&workspace_cargo_path)?;
+    let mut workspace_doc = workspace_cargo_content
+        .parse::<DocumentMut>()
+        .context("Failed to parse workspace Cargo.toml")?;
+
+    // Add the shared component to workspace.dependencies
+    if let Some(workspace) = workspace_doc.get_mut("workspace") {
+        if let Some(workspace_table) = workspace.as_table_mut() {
             // Add the shared component to workspace.dependencies
             if workspace_table.get("dependencies").is_none() {
                 workspace_table.insert("dependencies", toml_edit::Item::Table(toml_edit::Table::new()));

@@ -1,4 +1,4 @@
-use {{project_name}}::App;
+use {{project_name_snake_case}}::App;
 use leptos::prelude::mount_to_body;
 
 pub fn main() {

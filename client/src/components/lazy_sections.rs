@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::features::Features;
+use crate::components::community::Community;
 use crate::components::cta::CallToAction;
 use crate::components::footer::Footer;
 
@@ -22,6 +23,9 @@ pub fn LazySections() -> Element {
             // Features section
             Features {}
             
+            // Community section with LinkedIn embed
+            Community {}
+            
             // CTA section  
             CallToAction {}
             
@@ -31,7 +35,7 @@ pub fn LazySections() -> Element {
             // Placeholder for lazy sections
             div {
                 class: "min-h-screen bg-gray-900",
-                style: "height: 200vh;" // Approximate height to prevent layout shift
+                style: "height: 300vh;" // Increased height to account for community section
             }
         }
     }

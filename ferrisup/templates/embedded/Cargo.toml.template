@@ -9,16 +9,16 @@ authors = ["Your Name <your.email@example.com>"]
 [dependencies]
 # Common embedded dependencies
 panic-halt = "0.2"
-cortex-m = "0.7"
-cortex-m-rt = "0.7"
-embedded-hal = "0.2"
+cortex-m = "0.7.8"
+cortex-m-rt = "0.7.5"
+embedded-hal = "1.0.0"
 
 # Target-specific dependencies for {{mcu_target}}
 {{mcu_target_deps}}
 
 [dev-dependencies]
 defmt = "0.3"
-defmt-rtt = "0.4"
+defmt-rtt = "0.4.1"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # this lets you use `cargo fix`!

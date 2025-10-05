@@ -157,7 +157,7 @@ pub fn Features() -> Element {
                     }
                     h3 {
                         class: "text-2xl font-bold text-white mb-2",
-                        "FerrisUp v0.2.4 Released!"
+                        "FerrisUp v0.2.5 Released!"
                     }
                     p {
                         class: "text-gray-400",

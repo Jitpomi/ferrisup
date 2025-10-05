@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 
 [dev-dependencies]
 anyhow = "1.0"
-criterion = "0.5"
+criterion = "0.7.0"
 
 [lib]
 name = "{{project_name_snake_case}}"

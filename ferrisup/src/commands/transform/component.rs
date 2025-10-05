@@ -8,7 +8,7 @@ use toml_edit::{DocumentMut};
 
 use crate::commands::test_mode::is_test_mode;
 use super::project_structure::{analyze_project_structure, map_component_to_template};
-use super::utils::{store_transformation_metadata, store_component_type_in_cargo, make_shared_component_accessible, update_root_file_references};
+use super::utils::{store_transformation_metadata, store_component_type_in_cargo, make_shared_component_accessible, update_root_file_references, add_component_to_workspace};
 use super::ui::{get_input_with_default, select_option};
 use super::constants::{get_formatted_component_types, get_component_type_names};
 
@@ -151,6 +151,9 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
+
+    // Add the component to workspace members
+    add_component_to_workspace(project_dir, &component_name)?;
 
     // If this is a shared component, make it accessible to all workspace members
     if component_type == "shared" {

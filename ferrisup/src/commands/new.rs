@@ -796,11 +796,11 @@ pub fn execute(
             
             println!("🔧 Creating new Leptos project with {} template...", template);
             
-            // Use template_manager to apply the template instead of hardcoded functions
-
+            // For Leptos templates, prepend "client/leptos/"
+            let template_path = format!("client/leptos/{}", template);
             
             if let Err(e) = template_manager::apply_template(
-                &template,
+                &template_path,
                 app_path,
                 &name,
                 additional_vars,

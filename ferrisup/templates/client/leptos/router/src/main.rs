@@ -1,5 +1,5 @@
 use leptos::prelude::mount_to_body;
-use {{project_name}}::*;
+use {{project_name_snake_case}}::App;
 
 fn main() {
     // Initialize logging for debugging
