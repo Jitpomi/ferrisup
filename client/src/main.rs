@@ -18,6 +18,20 @@ const FAVICON: Asset = asset!("assets/favicon.ico");
 const FERRISUP_LOGO: Asset = asset!("assets/ferrisup-logo.png");
 const FERRISUP_MARK: Asset = asset!("assets/ferrisup-mark.png");
 
+// Bundle, preload, and apply CSS from the initial HTML before WebAssembly starts.
+const _: Asset = asset!(
+    "assets/tailwind.css",
+    AssetOptions::css()
+        .with_preload(true)
+        .with_static_head(true)
+);
+const _: Asset = asset!(
+    "assets/main.css",
+    AssetOptions::css()
+        .with_preload(true)
+        .with_static_head(true)
+);
+
 fn main() {
     dioxus::launch(App);
 }

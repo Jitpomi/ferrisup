@@ -12,11 +12,8 @@ reload_html = true
 watch_path = ["src", "assets"]
 index_on_404 = true
 
-# include `assets` in web platform
 [web.resource]
-# Render-blocking stylesheets are emitted into the initial HTML so the page is
-# styled before the WebAssembly application starts.
-style = ["assets/tailwind.css", "assets/main.css"]
+style = []
 
 # Additional JavaScript files
 script = []
