@@ -28,21 +28,21 @@ handlers.push(Box::new(CliProjectHandler::new(
     |project_name, _target_dir, variables| {
         // Function to generate CLI args based on FerrisUp variables
         let mut args = vec!["new".to_string(), project_name.to_string()];
-        
+
         // Add any additional CLI args based on variables
         if let Some(mode) = variables.get("mode").and_then(|m| m.as_str()) {
             args.push("--mode".to_string());
             args.push(mode.to_string());
         }
-        
+
         args
     },
     |project_name, _variables| {
         // Function to generate next steps for the user
         vec![
-            format!("🚀 Navigate to your project: cd {}", project_name),
-            "🔧 Build the project: cargo leptos watch".to_string(),
-            "🌐 View your app at http://localhost:3000".to_string(),
+            format!(" Navigate to your project: cd {}", project_name),
+            " Build the project: cargo leptos watch".to_string(),
+            " View your app at http://localhost:3000".to_string(),
         ]
     },
     Some("cargo install cargo-leptos".to_string()),  // Installation command
@@ -50,7 +50,7 @@ handlers.push(Box::new(CliProjectHandler::new(
 )));
 ```
 
-3. Test your handler with: `ferrisup new my-project --template leptos`
+3. Expose the handler through a supported component/framework selection, then test it with a command such as `ferrisup new my-project --component-type client --framework leptos`.
 
 ### Adding a Template-based Project
 
@@ -74,7 +74,7 @@ handlers.push(Box::new(TemplateProjectHandler::new(
 )));
 ```
 
-4. Test your template with: `ferrisup new my-game --template game`
+4. Add the project type to `ComponentType` and the `new` command's selection flow before testing it. A directory under `templates/` is not automatically exposed as a CLI option.
 
 ## Detailed Architecture Guide
 
@@ -130,25 +130,25 @@ handlers.push(Box::new(CliProjectHandler::new(
     "cargo generate",
     |project_name, _target_dir, variables| {
         let mut args = vec!["--name".to_string(), project_name.to_string()];
-        
+
         if let Some(template) = variables.get("git_template").and_then(|t| t.as_str()) {
             args.push("--git".to_string());
             args.push(template.to_string());
         }
-        
+
         if let Some(branch) = variables.get("branch").and_then(|b| b.as_str()) {
             args.push("--branch".to_string());
             args.push(branch.to_string());
         }
-        
+
         args
     },
     |project_name, variables| {
         vec![
-            format!("🚀 Navigate to your project: cd {}", project_name),
-            "📝 Review the generated code".to_string(),
-            "🔧 Build the project: cargo build".to_string(),
-            "▶️ Run the project: cargo run".to_string(),
+            format!(" Navigate to your project: cd {}", project_name),
+            " Review the generated code".to_string(),
+            " Build the project: cargo build".to_string(),
+            " Run the project: cargo run".to_string(),
         ]
     },
     Some("cargo install cargo-generate".to_string()),

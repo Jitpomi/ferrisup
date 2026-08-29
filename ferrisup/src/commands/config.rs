@@ -1,9 +1,9 @@
-use anyhow::{Result, Context};
+use crate::core::Config;
+use anyhow::{Context, Result};
 use colored::Colorize;
+use serde_json;
 use std::fs;
 use std::path::Path;
-use serde_json;
-use crate::core::Config;
 
 /// Execute the config command for managing configurations
 pub fn execute(export: bool, import: Option<&str>, path: Option<&str>) -> Result<()> {
@@ -15,7 +15,7 @@ pub fn execute(export: bool, import: Option<&str>, path: Option<&str>) -> Result
         // Interactive mode
         run_interactive()?;
     }
-    
+
     Ok(())
 }
 
@@ -23,53 +23,58 @@ pub fn execute(export: bool, import: Option<&str>, path: Option<&str>) -> Result
 fn run_interactive() -> Result<()> {
     println!("{}", "FerrisUp Configuration Manager".bold().green());
     println!("Manage and customize your FerrisUp configurations\n");
-    
-    let options = vec!["Export current config", "Import config", "View current config", "Cancel"];
-    
+
+    let options = vec![
+        "Export current config",
+        "Import config",
+        "View current config",
+        "Cancel",
+    ];
+
     let selection = dialoguer::Select::new()
         .with_prompt("Select an operation")
         .items(&options)
         .default(0)
         .interact()?;
-    
+
     match selection {
         0 => {
             let path = dialoguer::Input::<String>::new()
                 .with_prompt("Export config to file")
                 .default("ferrisup-config.json".to_string())
                 .interact()?;
-            
+
             export_config(Some(&path))?;
-        },
+        }
         1 => {
             let import_path = dialoguer::Input::<String>::new()
                 .with_prompt("Import config from file")
                 .interact()?;
-            
+
             if !Path::new(&import_path).exists() {
                 println!("{} File not found", "Error:".red().bold());
                 return Ok(());
             }
-            
+
             let export_path = dialoguer::Input::<String>::new()
                 .with_prompt("Save imported config to (leave empty to apply directly)")
                 .allow_empty(true)
                 .interact()?;
-            
+
             if export_path.is_empty() {
                 import_config(&import_path, None)?;
             } else {
                 import_config(&import_path, Some(&export_path))?;
             }
-        },
+        }
         2 => {
             view_current_config()?;
-        },
+        }
         _ => {
             println!("Operation cancelled");
         }
     }
-    
+
     Ok(())
 }
 
@@ -79,22 +84,25 @@ fn export_config(path: Option<&str>) -> Result<()> {
         Some(p) => p.to_string(),
         None => "ferrisup-config.json".to_string(),
     };
-    
+
     // Read current config or create default
     let config = match read_config() {
         Ok(cfg) => cfg,
         Err(_) => {
-            println!("{} No existing config found, using default", "Warning:".yellow().bold());
+            println!(
+                "{} No existing config found, using default",
+                "Warning:".yellow().bold()
+            );
             Config::get_default_config()
         }
     };
-    
+
     // Write to the specified path
     let path = Path::new(&config_path);
     write_config(&config, path)?;
-    
+
     println!("{} {}", "Configuration exported to:".green(), config_path);
-    
+
     Ok(())
 }
 
@@ -103,10 +111,10 @@ fn import_config(import_path: &str, export_path: Option<&str>) -> Result<()> {
     // Read the config to import
     let content = fs::read_to_string(import_path)
         .context(format!("Failed to read config from {}", import_path))?;
-    
-    let config: Config = serde_json::from_str(&content)
-        .context("Failed to parse config as JSON")?;
-    
+
+    let config: Config =
+        serde_json::from_str(&content).context("Failed to parse config as JSON")?;
+
     if let Some(path) = export_path {
         // Write to the specified path
         write_config(&config, Path::new(path))?;
@@ -116,7 +124,7 @@ fn import_config(import_path: &str, export_path: Option<&str>) -> Result<()> {
         write_config(&config, Path::new("config.json"))?;
         println!("{}", "Configuration applied as current".green());
     }
-    
+
     Ok(())
 }
 
@@ -126,18 +134,21 @@ fn view_current_config() -> Result<()> {
     let config = match read_config() {
         Ok(cfg) => cfg,
         Err(_) => {
-            println!("{} No existing config found, showing default", "Warning:".yellow().bold());
+            println!(
+                "{} No existing config found, showing default",
+                "Warning:".yellow().bold()
+            );
             Config::get_default_config()
         }
     };
-    
+
     // Convert to pretty JSON for display
-    let json = serde_json::to_string_pretty(&config)
-        .context("Failed to serialize config to JSON")?;
-    
+    let json =
+        serde_json::to_string_pretty(&config).context("Failed to serialize config to JSON")?;
+
     println!("\n{}", "Current Configuration:".bold());
     println!("{}", json);
-    
+
     // Ask if user wants to export this config
     if dialoguer::Confirm::new()
         .with_prompt("Export this configuration?")
@@ -148,21 +159,19 @@ fn view_current_config() -> Result<()> {
             .with_prompt("Export config to file")
             .default("ferrisup-config.json".to_string())
             .interact()?;
-        
+
         write_config(&config, Path::new(&path))?;
         println!("{} {}", "Configuration exported to:".green(), path);
     }
-    
+
     Ok(())
 }
 
 // Add helper functions for reading and writing config
 fn read_config() -> Result<Config> {
-    Config::load(&Config::get_config_path())
-        .context("Failed to read config file")
+    Config::load(&Config::get_config_path()).context("Failed to read config file")
 }
 
 fn write_config(config: &Config, path: &Path) -> Result<()> {
-    fs::write(path, serde_json::to_string_pretty(config)?)
-        .context("Failed to write config file")
+    fs::write(path, serde_json::to_string_pretty(config)?).context("Failed to write config file")
 }

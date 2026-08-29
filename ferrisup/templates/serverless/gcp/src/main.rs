@@ -1,8 +1,8 @@
+use bytes::Bytes;
 use http::{Request, Response, StatusCode};
-use hyper::{
-    service::{make_service_fn, service_fn},
-    Body, Server,
-};
+use http_body_util::{BodyExt, Full};
+use hyper::{body::Incoming, server::conn::http1, service::service_fn};
+use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, net::SocketAddr};
 use tracing::{info, Level};
@@ -23,9 +23,14 @@ struct ResponseBody {
     request_id: String,
 }
 
-async fn function_handler(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn function_handler(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     // Parse the request body
-    let body_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap_or_default();
+    let body_bytes = req
+        .into_body()
+        .collect()
+        .await
+        .map(|body| body.to_bytes())
+        .unwrap_or_default();
     let request_body: RequestBody = serde_json::from_slice(&body_bytes)
         .unwrap_or(RequestBody { name: "".to_string() });
     
@@ -49,7 +54,7 @@ async fn function_handler(req: Request<Body>) -> Result<Response<Body>, Infallib
     let response = Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "application/json")
-        .body(Body::from(json))
+        .body(Full::new(Bytes::from(json)))
         .unwrap();
     
     Ok(response)
@@ -72,18 +77,18 @@ async fn main() {
         .unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     
-    // Create a service to handle each incoming connection
-    let make_svc = make_service_fn(|_conn| {
-        async { Ok::<_, Infallible>(service_fn(function_handler)) }
-    });
-    
-    // Create and run the server
-    let server = Server::bind(&addr).serve(make_svc);
-    
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Server listening on {}", addr);
-    
-    // Run the server
-    if let Err(e) = server.await {
-        eprintln!("Server error: {}", e);
+
+    loop {
+        let (stream, _) = listener.accept().await.unwrap();
+        tokio::spawn(async move {
+            if let Err(error) = http1::Builder::new()
+                .serve_connection(TokioIo::new(stream), service_fn(function_handler))
+                .await
+            {
+                eprintln!("Server error: {error}");
+            }
+        });
     }
 }

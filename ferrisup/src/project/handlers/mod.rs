@@ -1,40 +1,39 @@
 // Project handlers module - central registry for all project handlers
-mod traits;
 mod cli;
 mod template;
+mod traits;
 
-// Removed unused imports
 use serde_json::Value;
 
-pub use traits::ProjectHandler;
 pub use cli::CliProjectHandler;
 pub use template::TemplateProjectHandler;
+pub use traits::ProjectHandler;
 
 // Get all registered project handlers
 pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
     let mut handlers: Vec<Box<dyn ProjectHandler>> = Vec::new();
-    
+
     // Add CLI Handlers
-    
+
     // Embassy CLI Handler
     handlers.push(Box::new(CliProjectHandler::new(
         "Embassy",
-        "Embedded systems with the Embassy framework", 
+        "Embedded systems with the Embassy framework",
         vec!["embedded-embassy".to_string()],
         "cargo embassy",
         |project_name, _target_dir, variables| {
             let mut args = vec!["init".to_string()];
-            
+
             // Map mcu_target to chip - preserve the ESP32 -> ESP32C3 mapping
             if let Some(target) = variables.get("mcu_target").and_then(|t| t.as_str()) {
                 let chip = match target {
                     "esp32" => "esp32c3",
-                    _ => target
+                    _ => target,
                 };
                 args.push("--chip".to_string());
                 args.push(chip.to_string());
             }
-            
+
             args.push(project_name.to_string());
             args
         },
@@ -44,13 +43,13 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
                 "📝 Review the generated code".to_string(),
                 "🔧 Build the project: cargo build --release".to_string(),
                 "▶️ Flash the project: cargo run --release".to_string(),
-                "📚 Read the Embassy documentation: https://embassy.dev".to_string()
+                "📚 Read the Embassy documentation: https://embassy.dev".to_string(),
             ]
         },
         Some("cargo install cargo-embassy".to_string()),
         Some("cargo embassy --version".to_string()),
     )));
-    
+
     // Dioxus CLI Handler
     handlers.push(Box::new(CliProjectHandler::new(
         "Dioxus",
@@ -59,7 +58,7 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
         "dioxus create",
         |project_name, _target_dir, variables| {
             let mut args = vec![project_name.to_string()];
-            
+
             if let Some(platform) = variables.get("platform").and_then(|p| p.as_str()) {
                 args.push("--platform".to_string());
                 args.push(platform.to_string());
@@ -67,12 +66,15 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
                 args.push("--platform".to_string());
                 args.push("web".to_string());
             }
-            
+
             args
         },
         |project_name, variables| {
-            let platform = variables.get("platform").and_then(|p| p.as_str()).unwrap_or("web");
-            
+            let platform = variables
+                .get("platform")
+                .and_then(|p| p.as_str())
+                .unwrap_or("web");
+
             match platform {
                 "web" => vec![
                     format!("🚀 Navigate to your project: cd {}", project_name),
@@ -91,13 +93,13 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
                     "📝 Review the generated code".to_string(),
                     "🔧 Build the project: dx build".to_string(),
                     "▶️ Run the project: dx serve".to_string(),
-                ]
+                ],
             }
         },
         Some("cargo install dioxus-cli".to_string()),
         Some("dioxus --version".to_string()),
     )));
-    
+
     // Tauri CLI Handler
     handlers.push(Box::new(CliProjectHandler::new(
         "Tauri",
@@ -105,7 +107,11 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
         vec!["client-tauri".to_string(), "tauri".to_string()],
         "cargo tauri",
         |project_name, _target_dir, _variables| {
-            vec!["init".to_string(), "--app".to_string(), project_name.to_string()]
+            vec![
+                "init".to_string(),
+                "--app".to_string(),
+                project_name.to_string(),
+            ]
         },
         |project_name, _variables| {
             vec![
@@ -118,58 +124,56 @@ pub fn get_handlers() -> Vec<Box<dyn ProjectHandler>> {
         Some("cargo install tauri-cli".to_string()),
         Some("cargo tauri --version".to_string()),
     )));
-    
+
     // Add Template Handlers
-    
-    // Full Stack Templates
-    handlers.push(Box::new(TemplateProjectHandler::new(
-        "Full Stack",
-        "Complete application with client, server, and ferrisup_common libraries",
-        vec!["full-stack".to_string()]
-    )));
-    
+
     // Server Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Server",
         "Web server with API endpoints",
-        vec!["server".to_string(), "axum".to_string(), "actix".to_string(), "poem".to_string()]
+        vec![
+            "server".to_string(),
+            "axum".to_string(),
+            "actix".to_string(),
+            "poem".to_string(),
+        ],
     )));
-    
+
     // Data Science Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Data Science",
         "Data science and machine learning projects",
-        vec!["data-science".to_string(), "burn".to_string(), "linfa".to_string()]
+        vec!["data-science".to_string(), "linfa".to_string()],
     )));
-    
+
     // Edge Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Edge",
         "WebAssembly-based applications for edge computing",
-        vec!["edge".to_string(), "edge-app".to_string()]
+        vec!["edge".to_string(), "edge-app".to_string()],
     )));
-    
+
     // Standard Embedded Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Embedded",
         "Embedded systems firmware for microcontrollers",
-        vec!["embedded".to_string()]
+        vec!["embedded".to_string()],
     )));
-    
+
     // Serverless Templates
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Serverless",
         "Serverless functions for cloud deployment",
-        vec!["serverless".to_string()]
+        vec!["serverless".to_string()],
     )));
-    
+
     // Generic Template Handler (fallback)
     handlers.push(Box::new(TemplateProjectHandler::new(
         "Generic",
         "Generic template handler for all other templates",
-        vec!["minimal".to_string(), "library".to_string(), "iot-device".to_string(), "ml-pipeline".to_string()]
+        vec!["minimal".to_string(), "library".to_string()],
     )));
-    
+
     handlers
 }
 
@@ -180,9 +184,6 @@ pub fn find_handler(template_name: &str, variables: &Value) -> Option<Box<dyn Pr
             return Some(handler);
         }
     }
-    
+
     None
 }
-
-// Use the ferrisup_common copy_directory function for directory operations
-// Removed unused import

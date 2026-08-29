@@ -70,7 +70,7 @@ Extend the example by adding more signals:
 let (name, set_name) = create_signal(String::from("Leptos"));
 
 view! {
-    <input 
+    <input
         type="text"
         on:input=move |ev| {
             set_name(event_target_value(&ev));

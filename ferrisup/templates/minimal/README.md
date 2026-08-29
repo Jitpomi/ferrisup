@@ -42,7 +42,7 @@ Edit the `Cargo.toml` file to add dependencies:
 ```toml
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 ```
 
 ### Expanding the Project

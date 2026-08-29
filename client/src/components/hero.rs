@@ -1,219 +1,26 @@
-use dioxus::prelude::*;
 use crate::components::buttons::Button;
-use crate::FERRISUP_LOGO_PNG;
+use dioxus::prelude::*;
 
 #[component]
 pub fn Hero() -> Element {
-    
     rsx! {
-        // Using article for better semantic structure
-        article {
-            class: "hero-container",
-            // Adding role for accessibility and SEO
-            role: "banner",
-            aria_labelledby: "hero-heading",
-            
-            // Hero content with optimized structure for FCP
-            main {
-                // Logo area with FerrisUp image - optimized for FCP
-                figure {
-                    img {
-                        class: "hero-logo",
-                        src: FERRISUP_LOGO_PNG,
-                        alt: "FerrisUp - Rust Project Bootstrapping Tool Logo",
-                        loading: "eager",
-                        width: "240",
-                        height: "240",
-                        fetchpriority: "high"
-                    }
-                }
-                
-                h1 {
-                    class: "hero-title",
-                    id: "hero-heading",
-                    "FerrisUp"
-                }
-                
-                // Tagline with improved semantic structure
-                h2 {
-                    class: "hero-subtitle",
-                    "Start Anywhere, Scale Anywhere with Rust"
-                }
-                
-                // Description with better keywords
-                p {
-                    class: "mt-6 text-lg text-gray-300 max-w-3xl mx-auto font-opensans",
-                    "FerrisUp is a powerful Rust project bootstrapping tool designed for modern Rust developers. Create, transform, and scale Rust projects with intelligent workspace management, component-based architecture, and framework-specific templates. Seamlessly convert single-crate projects to workspaces as they grow, with specialized components for web, data science, embedded systems, and serverless applications."
-                }
-                
-                // Version badge - adds a premium touch
-                div {
-                    class: "mt-4 mb-8 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-900/30 text-amber-400 border border-amber-700/50",
-                    "v0.2.5"
-                }
-                
-                // Call to action buttons with improved styling and accessibility
-                nav {
-                    class: "mt-8 flex flex-col sm:flex-row gap-5 justify-center",
-                    aria_label: "Primary navigation",
-                    Button {
-                        variant: "primary",
-                        href: "https://crates.io/crates/ferrisup",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        aria_label: "View FerrisUp on Crates.io",
-                        "View on Crates.io"
-                    }
-                    
-                   /*  a {
-                        href: "https://github.com/Jitpomi/ferrisup",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        aria_label: "Read FerrisUp Documentation",
-                        class: "group relative inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-xl bg-gray-800 text-amber-400 border border-amber-700/50 transition-all duration-300 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500",
-                        span {
-                            class: "flex items-center gap-2",
-                            "Documentation"
-                            svg {
-                                class: "w-4 h-4 ml-1 transition-transform duration-300 group-hover:translate-x-1",
-                                xmlns: "http://www.w3.org/2000/svg",
-                                fill: "none",
-                                view_box: "0 0 24 24",
-                                stroke: "currentColor",
-                                path {
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                    d: "M9 5l7 7-7 7"
-                                }
-                            }
-                        }
-                    } */
-                    
-                    // GitHub Sponsors button
-                    a {
-                        href: "https://github.com/sponsors/Jitpomi",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        aria_label: "Sponsor FerrisUp Development",
-                        class: "group relative inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-xl bg-pink-600 text-white border border-pink-500 transition-all duration-300 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 shadow-lg hover:shadow-pink-500/25",
-                        span {
-                            class: "flex items-center gap-2",
-                            // Heart icon
-                            svg {
-                                class: "w-4 h-4 transition-transform duration-300 group-hover:scale-110",
-                                xmlns: "http://www.w3.org/2000/svg",
-                                fill: "currentColor",
-                                view_box: "0 0 24 24",
-                                path {
-                                    d: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                                }
-                            }
-                            "Sponsor"
-                        }
-                    }
-                }
-                
-                // Terminal-like display showing example code with better semantic structure
-                section {
-                    class: "mt-12 w-full max-w-3xl mx-auto overflow-hidden rounded-lg shadow-lg",
-                    aria_labelledby: "terminal-heading",
-                    div {
-                        class: "flex items-center bg-gray-900 px-4 py-2 border-b border-gray-800",
-                        div {
-                            class: "flex space-x-2",
-                            span { class: "w-3 h-3 rounded-full bg-red-500" }
-                            span { class: "w-3 h-3 rounded-full bg-yellow-500" }
-                            span { class: "w-3 h-3 rounded-full bg-green-500" }
-                        }
-                        div {
-                            class: "flex-grow text-center text-sm text-gray-400",
-                            id: "terminal-heading",
-                            "FerrisUp CLI Examples"
-                        }
-                    }
-                    pre {
-                        class: "bg-[#0d1117] p-6 overflow-x-auto text-left",
-                        code {
-                            class: "text-[10px] xs:text-[11px] sm:text-xs md:text-sm font-mono leading-relaxed",
-                            
-                            // Installation
-                            div {
-                                class: "block text-gray-500",
-                                "# Installation"
-                            }
-                            
-                            div {
-                                class: "block",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "cargo install ferrisup" }
-                            }
-                            
-                            // Create new projects
-                            div {
-                                class: "block mt-4 text-gray-500",
-                                "# Create new projects"
-                            }
-                            
-                            div {
-                                class: "block",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "ferrisup new my_project" }
-                            }
-                            
-                            div {
-                                class: "block mt-2",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "ferrisup new my_client --component-type client_old --framework leptos" }
-                            }
-                            
-                            div {
-                                class: "block mt-2",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "ferrisup new my_server --component-type server --framework axum" }
-                            }
-                            
-                            // Transform projects
-                            div {
-                                class: "block mt-4 text-gray-500",
-                                "# Transform projects"
-                            }
-                            
-                            div {
-                                class: "block",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "ferrisup transform -p my_server" }
-                            }
-                            
-                            // List available components
-                            div {
-                                class: "block mt-4 text-gray-500",
-                                "# List available components"
-                            }
-                            
-                            div {
-                                class: "block",
-                                span { class: "text-green-400", "$ " }
-                                span { class: "text-yellow-400", "ferrisup list" }
-                            }
-                        }
-                    }
-                }
-                
-                // Adding structured data for SEO (hidden visually but available for search engines)
-                div {
-                    class: "hidden",
-                    itemscope: true,
-                    itemtype: "https://schema.org/SoftwareApplication",
-                    meta { itemprop: "name", content: "FerrisUp" }
-                    meta { itemprop: "description", content: "Rust project bootstrapping tool for modern Rust developers" }
-                    meta { itemprop: "applicationCategory", content: "DeveloperApplication" }
-                    meta { itemprop: "operatingSystem", content: "Cross-platform" }
-                    meta { itemprop: "offers", itemscope: true, itemtype: "https://schema.org/Offer",
-                        meta { itemprop: "price", content: "0" }
-                        meta { itemprop: "priceCurrency", content: "USD" }
-                    }
-                }
+        header {
+            class: "px-6 py-24 text-center max-w-6xl mx-auto",
+            p { class: "text-amber-400 font-semibold tracking-wide uppercase", "Rust project foundations" }
+            h1 { class: "mt-4 text-5xl sm:text-7xl font-bold text-white", "Structure that keeps up." }
+            p {
+                class: "mt-6 text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed",
+                "FerrisUp starts Rust projects from inspectable templates and helps them grow into clear Cargo workspaces. It gives developers and coding agents the same explicit package boundaries, framework choices, and build commands."
+            }
+            nav {
+                class: "mt-10 flex flex-col sm:flex-row gap-4 justify-center",
+                aria_label: "Primary links",
+                Button { href: "https://crates.io/crates/ferrisup", target: "_blank", rel: "noopener noreferrer", "Install FerrisUp" }
+                Button { variant: "outline", href: "https://github.com/Jitpomi/ferrisup", target: "_blank", rel: "noopener noreferrer", "Read the source" }
+            }
+            pre {
+                class: "mt-14 max-w-3xl mx-auto p-6 rounded-xl bg-gray-950 border border-gray-800 text-left overflow-x-auto",
+                code { class: "text-sm text-gray-200", "cargo install ferrisup\n\nferrisup new api --component-type server --framework axum --git\nferrisup preview --component-type server --framework axum\nferrisup transform --project ./my-project" }
             }
         }
     }

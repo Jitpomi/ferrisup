@@ -91,7 +91,7 @@ The router can extract parameters from URLs:
 fn UserProfile() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.with(|params| params.get("id").cloned().unwrap_or_default());
-    
+
     view! {
         <div class="user-profile">
             <h2>"User Profile"</h2>
@@ -109,7 +109,7 @@ The template uses Leptos Meta for managing document metadata:
 #[component]
 fn App() -> impl IntoView {
     provide_meta_context();
-    
+
     view! {
         <Html lang="en"/>
         <Title text="Leptos Router App"/>

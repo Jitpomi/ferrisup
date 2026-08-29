@@ -86,7 +86,7 @@ To adapt these examples to real-world problems:
    let data = csv::Reader::from_path("your_data.csv")?
        .deserialize()
        .collect::<Result<Vec<YourDataType>, _>>()?;
-       
+
    // Add preprocessing steps like normalization
    let normalized_features = preprocess_features(features);
    ```
@@ -95,7 +95,7 @@ To adapt these examples to real-world problems:
    ```rust
    // Create new features from existing ones
    let engineered_features = engineer_features(raw_features);
-   
+
    // Select most important features
    let selected_features = select_features(engineered_features);
    ```
@@ -105,7 +105,7 @@ To adapt these examples to real-world problems:
    // Implement k-fold cross-validation
    let k_folds = 5;
    let mut metrics = Vec::new();
-   
+
    for fold in 0..k_folds {
        let (train, test) = create_fold(dataset, fold, k_folds);
        let model = train_model(&train);
@@ -119,17 +119,17 @@ To adapt these examples to real-world problems:
    // Grid search for optimal parameters
    let c_values = vec![0.1, 1.0, 10.0];
    let max_iter_values = vec![100, 500, 1000];
-   
+
    let mut best_params = None;
    let mut best_score = f64::NEG_INFINITY;
-   
+
    for &c in &c_values {
        for &max_iter in &max_iter_values {
            let model = LogisticRegression::default()
                .c(c)
                .max_iterations(max_iter)
                .fit(&train_dataset)?;
-           
+
            let score = evaluate_model(&model, &validation_dataset);
            if score > best_score {
                best_score = score;
@@ -144,7 +144,7 @@ To adapt these examples to real-world problems:
    // Save trained model to file
    let model_bytes = bincode::serialize(&model)?;
    std::fs::write("model.bin", model_bytes)?;
-   
+
    // Load model for inference
    let model_bytes = std::fs::read("model.bin")?;
    let model: YourModelType = bincode::deserialize(&model_bytes)?;

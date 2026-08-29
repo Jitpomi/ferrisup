@@ -2,15 +2,15 @@
 
 This project is a static website built with Rust and WebAssembly, designed to be deployed on Cloudflare Pages. It provides a foundation for building interactive web applications that run at the edge.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance WebAssembly compiled from Rust
-- 🌐 Ready for deployment on Cloudflare's global edge network
-- 📱 Responsive design with modern CSS
-- 🧩 Component-based structure for easy extensibility
-- 🔧 Interactive UI elements with Rust-powered logic
+- High-performance WebAssembly compiled from Rust
+- Ready for deployment on Cloudflare's global edge network
+- Responsive design with modern CSS
+- Component-based structure for easy extensibility
+- Interactive UI elements with Rust-powered logic
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -52,7 +52,7 @@ Before you begin, ensure you have the following installed:
    npx wrangler pages publish .
    ```
 
-## 🔧 Customization
+## Customization
 
 ### Modifying the Rust Code
 
@@ -76,7 +76,7 @@ To add more pages to your static site:
 2. Link to them from your main page
 3. In each page, import and initialize the WebAssembly module as shown in the main `index.html`
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### Working with Web APIs
 
@@ -105,7 +105,7 @@ You can add more Rust crates to enhance your project. For example, to add state 
 yew = "0.20"
 ```
 
-## 📖 Resources
+## Resources
 
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)
 - [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages/)

@@ -8,21 +8,24 @@ resolver = "2"
 
 [workspace.package]
 version = "0.2.5"
-edition = "2021"
+edition = "2024"
 
 [workspace.dependencies]
 # Common dependencies used across multiple crates
 anyhow = "1.0"
-colored = "3.0.0"
-toml = "0.8.23"
-toml_edit = "0.22.27"
-walkdir = "2.3"
-tempfile = "3.8"
+colored = "3.1.1"
+toml = "1.1.4"
+toml_edit = "0.25.13"
+walkdir = "2.5"
+tempfile = "3.27"
 [workspace.dependencies.ferrisup-common]
 path = "ferrisup_common"
 version = "0.2.5"
 
-[profile]
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
 
 [profile.wasm-dev]
 inherits = "dev"

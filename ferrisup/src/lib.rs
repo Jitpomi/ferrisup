@@ -1,33 +1,29 @@
-
-// Shared component functionality is available through the ferrisup_common crate
-// Uncomment if needed: use ferrisup_common::*;
 /// FerrisUp - A versatile Rust project bootstrapping tool
-/// 
+///
 /// This crate provides a CLI tool for bootstrapping and managing Rust projects
 /// with various templates and configurations.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```bash
 /// # Create a new minimal Rust project
-/// ferrisup new my_project --template minimal
-/// 
+/// ferrisup new my_project --component-type minimal --no-interactive
+///
 /// # List available templates
 /// ferrisup list
-/// 
+///
 /// # Preview a template
-/// ferrisup preview --template full-stack
+/// ferrisup preview --component-type server --framework axum
 /// ```
 // Core modules
 pub mod core;
 
 // Project management modules
 pub mod project;
-pub mod template_manager;
 
 // CLI command modules
 pub mod commands;
 
 // Re-exports of frequently used components
-pub use core::{Config, Result, Error};
-pub use project::{find_handler, get_handlers, ProjectHandler};
+pub use core::{Config, Error, Result};
+pub use project::{ProjectHandler, find_handler, get_handlers};

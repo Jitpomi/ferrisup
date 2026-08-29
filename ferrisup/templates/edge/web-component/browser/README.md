@@ -2,15 +2,15 @@
 
 This project is a reusable web component built with Rust and WebAssembly, designed for browsers. It provides a foundation for building interactive UI components that can be embedded in any web application.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance WebAssembly compiled from Rust
-- 🎨 Customizable properties and styling
-- 🔒 Encapsulated with Shadow DOM for style isolation
-- 🔄 Interactive with JavaScript interoperability
-- 📦 Easily embeddable in any web project
+- High-performance WebAssembly compiled from Rust
+- Customizable properties and styling
+- Encapsulated with Shadow DOM for style isolation
+- Interactive with JavaScript interoperability
+- Easily embeddable in any web project
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -29,7 +29,7 @@ Before you begin, ensure you have the following installed:
    ```
    # If you have Python installed
    python -m http.server
-   
+
    # Or using Node.js
    npx serve
    ```
@@ -50,35 +50,35 @@ To use this component in other projects:
 3. Import and use the component:
    ```javascript
    import init, { RustComponent, ComponentProperties } from './pkg/{{project_name}}.js';
-   
+
    async function initComponent() {
      await init();
-     
+
      // Create a new component instance
      const component = new RustComponent();
-     
+
      // Customize properties
      const props = new ComponentProperties();
      props.set_title("My Custom Title");
      props.set_description("Custom description here");
      props.set_theme("dark");
-     
+
      // Update the component with new properties
      component.update(props);
-     
+
      // Add a click handler
      component.set_click_handler(() => {
        console.log("Component clicked!");
      });
-     
+
      // Add the component to the DOM
      document.getElementById("container").appendChild(component.element());
    }
-   
+
    initComponent();
    ```
 
-## 🔧 Customization
+## Customization
 
 ### Component Properties
 
@@ -101,7 +101,7 @@ To add new features to the component:
 3. Update the `render` method to use the new properties
 4. Rebuild with `wasm-pack build --target web`
 
-## 📚 Advanced Usage
+## Advanced Usage
 
 ### Registering as a Custom Element
 
@@ -112,10 +112,10 @@ import init, { register_rust_component } from './pkg/{{project_name}}.js';
 
 async function registerComponent() {
   await init();
-  
+
   // Register as <rust-component>
   register_rust_component("rust-component");
-  
+
   // Now you can use it in HTML
   // <rust-component></rust-component>
 }
@@ -136,32 +136,32 @@ import init, { RustComponent } from './pkg/{{project_name}}.js';
 function RustComponentWrapper(props) {
   const containerRef = useRef(null);
   const componentRef = useRef(null);
-  
+
   useEffect(() => {
     let mounted = true;
-    
+
     async function initializeComponent() {
       await init();
       if (!mounted) return;
-      
+
       componentRef.current = new RustComponent();
       containerRef.current.appendChild(componentRef.current.element());
     }
-    
+
     initializeComponent();
-    
+
     return () => {
       mounted = false;
     };
   }, []);
-  
+
   return <div ref={containerRef}></div>;
 }
 
 export default RustComponentWrapper;
 ```
 
-## 📖 Resources
+## Resources
 
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)
 - [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/)

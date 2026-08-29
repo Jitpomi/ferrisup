@@ -5,7 +5,7 @@ use std::{fs, path::Path};
 /// Constants and configuration values for the FerrisUp tool
 pub mod constants {
     use super::*;
-    
+
     lazy_static::lazy_static! {
         /// List of available component types with descriptions
         pub static ref COMPONENT_TYPES: Vec<(&'static str, &'static str)> = vec![
@@ -20,15 +20,16 @@ pub mod constants {
             ("minimal", "Minimal Rust project"),
         ];
     }
-    
+
     /// Get a list of component type names without descriptions
     pub fn get_component_type_names() -> Vec<&'static str> {
         COMPONENT_TYPES.iter().map(|(name, _)| *name).collect()
     }
-    
+
     /// Get a list of formatted component types with descriptions for display
     pub fn get_formatted_component_types() -> Vec<String> {
-        COMPONENT_TYPES.iter()
+        COMPONENT_TYPES
+            .iter()
             .map(|(name, desc)| format!("{} - {}", name, desc))
             .collect()
     }
@@ -147,26 +148,22 @@ pub fn get_config_path() -> Result<String> {
 
 pub fn read_config() -> Result<Config> {
     let config_path = get_config_path()?;
-    
+
     let config_content = fs::read_to_string(&config_path)
         .context(format!("Failed to read config file: {}", config_path))?;
-    
-    let mut config: Config = serde_json::from_str(&config_content)
-        .context("Failed to parse config.json")?;
-    
-    // Apply compatibility conversions for old template formats
-    convert_old_template(&mut config);
-    
+
+    let config: Config =
+        serde_json::from_str(&config_content).context("Failed to parse config.json")?;
+
     Ok(config)
 }
 
 pub fn write_config(config: &Config, path: &Path) -> Result<()> {
-    let config_str = serde_json::to_string_pretty(config)
-        .context("Failed to serialize config to JSON")?;
-    
-    fs::write(path.join("config.json"), config_str)
-        .context("Failed to write config.json")?;
-    
+    let config_str =
+        serde_json::to_string_pretty(config).context("Failed to serialize config to JSON")?;
+
+    fs::write(path.join("config.json"), config_str).context("Failed to write config.json")?;
+
     Ok(())
 }
 
@@ -192,7 +189,11 @@ pub fn get_default_config() -> Config {
                 graph_engine: Some("neo4j".to_string()),
             }),
             libs: Some(Libs {
-                modules: vec!["core".to_string(), "models".to_string(), "utils".to_string()],
+                modules: vec![
+                    "core".to_string(),
+                    "models".to_string(),
+                    "utils".to_string(),
+                ],
             }),
             binaries: Some(Binaries {
                 apps: vec!["cli".to_string()],
@@ -213,19 +214,11 @@ pub fn get_default_config() -> Config {
     }
 }
 
-pub fn convert_old_template(config: &mut Config) {
-    if let Some(ai) = config.components.ai.as_mut() {
-        if ai.frameworks.is_empty() {
-            ai.frameworks = vec!["tract".to_string()];
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    
+
     #[test]
     fn test_components_default() {
         let components = Components::default();
@@ -238,101 +231,147 @@ mod tests {
         assert!(components.edge.is_none());
         assert!(components.embedded.is_none());
     }
-    
+
     #[test]
     fn test_get_default_config() {
         let config = get_default_config();
-        
+
         // Check basic properties
         assert_eq!(config.project_name, "rust_workspace");
         assert_eq!(config.template, "minimal");
-        
+
         // Check client component
-        assert!(config.components.client.is_some(), "Client component should be present");
-        let client = config.components.client.as_ref().expect("Client component should be present");
+        assert!(
+            config.components.client.is_some(),
+            "Client component should be present"
+        );
+        let client = config
+            .components
+            .client
+            .as_ref()
+            .expect("Client component should be present");
         assert_eq!(client.apps.len(), 2);
         assert_eq!(client.apps[0], "app1");
         assert_eq!(client.frameworks[0], "dioxus");
-        
+
         // Check server component
-        assert!(config.components.server.is_some(), "Server component should be present");
-        let server = config.components.server.as_ref().expect("Server component should be present");
+        assert!(
+            config.components.server.is_some(),
+            "Server component should be present"
+        );
+        let server = config
+            .components
+            .server
+            .as_ref()
+            .expect("Server component should be present");
         assert_eq!(server.services.len(), 2);
         assert_eq!(server.services[0], "api");
         assert_eq!(server.frameworks[0], "axum");
-        
+
         // Check database component
-        assert!(config.components.database.is_some(), "Database component should be present");
-        let db = config.components.database.as_ref().expect("Database component should be present");
+        assert!(
+            config.components.database.is_some(),
+            "Database component should be present"
+        );
+        let db = config
+            .components
+            .database
+            .as_ref()
+            .expect("Database component should be present");
         assert!(db.enabled);
         assert_eq!(db.engines.len(), 1);
         assert_eq!(db.engines[0], "postgres");
         assert_eq!(db.migration_tool, "sea-orm");
         assert!(db.cache_engine.is_some(), "Cache engine should be present");
-        assert_eq!(db.cache_engine.as_ref().expect("Cache engine should be present"), "redis");
-        assert!(db.vector_engine.is_some(), "Vector engine should be present");
-        assert_eq!(db.vector_engine.as_ref().expect("Vector engine should be present"), "pinecone");
+        assert_eq!(
+            db.cache_engine
+                .as_ref()
+                .expect("Cache engine should be present"),
+            "redis"
+        );
+        assert!(
+            db.vector_engine.is_some(),
+            "Vector engine should be present"
+        );
+        assert_eq!(
+            db.vector_engine
+                .as_ref()
+                .expect("Vector engine should be present"),
+            "pinecone"
+        );
         assert!(db.graph_engine.is_some(), "Graph engine should be present");
-        assert_eq!(db.graph_engine.as_ref().expect("Graph engine should be present"), "neo4j");
-        
+        assert_eq!(
+            db.graph_engine
+                .as_ref()
+                .expect("Graph engine should be present"),
+            "neo4j"
+        );
+
         // Check libs component
-        assert!(config.components.libs.is_some(), "Libs component should be present");
-        let libs = config.components.libs.as_ref().expect("Libs component should be present");
+        assert!(
+            config.components.libs.is_some(),
+            "Libs component should be present"
+        );
+        let libs = config
+            .components
+            .libs
+            .as_ref()
+            .expect("Libs component should be present");
         assert_eq!(libs.modules.len(), 3);
         assert!(libs.modules.contains(&"core".to_string()));
         assert!(libs.modules.contains(&"models".to_string()));
         assert!(libs.modules.contains(&"utils".to_string()));
     }
-    
+
     #[test]
     fn test_write_and_read_config() -> Result<()> {
         // Create a temporary directory
         let temp_dir = TempDir::new()?;
         let temp_path = temp_dir.path();
-        
+
         // Create a simple config
         let config = Config {
             project_name: "test_project".to_string(),
             template: "minimal".to_string(),
             components: Components::default(),
         };
-        
+
         // Write the config
         write_config(&config, temp_path)?;
-        
+
         // Check the file exists
         let config_file = temp_path.join("config.json");
         assert!(config_file.exists());
-        
+
         // Read the contents directly and check
         let content = fs::read_to_string(&config_file)?;
         let parsed: serde_json::Value = serde_json::from_str(&content)?;
-        
+
         assert_eq!(parsed["project_name"], "test_project");
         assert_eq!(parsed["template"], "minimal");
-        
+
         // Clean up
         temp_dir.close()?;
-        
+
         Ok(())
     }
-    
+
     #[test]
     fn test_config_serialization() -> Result<()> {
         // Create a config with all component types
         let mut config = get_default_config();
         config.project_name = "serialization_test".to_string();
-        
+
         // Serialize to JSON
         let json = serde_json::to_string_pretty(&config)?;
-        
+
         // Deserialize back
         let deserialized: Config = serde_json::from_str(&json)?;
-        
+
         // Verify the round trip
         assert_eq!(deserialized.project_name, "serialization_test");
         assert_eq!(deserialized.template, "minimal");
-        
+
         // Verify components survived the round trip
         assert!(deserialized.components.client.is_some());
         assert!(deserialized.components.server.is_some());
@@ -342,27 +381,7 @@ mod tests {
         assert!(deserialized.components.ai.is_some());
         assert!(deserialized.components.edge.is_some());
         assert!(deserialized.components.embedded.is_some());
-        
+
         Ok(())
-    }
-    
-    #[test]
-    fn test_convert_old_template() {
-        let mut config = Config {
-            project_name: "old_template".to_string(),
-            template: "old".to_string(),
-            components: Components {
-                ai: Some(AI {
-                    models: vec!["inference".to_string()],
-                    frameworks: vec![],
-                }),
-                ..Default::default()
-            },
-        };
-        
-        convert_old_template(&mut config);
-        
-        assert!(config.components.ai.is_some(), "AI component should be present");
-        assert_eq!(config.components.ai.as_ref().expect("AI component should be present").frameworks, vec!["tract".to_string()]);
     }
 }

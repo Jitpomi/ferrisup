@@ -2,16 +2,16 @@
 
 This project is a Rust application built for AWS Lambda@Edge. It leverages Rust's performance and safety features to deliver high-performance edge computing functions that can be deployed globally via Amazon CloudFront.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance edge function powered by Rust
-- 🌐 Global deployment across AWS's edge network via CloudFront
-- 🧩 Flexible API routing with path and query parameter support
-- 🔄 JSON serialization and deserialization
-- 🔍 Request header processing
-- 📊 AWS SAM template for easy deployment
+- High-performance edge function powered by Rust
+- Global deployment across AWS's edge network via CloudFront
+- Flexible API routing with path and query parameter support
+- JSON serialization and deserialization
+- Request header processing
+- AWS SAM template for easy deployment
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -56,7 +56,7 @@ Before you begin, ensure you have the following installed:
    ```
    sam deploy --guided
    ```
-   
+
    This will walk you through the deployment process, prompting for:
    - Stack name
    - AWS Region
@@ -68,7 +68,7 @@ Before you begin, ensure you have the following installed:
    sam deploy
    ```
 
-## 📖 API Documentation
+## API Documentation
 
 ### Available Endpoints
 
@@ -90,7 +90,7 @@ curl -X GET "https://your-api-gateway-url.execute-api.region.amazonaws.com/prod/
 curl -X GET "https://your-api-gateway-url.execute-api.region.amazonaws.com/prod/api/headers"
 ```
 
-## 🔧 Customization
+## Customization
 
 ### Adding New Routes
 
@@ -99,7 +99,7 @@ Modify the `handler` function in `src/main.rs` to add new routes:
 ```rust
 match (method, path) {
     // Existing routes...
-    
+
     // Add your new route here
     ("GET", "/api/new-endpoint") => {
         // Your handler code
@@ -112,17 +112,17 @@ match (method, path) {
             headers: None,
             query_parameters: None,
         };
-        
+
         // Serialize and return the JSON response
         let json = serde_json::to_string(&response_data)?;
         let response = Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "application/json")
             .body(Body::from(json))?;
-        
+
         Ok(response)
     },
-    
+
     // Default 404 handler
     _ => { /* ... */ }
 }
@@ -144,7 +144,7 @@ The `template.yaml` file contains the AWS SAM configuration. You can modify this
 
 3. Add custom domain names, additional resources, etc.
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### True Lambda@Edge Deployment
 
@@ -174,7 +174,7 @@ Access these logs in the CloudWatch console or with:
 aws logs get-log-events --log-group-name /aws/lambda/{{project_name}} --log-stream-name latest
 ```
 
-## 📊 Monitoring and Scaling
+## Monitoring and Scaling
 
 ### CloudWatch Metrics
 
@@ -191,7 +191,7 @@ Lambda functions automatically scale based on demand. No configuration is needed
 1. Setting appropriate memory size for performance
 2. Using Provisioned Concurrency for critical workloads to avoid cold starts
 
-## 📖 Resources
+## Resources
 
 - [AWS Lambda@Edge Documentation](https://docs.aws.amazon.com/lambda/latest/dg/lambda-edge.html)
 - [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)

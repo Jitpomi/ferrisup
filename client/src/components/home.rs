@@ -1,7 +1,7 @@
-use dioxus::core_macro::{component, rsx};
-use dioxus::prelude::*;
 use crate::components::hero::Hero;
 use crate::components::lazy_sections::LazySections;
+use dioxus::core_macro::{component, rsx};
+use dioxus::prelude::*;
 
 #[component]
 pub fn HomePage() -> Element {

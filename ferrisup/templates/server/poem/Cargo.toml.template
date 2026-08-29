@@ -1,15 +1,15 @@
 [package]
 name = "{{project_name}}"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-poem = "3.2.0"
-tokio = { version = "1.47", features = ["full"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
+poem = "3.1.12"
+tokio = { version = "1.53", features = ["full"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
 tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
+tracing-subscriber = "0.3.23"
 
 [dev-dependencies]
-reqwest = { version = "0.12.23", features = ["json"] }
+reqwest = { version = "0.13.4", features = ["json"] }

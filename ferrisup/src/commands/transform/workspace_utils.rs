@@ -1,52 +1,51 @@
-use anyhow::{Result};
-use std::fs;
-use std::path::Path;
-use toml_edit::{value, DocumentMut};
+use super::ui::{create_root_gitignore, create_root_readme};
+use super::utils::update_root_file_references;
+use crate::commands::test_mode::is_test_mode;
+use anyhow::Result;
 use colored::Colorize;
 use dialoguer::MultiSelect;
-use crate::commands::test_mode::is_test_mode;
-use super::utils::update_root_file_references;
 use ferrisup_common::fs::copy_directory;
-use super::ui::{create_root_readme, create_root_gitignore};
-// Removed unused import: use ferrisup_common::fs::create_directory;
+use std::fs;
+use std::path::Path;
+use toml_edit::{DocumentMut, value};
 
 // Helper function to categorize files for workspace conversion
 pub fn categorize_files(
     project_dir: &Path,
     component_name: &str,
-    files_to_keep_at_root: &[String]
+    files_to_keep_at_root: &[String],
 ) -> Result<(Vec<String>, Vec<String>, Vec<String>, Vec<String>)> {
     // These files will always be skipped and not offered to the user for selection.
     let always_skip_filenames = vec![
-        "Cargo.toml".to_string(),    // Workspace Cargo.toml will be created anew
-        "Cargo.lock".to_string(),  // Workspace Cargo.lock
-        ".git".to_string(),        // Git directory
-        ".ferrisup".to_string(),   // FerrisUp metadata directory
-        component_name.to_string(),    // The new component directory being created
+        "Cargo.toml".to_string(),   // Workspace Cargo.toml will be created anew
+        "Cargo.lock".to_string(),   // Workspace Cargo.lock
+        ".git".to_string(),         // Git directory
+        ".ferrisup".to_string(),    // FerrisUp metadata directory
+        component_name.to_string(), // The new component directory being created
     ];
-    
+
     // These files must be moved to the component directory to maintain functionality
     // and should not be selectable to keep at root
     let critical_component_files = vec![
-        "src".to_string(),         // Source code must move with the component
-        "build.rs".to_string(),    // Build script is specific to the component
-        "benches".to_string(),     // Benchmarks are specific to the component
-        "examples".to_string(),    // Examples are specific to the component
-        "bin".to_string()          // Binary files are specific to the component
+        "src".to_string(),      // Source code must move with the component
+        "build.rs".to_string(), // Build script is specific to the component
+        "benches".to_string(),  // Benchmarks are specific to the component
+        "examples".to_string(), // Examples are specific to the component
+        "bin".to_string(),      // Binary files are specific to the component
     ];
-    
+
     // First, identify and categorize all files for better user understanding
     let mut critical_files_to_move = Vec::new();
     let mut other_files_to_move = Vec::new();
     let mut files_kept_at_root = Vec::new();
     let mut workspace_files = Vec::new();
-    
+
     let entries = fs::read_dir(project_dir)?; // Read entries for categorization
     for entry in entries {
         let entry = entry?;
         let src_path = entry.path();
         let file_name = src_path.file_name().unwrap().to_string_lossy().to_string();
-        
+
         if always_skip_filenames.contains(&file_name) {
             workspace_files.push(file_name);
         } else if files_to_keep_at_root.contains(&file_name) {
@@ -57,12 +56,20 @@ pub fn categorize_files(
             other_files_to_move.push(file_name);
         }
     }
-    
-    Ok((critical_files_to_move, other_files_to_move, files_kept_at_root, workspace_files))
+
+    Ok((
+        critical_files_to_move,
+        other_files_to_move,
+        files_kept_at_root,
+        workspace_files,
+    ))
 }
 
 // Function to select files to keep at root
-pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) -> Result<Vec<String>> {
+pub fn select_files_to_keep_at_root(
+    project_dir: &Path,
+    component_name: &str,
+) -> Result<Vec<String>> {
     // Get list of all files and directories in the project root
     let all_root_entries: Vec<String> = fs::read_dir(project_dir)?
         .filter_map(Result::ok)
@@ -71,34 +78,34 @@ pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) ->
 
     // These files will always be skipped and not offered to the user for selection.
     let always_skip_filenames = vec![
-        "Cargo.toml".to_string(),    // Workspace Cargo.toml will be created anew
-        "Cargo.lock".to_string(),  // Workspace Cargo.lock
-        ".git".to_string(),        // Git directory
-        ".ferrisup".to_string(),   // FerrisUp metadata directory
-        component_name.to_string(),    // The new component directory being created
+        "Cargo.toml".to_string(),   // Workspace Cargo.toml will be created anew
+        "Cargo.lock".to_string(),   // Workspace Cargo.lock
+        ".git".to_string(),         // Git directory
+        ".ferrisup".to_string(),    // FerrisUp metadata directory
+        component_name.to_string(), // The new component directory being created
     ];
-    
+
     // These files must be moved to the component directory to maintain functionality
     // and should not be selectable to keep at root
     let critical_component_files = vec![
-        "src".to_string(),         // Source code must move with the component
-        "build.rs".to_string(),    // Build script is specific to the component
-        "benches".to_string(),     // Benchmarks are specific to the component
-        "examples".to_string(),    // Examples are specific to the component
-        "bin".to_string()          // Binary files are specific to the component
+        "src".to_string(),      // Source code must move with the component
+        "build.rs".to_string(), // Build script is specific to the component
+        "benches".to_string(),  // Benchmarks are specific to the component
+        "examples".to_string(), // Examples are specific to the component
+        "bin".to_string(),      // Binary files are specific to the component
     ];
-    
+
     // Build artifacts and temporary files that should stay at the root
     let build_artifacts_and_temp_files = vec![
-        "target".to_string(),      // Build artifacts
-        ".idea".to_string(),       // IntelliJ IDEA settings
-        ".vscode".to_string(),     // VS Code settings
-        ".DS_Store".to_string(),   // macOS folder settings
-        "Cargo.lock".to_string(),  // Cargo lock file
-        "*.log".to_string(),       // Log files
-        "*.tmp".to_string(),       // Temporary files
-        "*.swp".to_string(),       // Vim swap files
-        "*.bak".to_string(),       // Backup files
+        "target".to_string(),     // Build artifacts
+        ".idea".to_string(),      // IntelliJ IDEA settings
+        ".vscode".to_string(),    // VS Code settings
+        ".DS_Store".to_string(),  // macOS folder settings
+        "Cargo.lock".to_string(), // Cargo lock file
+        "*.log".to_string(),      // Log files
+        "*.tmp".to_string(),      // Temporary files
+        "*.swp".to_string(),      // Vim swap files
+        "*.bak".to_string(),      // Backup files
     ];
 
     // Determine which files are eligible for the user to select to keep at root
@@ -107,8 +114,8 @@ pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) ->
         .iter()
         .filter(|name| {
             // Files must not be in always_skip_filenames or critical_component_files
-            !always_skip_filenames.contains(name) && 
-            !critical_component_files.contains(name) && 
+            !always_skip_filenames.contains(name) &&
+            !critical_component_files.contains(name) &&
             // Additionally, only allow selection of build artifacts and temporary files
             // or files that match patterns in build_artifacts_and_temp_files
             build_artifacts_and_temp_files.iter().any(|pattern| {
@@ -155,9 +162,7 @@ pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) ->
         // Automatically pre-select only build artifacts and temporary files to keep at root
         let default_selections: Vec<bool> = selectable_entries_for_prompt
             .iter()
-            .map(|entry_name| {
-                build_artifacts_and_temp_files.contains(entry_name)
-            })
+            .map(|entry_name| build_artifacts_and_temp_files.contains(entry_name))
             .collect();
 
         println!(
@@ -190,7 +195,10 @@ pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) ->
                 .collect()
         }
     } else {
-        println!("{}", "No movable files found in the project root to select for keeping.".yellow());
+        println!(
+            "{}",
+            "No movable files found in the project root to select for keeping.".yellow()
+        );
         Vec::new()
     };
 
@@ -207,13 +215,13 @@ pub fn select_files_to_keep_at_root(project_dir: &Path, component_name: &str) ->
 
 // Function to move files from project root to component directory
 pub fn move_files_to_component(
-    project_dir: &Path, 
-    component_dir: &Path, 
+    project_dir: &Path,
+    component_dir: &Path,
     files_to_keep_at_root: &[String],
-    always_skip_filenames: &[String]
+    always_skip_filenames: &[String],
 ) -> Result<()> {
     println!("{}", "Moving files to component directory...".blue());
-    
+
     let entries = fs::read_dir(project_dir)?;
     for entry in entries {
         let entry = entry?;
@@ -223,10 +231,11 @@ pub fn move_files_to_component(
         // Skip:
         // 1. Files/dirs that are essential for the workspace or the new component dir itself
         // 2. Files/dirs explicitly selected by the user to keep at root
-        if always_skip_filenames.contains(&file_name) || files_to_keep_at_root.contains(&file_name) {
+        if always_skip_filenames.contains(&file_name) || files_to_keep_at_root.contains(&file_name)
+        {
             continue;
         }
-        
+
         // Move file or directory to component
         let target_path = component_dir.join(&file_name);
 
@@ -242,7 +251,7 @@ pub fn move_files_to_component(
             fs::remove_file(&path)?;
         }
     }
-    
+
     Ok(())
 }
 
@@ -263,7 +272,7 @@ pub fn update_component_cargo_toml(component_dir: &Path, component_name: &str) -
         // Write updated Cargo.toml
         fs::write(component_cargo_path, component_doc.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -277,35 +286,35 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 resolver = "2"
 "#,
         component_name
     );
 
     fs::write(project_dir.join("Cargo.toml"), workspace_cargo_toml)?;
-    
+
     Ok(())
 }
 
 // Function to finalize workspace setup
 pub fn finalize_workspace_setup(
-    project_dir: &Path, 
-    _component_dir: &Path, 
-    component_name: &str, 
-    files_to_keep_at_root: &[String]
+    project_dir: &Path,
+    _component_dir: &Path,
+    component_name: &str,
+    files_to_keep_at_root: &[String],
 ) -> Result<()> {
     // Update references in files kept at the root
     update_root_file_references(project_dir, component_name, files_to_keep_at_root)?;
 
     // Create root-level README.md with project structure description
     create_root_readme(project_dir, component_name)?;
-    
+
     // Create root-level .gitignore with standard Rust workspace patterns
     create_root_gitignore(project_dir)?;
 
     // Print success message
     println!("{}", "Project successfully converted to workspace!".green());
-    
+
     Ok(())
 }

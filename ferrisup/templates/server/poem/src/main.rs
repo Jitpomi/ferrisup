@@ -27,11 +27,9 @@ fn api_info() -> Json<ApiResponse> {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    // Initialize logger
-    if env::var_os("RUST_LOG").is_none() {
-        env::set_var("RUST_LOG", "info");
-    }
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
     let app = Route::new()
         .at("/", get(hello))

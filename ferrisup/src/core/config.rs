@@ -72,15 +72,19 @@ impl Default for Preferences {
 impl Config {
     /// Load configuration from a file
     pub fn load(path: &Path) -> Result<Self> {
-        let content = fs::read_to_string(path).map_err(|e| Error::Config(format!("Failed to read config file: {}", e)))?;
-        let config: Config = serde_json::from_str(&content).map_err(|e| Error::Config(format!("Invalid config format: {}", e)))?;
+        let content = fs::read_to_string(path)
+            .map_err(|e| Error::Config(format!("Failed to read config file: {}", e)))?;
+        let config: Config = serde_json::from_str(&content)
+            .map_err(|e| Error::Config(format!("Invalid config format: {}", e)))?;
         Ok(config)
     }
 
     /// Save configuration to a file
     pub fn save(&self, path: &Path) -> Result<()> {
-        let content = serde_json::to_string_pretty(self).map_err(|e| Error::Config(format!("Failed to serialize config: {}", e)))?;
-        fs::write(path, content).map_err(|e| Error::Config(format!("Failed to write config file: {}", e)))?;
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| Error::Config(format!("Failed to serialize config: {}", e)))?;
+        fs::write(path, content)
+            .map_err(|e| Error::Config(format!("Failed to write config file: {}", e)))?;
         Ok(())
     }
 
@@ -91,7 +95,7 @@ impl Config {
             .join("ferrisup")
             .join("config.json")
     }
-    
+
     /// Get the config path to use for operations
     pub fn get_config_path() -> PathBuf {
         // First check if there's a local config file
@@ -99,11 +103,11 @@ impl Config {
         if local_config.exists() {
             return local_config.to_path_buf();
         }
-        
+
         // Then check the default config path
         Self::default_path()
     }
-    
+
     /// Get the default configuration
     pub fn get_default_config() -> Self {
         Self::default()

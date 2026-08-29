@@ -1,7 +1,7 @@
+use anyhow::{Context, Result, anyhow};
+use colored::Colorize;
 use std::path::Path;
 use std::process::Command;
-use anyhow::{anyhow, Context, Result};
-use colored::Colorize;
 #[allow(unused_imports)]
 use toml_edit::{DocumentMut, Item};
 
@@ -10,7 +10,7 @@ pub fn write_cargo_toml(project_dir: &Path) -> anyhow::Result<()> {
         r#"[package]
 name = "{}"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 "#,
@@ -30,8 +30,7 @@ pub fn read_cargo_toml(project_dir: &Path) -> anyhow::Result<String> {
         return Err(anyhow::anyhow!("Cargo.toml not found"));
     }
 
-    std::fs::read_to_string(&cargo_path)
-        .context(format!("Failed to read {}", cargo_path.display()))
+    std::fs::read_to_string(&cargo_path).context(format!("Failed to read {}", cargo_path.display()))
 }
 
 pub fn write_cargo_toml_content(project_dir: &Path, content: &str) -> anyhow::Result<()> {
@@ -49,12 +48,14 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
     let cargo_content = read_cargo_toml(project_dir)?;
 
     // Parse the TOML content
-    let cargo_toml: toml::Value = toml::from_str(&cargo_content)
-        .context("Failed to parse Cargo.toml as valid TOML")?;
+    let cargo_toml: toml::Value =
+        toml::from_str(&cargo_content).context("Failed to parse Cargo.toml as valid TOML")?;
 
     // Check if it's a workspace
     if cargo_toml.get("workspace").is_none() {
-        return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
+        return Err(anyhow::anyhow!(
+            "Not a Cargo workspace (no [workspace] section in Cargo.toml)"
+        ));
     }
 
     // Extract existing workspace members
@@ -80,14 +81,21 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
         if dir_path.exists() && dir_path.is_dir() {
             // Check if we have the wildcard pattern already
             let wildcard = format!("{}/* ", dir);
-            if !existing_members.contains(&wildcard) && !existing_members.iter().any(|m| m.starts_with(&format!("{}/", dir))) {
+            if !existing_members.contains(&wildcard)
+                && !existing_members
+                    .iter()
+                    .any(|m| m.starts_with(&format!("{}/", dir)))
+            {
                 // Look for individual crates
-                for entry in std::fs::read_dir(&dir_path).context(format!("Failed to read directory {}", dir_path.display()))? {
+                for entry in std::fs::read_dir(&dir_path)
+                    .context(format!("Failed to read directory {}", dir_path.display()))?
+                {
                     let entry = entry.context("Failed to read directory entry")?;
                     let path = entry.path();
 
                     if path.is_dir() && path.join("Cargo.toml").exists() {
-                        let relative_path = format!("{}/{}", dir, path.file_name().unwrap().to_string_lossy());
+                        let relative_path =
+                            format!("{}/{}", dir, path.file_name().unwrap().to_string_lossy());
                         if !existing_members.contains(&relative_path) {
                             crates_to_add.push(relative_path);
                         }
@@ -106,9 +114,9 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
             let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
 
             // Skip common directories that might contain multiple crates and system directories
-            if ![
-                "src", "target", ".git", ".github", ".ferrisup"
-            ].contains(&dir_name.as_str()) && !existing_members.contains(&dir_name) {
+            if !["src", "target", ".git", ".github", ".ferrisup"].contains(&dir_name.as_str())
+                && !existing_members.contains(&dir_name)
+            {
                 crates_to_add.push(dir_name);
             }
         }
@@ -122,17 +130,22 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
         let mut new_cargo = cargo_toml.clone();
 
         // Get or create the workspace table
-        let workspace = new_cargo.get_mut("workspace")
+        let workspace = new_cargo
+            .get_mut("workspace")
             .and_then(|w| w.as_table_mut())
             .expect("Workspace section should exist");
 
         // Get or create the members array
-        let members = if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
-            members
-        } else {
-            workspace.insert("members".to_string(), toml::Value::Array(Vec::new()));
-            workspace.get_mut("members").and_then(|m| m.as_array_mut()).unwrap()
-        };
+        let members =
+            if let Some(members) = workspace.get_mut("members").and_then(|m| m.as_array_mut()) {
+                members
+            } else {
+                workspace.insert("members".to_string(), toml::Value::Array(Vec::new()));
+                workspace
+                    .get_mut("members")
+                    .and_then(|m| m.as_array_mut())
+                    .unwrap()
+            };
 
         // Add new crates
         for crate_path in crates_to_add {
@@ -141,8 +154,8 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
         }
 
         // Write the updated TOML back to the file
-        let updated_content = toml::to_string(&new_cargo)
-            .context("Failed to serialize updated Cargo.toml")?;
+        let updated_content =
+            toml::to_string(&new_cargo).context("Failed to serialize updated Cargo.toml")?;
 
         write_cargo_toml_content(project_dir, &updated_content)?;
     }
@@ -152,7 +165,9 @@ pub fn update_workspace_members(project_dir: &Path) -> anyhow::Result<bool> {
 
 /// Helper function to extract dependencies from a TOML table
 
-pub fn extract_dependencies(deps_table: &Item) -> anyhow::Result<Vec<(String, String, Option<Vec<String>>)>> {
+pub fn extract_dependencies(
+    deps_table: &Item,
+) -> anyhow::Result<Vec<(String, String, Option<Vec<String>>)>> {
     let mut dependencies = Vec::new();
 
     if let Some(deps_table) = deps_table.as_table() {
@@ -172,7 +187,11 @@ pub fn extract_dependencies(deps_table: &Item) -> anyhow::Result<Vec<(String, St
                         }
                     }
 
-                    let features_option = if features.is_empty() { None } else { Some(features) };
+                    let features_option = if features.is_empty() {
+                        None
+                    } else {
+                        Some(features)
+                    };
                     dependencies.push((name.to_string(), version.to_string(), features_option));
                 }
             }
@@ -183,15 +202,15 @@ pub fn extract_dependencies(deps_table: &Item) -> anyhow::Result<Vec<(String, St
 }
 
 /// Helper function to update Cargo.toml with dependencies using cargo add
-pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(String, String, Option<Vec<String>>)>, dev: bool) -> anyhow::Result<()> {
+pub fn update_cargo_with_dependencies(
+    cargo_path: &Path,
+    dependencies: Vec<(String, String, Option<Vec<String>>)>,
+    dev: bool,
+) -> anyhow::Result<()> {
     // Get the project directory (parent of the Cargo.toml file)
-    let project_dir = cargo_path.parent().ok_or_else(|| anyhow!("Could not determine project directory"))?;
-
-    // Save current directory to return to it after
-    let current_dir = std::env::current_dir()?;
-
-    // Change to project directory to run cargo add
-    std::env::set_current_dir(project_dir)?;
+    let project_dir = cargo_path
+        .parent()
+        .ok_or_else(|| anyhow!("Could not determine project directory"))?;
 
     for (name, version, features) in dependencies {
         // Build cargo add command
@@ -217,13 +236,17 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
         }
 
         // Run the command
-        let output = cmd.output()
+        let output = cmd
+            .current_dir(project_dir)
+            .output()
             .context(format!("Failed to add dependency: {}", name))?;
 
         if !output.status.success() {
-            println!("{} {}",
-                     "Warning:".yellow().bold(),
-                     format!("Failed to add dependency: {}", name).yellow());
+            println!(
+                "{} {}",
+                "Warning:".yellow().bold(),
+                format!("Failed to add dependency: {}", name).yellow()
+            );
 
             // Print error message if available
             if let Ok(err) = String::from_utf8(output.stderr) {
@@ -233,9 +256,6 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
             }
         }
     }
-
-    // Change back to original directory
-    std::env::set_current_dir(current_dir)?;
 
     Ok(())
 }
@@ -254,20 +274,31 @@ pub fn update_cargo_with_dependencies(cargo_path: &Path, dependencies: Vec<(Stri
 /// * `Ok(false)` if the crate name is not available (exists on crates.io)
 /// * `Err` if there was an error checking the crate name
 pub fn is_crate_name_available(name: &str) -> Result<bool> {
-    // Use cargo search with a limit of 1 to check if the crate exists
-    // The exact match format ensures we only get results for the exact crate name
+    // Cargo search is fuzzy, so request enough candidates and compare the returned
+    // crate name exactly instead of trying to pass a regular expression.
     let output = Command::new("cargo")
         .arg("search")
-        .arg("--limit=1")
-        .arg(format!("^{}$", name))  // Use regex for exact match
+        .arg("--limit=100")
+        .arg(name)
         .output()
         .context("Failed to execute cargo search command")?;
+
+    if !output.status.success() {
+        return Err(anyhow!(
+            "cargo search failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
 
     // If the search returns no results (empty stdout), the crate name is available
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Check if the output contains any search results
-    Ok(stdout.trim().is_empty())
+    let exact_match = stdout.lines().any(|line| {
+        line.split_once(" = ")
+            .is_some_and(|(crate_name, _)| crate_name == name)
+    });
+
+    Ok(!exact_match)
 }
 
 #[cfg(test)]
@@ -286,31 +317,54 @@ mod tests {
         // Test with a known existing crate
         let existing_crate = "serde";
         match is_crate_name_available(existing_crate) {
-            Ok(available) => println!("Crate '{}' availability: {}", existing_crate,
-                                      if available { "AVAILABLE ✅" } else { "NOT AVAILABLE ❌" }),
+            Ok(available) => println!(
+                "Crate '{}' availability: {}",
+                existing_crate,
+                if available {
+                    "AVAILABLE ✅"
+                } else {
+                    "NOT AVAILABLE ❌"
+                }
+            ),
             Err(e) => println!("Error checking '{}': {}", existing_crate, e),
         }
 
         // Test with a likely non-existent crate
-        let random_crate = format!("ferrisup-test-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs());
+        let random_crate = format!(
+            "ferrisup-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
         match is_crate_name_available(&random_crate) {
-            Ok(available) => println!("Crate '{}' availability: {}", random_crate,
-                                      if available { "AVAILABLE ✅" } else { "NOT AVAILABLE ❌" }),
+            Ok(available) => println!(
+                "Crate '{}' availability: {}",
+                random_crate,
+                if available {
+                    "AVAILABLE ✅"
+                } else {
+                    "NOT AVAILABLE ❌"
+                }
+            ),
             Err(e) => println!("Error checking '{}': {}", random_crate, e),
         }
 
         // Test with ferrisup_common
         let common_crate = "ferrisup_common";
         match is_crate_name_available(common_crate) {
-            Ok(available) => println!("Crate '{}' availability: {}", common_crate,
-                                      if available { "AVAILABLE ✅" } else { "NOT AVAILABLE ❌" }),
+            Ok(available) => println!(
+                "Crate '{}' availability: {}",
+                common_crate,
+                if available {
+                    "AVAILABLE ✅"
+                } else {
+                    "NOT AVAILABLE ❌"
+                }
+            ),
             Err(e) => println!("Error checking '{}': {}", common_crate, e),
         }
     }
-
 
     #[test]
     fn test_write_cargo_toml() -> anyhow::Result<()> {
@@ -340,7 +394,7 @@ mod tests {
         let cargo_content = r#"[package]
 name = "test_project"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 "#;
         let cargo_path = test_dir.join("Cargo.toml");
         fs::write(&cargo_path, cargo_content)?;
@@ -365,7 +419,7 @@ edition = "2021"
         let content = r#"[package]
 name = "test_project"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 "#;
 
         // Write the content
@@ -393,7 +447,7 @@ members = []
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 "#;
         let cargo_path = workspace_dir.join("Cargo.toml");
         fs::write(&cargo_path, cargo_content)?;
@@ -406,7 +460,7 @@ edition = "2021"
         let component_cargo = r#"[package]
 name = "component1"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 "#;
         fs::write(component_dir.join("Cargo.toml"), component_cargo)?;
 
@@ -459,7 +513,7 @@ anyhow = "1.0"
         let cargo_content = r#"[package]
 name = "test-project"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 "#;
@@ -479,9 +533,12 @@ edition = "2021"
         assert!(!result, "'serde' should not be available");
 
         // Test with a crate name that almost certainly doesn't exist (random string)
-        let random_name = format!("ferrisup-test-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs());
+        let random_name = format!(
+            "ferrisup-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs()
+        );
         let result = is_crate_name_available(&random_name)?;
         assert!(result, "Random crate name should be available");
 
@@ -494,5 +551,4 @@ edition = "2021"
 
     // We don't need this test as the function signature already ensures we can only pass strings
     // Removing the test that would cause a compilation error
-
 }

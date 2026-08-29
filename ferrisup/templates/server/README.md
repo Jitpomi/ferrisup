@@ -6,7 +6,7 @@ A web server implementation using Rust and the **{{server_framework}}** framewor
 
 {{#if (eq server_framework "axum")}}
 - Type-safe routing with Axum
-- Tower middleware integration 
+- Tower middleware integration
 - Extensible extractors
 - JSON request/response handling
 - Async request processing with Tokio

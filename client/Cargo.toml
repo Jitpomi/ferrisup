@@ -2,7 +2,7 @@
 name = "client"
 version = "0.2.5"
 authors = ["jermsam <ssali@jitpomi.com>"]
-edition = "2021"
+edition = "2024"
 description = "FerrisUp website client built with Dioxus"
 license = "MIT"
 repository = "https://github.com/Jitpomi/ferrisup"
@@ -19,9 +19,7 @@ component_type = "client"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.7.0-rc.0", features = ["router"] }
-dioxus-free-icons = { version = "0.9.0", features = ["font-awesome-brands"] }
-gloo-timers = { version = "0.3", features = ["futures"] }
+dioxus = { version = "0.7.10", features = ["router"] }
 
 [features]
 default = ["web"]

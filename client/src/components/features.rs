@@ -1,211 +1,43 @@
-use dioxus::core_macro::{component, rsx};
 use dioxus::prelude::*;
-use crate::components::feature_card::FeatureCard;
 
 #[component]
 pub fn Features() -> Element {
+    let items = [
+        (
+            "Repeatable foundations",
+            "Generate ordinary Rust files from bundled templates that remain visible, reviewable, and version-controlled.",
+        ),
+        (
+            "A path to workspaces",
+            "Convert a single Cargo package into a workspace and add focused client, server, shared, edge, embedded, or data components.",
+        ),
+        (
+            "Agent-readable structure",
+            "Make package boundaries and build expectations concrete so AI coding tools spend less time guessing how the repository is organized.",
+        ),
+        (
+            "Current ecosystem choices",
+            "Start with maintained Rust editions and current framework lines while keeping every dependency in your own Cargo manifests.",
+        ),
+        (
+            "Safer generation",
+            "Reject unsafe names and existing destinations instead of silently overwriting files or accepting path-like input.",
+        ),
+        (
+            "Useful maintenance tools",
+            "Preview bundled templates and assist with components, workspaces, dependencies, configuration, and feature inspection.",
+        ),
+    ];
+
     rsx! {
-        section {
-            class: "py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative",
-            
-            // Background elements for premium feel
-            div {
-                class: "absolute inset-0 bg-gradient-to-b from-[#121212] via-[#151515] to-[#181818] -z-10"
-            }
-            
-            // Decorative elements
-            div {
-                class: "absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent"
-            }
-            
-            // Section header with modern styling
-            div {
-                class: "text-center mb-16",
-                span {
-                    class: "inline-block px-3 py-1 text-sm font-medium bg-amber-900/30 text-amber-400 rounded-full mb-4",
-                    "Features"
-                }
-                h2 {
-                    class: "text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 mb-4",
-                    "FerrisUp Features"
-                }
-                p {
-                    class: "text-gray-400 max-w-2xl mx-auto text-lg",
-                    "A versatile Rust project bootstrapping tool that enables developers to create, transform, and scale Rust projects with ease."
-                }
-            }
-            
-            // Feature grid with staggered animation effect
-            div {
-                class: "grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10",
-                
-                // Feature 1
-                FeatureCard {
-                    icon: "🔄".to_string(),
-                    title: "Project Transformation".to_string(),
-                    description: "Convert single-crate projects to workspaces as they grow. Start simple and evolve your project structure without starting from scratch.".to_string()
-                }
-                
-                // Feature 2
-                FeatureCard {
-                    icon: "🧩".to_string(),
-                    title: "Component-Based Architecture".to_string(),
-                    description: "Specialized components for different use cases. Mix and match components to build the perfect project structure for your needs.".to_string()
-                }
-                
-                // Feature 3
-                FeatureCard {
-                    icon: "📋".to_string(),
-                    title: "Domain-Specific Templates".to_string(),
-                    description: "Optimized templates for web, data science, embedded, and more. Each template is designed for its specific domain with appropriate dependencies.".to_string()
-                }
-            }
-            
-            // Additional features section
-            div {
-                class: "mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
-                
-                // Mini feature 1
-                div {
-                    class: "bg-gray-800/50 p-6 rounded-xl border border-gray-700 hover:border-amber-500/50 transition-colors duration-300",
-                    div {
-                        class: "flex items-center mb-4",
-                        span {
-                            class: "text-amber-400 mr-3",
-                            "🔧"
-                        }
-                        h3 {
-                            class: "font-semibold text-white",
-                            "Smart Dependency Management"
-                        }
-                    }
-                    p {
-                        class: "text-gray-400 text-sm",
-                        "Interactive dependency handling with feature selection."
-                    }
-                }
-                
-                // Mini feature 2
-                div {
-                    class: "bg-gray-800/50 p-6 rounded-xl border border-gray-700 hover:border-amber-500/50 transition-colors duration-300",
-                    div {
-                        class: "flex items-center mb-4",
-                        span {
-                            class: "text-amber-400 mr-3",
-                            "📦"
-                        }
-                        h3 {
-                            class: "font-semibold text-white",
-                            "Workspace Support"
-                        }
-                    }
-                    p {
-                        class: "text-gray-400 text-sm",
-                        "Transform single-crate projects into workspaces as they grow."
-                    }
-                }
-                
-                // Mini feature 3
-                div {
-                    class: "bg-gray-800/50 p-6 rounded-xl border border-gray-700 hover:border-amber-500/50 transition-colors duration-300",
-                    div {
-                        class: "flex items-center mb-4",
-                        span {
-                            class: "text-amber-400 mr-3",
-                            "🌐"
-                        }
-                        h3 {
-                            class: "font-semibold text-white",
-                            "Multiple Framework Support"
-                        }
-                    }
-                    p {
-                        class: "text-gray-400 text-sm",
-                        "Support for Axum, Leptos, Dioxus, Actix, and more."
-                    }
-                }
-                
-                // Mini feature 4
-                div {
-                    class: "bg-gray-800/50 p-6 rounded-xl border border-gray-700 hover:border-amber-500/50 transition-colors duration-300",
-                    div {
-                        class: "flex items-center mb-4",
-                        span {
-                            class: "text-amber-400 mr-3",
-                            "🚀"
-                        }
-                        h3 {
-                            class: "font-semibold text-white",
-                            "Extensible Templates"
-                        }
-                    }
-                    p {
-                        class: "text-gray-400 text-sm",
-                        "Create and share your own project templates and transformations."
-                    }
-                }
-            }
-            
-            // Latest Updates section
-            div {
-                class: "mt-20 bg-gradient-to-r from-amber-900/20 to-orange-900/20 rounded-2xl p-8 border border-amber-700/30",
-                div {
-                    class: "text-center mb-8",
-                    span {
-                        class: "inline-block px-3 py-1 text-sm font-medium bg-green-900/30 text-green-400 rounded-full mb-4",
-                        "Latest Update"
-                    }
-                    h3 {
-                        class: "text-2xl font-bold text-white mb-2",
-                        "FerrisUp v0.2.5 Released!"
-                    }
-                    p {
-                        class: "text-gray-400",
-                        "Critical bug fixes and improved stability for all users."
-                    }
-                }
-                
-                div {
-                    class: "grid grid-cols-1 md:grid-cols-2 gap-6",
-                    
-                    // Bug fix highlight
-                    div {
-                        class: "bg-gray-800/30 p-6 rounded-xl border border-gray-700/50",
-                        div {
-                            class: "flex items-center mb-3",
-                            span {
-                                class: "text-green-400 mr-3 text-xl",
-                                "🔧"
-                            }
-                            h4 {
-                                class: "font-semibold text-white",
-                                "Template Path Resolution Fixed"
-                            }
-                        }
-                        p {
-                            class: "text-gray-400 text-sm",
-                            "Resolved critical 'No such file or directory' errors when creating new projects. FerrisUp now works reliably in all environments."
-                        }
-                    }
-                    
-                    // Stability improvement
-                    div {
-                        class: "bg-gray-800/30 p-6 rounded-xl border border-gray-700/50",
-                        div {
-                            class: "flex items-center mb-3",
-                            span {
-                                class: "text-blue-400 mr-3 text-xl",
-                                "⚡"
-                            }
-                            h4 {
-                                class: "font-semibold text-white",
-                                "Enhanced Stability"
-                            }
-                        }
-                        p {
-                            class: "text-gray-400 text-sm",
-                            "Improved build system and template handling ensures consistent behavior across development and production environments."
-                        }
+        section { class: "px-6 py-20 max-w-6xl mx-auto", id: "value",
+            h2 { class: "text-4xl font-bold text-white", "Built for codebases, not demos" }
+            p { class: "mt-4 text-lg text-gray-400 max-w-3xl", "FerrisUp does not generate product logic or replace engineering judgment. It establishes a coherent starting structure that people and agents can extend using normal Rust tooling." }
+            div { class: "mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-6",
+                for (title, description) in items {
+                    article { class: "p-7 rounded-xl bg-gray-900 border border-gray-800",
+                        h3 { class: "text-xl font-semibold text-amber-400", "{title}" }
+                        p { class: "mt-3 text-gray-300 leading-relaxed", "{description}" }
                     }
                 }
             }

@@ -2,15 +2,15 @@
 
 This project is a Rust-powered Vercel Edge Function built with WebAssembly. It enables you to run high-performance edge functions globally on Vercel's edge network.
 
-## 📋 Features
+## Features
 
-- ⚡️ Lightning-fast API responses powered by Rust and WebAssembly
-- 🌐 Global deployment on Vercel's edge network
-- 🧩 URL routing with path and query parameter support
-- 🔄 JSON serialization and deserialization
-- 💨 Zero cold starts compared to traditional serverless functions
+- Lightning-fast API responses powered by Rust and WebAssembly
+- Global deployment on Vercel's edge network
+- URL routing with path and query parameter support
+- JSON serialization and deserialization
+- Zero cold starts compared to traditional serverless functions
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -63,7 +63,7 @@ Before you begin, ensure you have the following installed:
    vercel --prod
    ```
 
-## 📖 API Documentation
+## API Documentation
 
 ### Available Endpoints
 
@@ -81,7 +81,7 @@ curl -X GET "https://your-deployment-url.vercel.app/api"
 curl -X GET "https://your-deployment-url.vercel.app/api/echo?message=hello-world"
 ```
 
-## 🔧 Customization
+## Customization
 
 ### Adding New Routes
 
@@ -90,7 +90,7 @@ Modify the `handler` function in `src/lib.rs` to add new routes:
 ```rust
 match (method.as_str(), path) {
     // Existing routes...
-    
+
     // Add your new route here
     ("GET", "/api/new-endpoint") => {
         // Your handler code
@@ -102,11 +102,11 @@ match (method.as_str(), path) {
             method: Some("GET".to_string()),
             params: None,
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         create_response(&json, "application/json", 200)
     },
-    
+
     // Default 404 handler
     _ => { /* ... */ }
 }
@@ -152,7 +152,7 @@ Vercel Edge Functions support several advanced features:
 
 3. **Edge SQL**: You can use Vercel's Edge SQL to interact with databases directly from the edge.
 
-## 📚 Resources
+## Resources
 
 - [Vercel Edge Functions Documentation](https://vercel.com/docs/functions/edge-functions)
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)

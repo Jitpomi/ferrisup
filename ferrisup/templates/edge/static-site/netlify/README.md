@@ -2,15 +2,15 @@
 
 This project is a static website built with Rust and WebAssembly, designed to be deployed on Netlify's global CDN. It provides a fast, interactive user experience with near-native performance.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance WebAssembly compiled from Rust
-- 🎨 Modern, responsive design with mobile-first approach
-- 🌐 Ready for deployment on Netlify's global CDN
-- 🔄 Interactive UI elements powered by Rust
-- 🚀 Continuous deployment with Git integration
+- High-performance WebAssembly compiled from Rust
+- Modern, responsive design with mobile-first approach
+- Ready for deployment on Netlify's global CDN
+- Interactive UI elements powered by Rust
+- Continuous deployment with Git integration
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -36,12 +36,12 @@ Before you begin, ensure you have the following installed:
    ```
    netlify dev
    ```
-   
+
    Alternatively, you can use any static file server:
    ```
    # If you have Python installed
    python -m http.server
-   
+
    # If you have Node.js installed
    npx serve
    ```
@@ -70,7 +70,7 @@ Before you begin, ensure you have the following installed:
    netlify deploy --prod
    ```
 
-## 🔧 Customization
+## Customization
 
 ### Project Structure
 
@@ -114,7 +114,7 @@ The CSS styles are embedded directly in `index.html`. The stylesheet is organize
 
 You can modify these styles to match your branding and design preferences.
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### Adding Pages
 
@@ -164,13 +164,13 @@ To fetch data from external APIs:
        let mut opts = RequestInit::new();
        opts.method("GET");
        opts.mode(RequestMode::Cors);
-       
+
        let request = Request::new_with_str_and_init(url, &opts)?;
        let window = web_sys::window().unwrap();
        let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
        let resp: Response = resp_value.dyn_into()?;
        let json = JsFuture::from(resp.json()?).await?;
-       
+
        Ok(json)
    }
    ```
@@ -185,7 +185,7 @@ To fetch data from external APIs:
 
 3. For local development, create a `.env` file and use it with Netlify CLI
 
-## 📦 Optimizing for Production
+## Optimizing for Production
 
 ### Bundle Size Optimization
 
@@ -239,7 +239,7 @@ Add custom headers for WebAssembly files:
     Cache-Control = "public, max-age=31536000"
 ```
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -257,7 +257,7 @@ Add custom headers for WebAssembly files:
    - Configure proxy redirects in your `netlify.toml`
    - Use Netlify Functions for API calls that require CORS
 
-## 📖 Resources
+## Resources
 
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)
 - [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/)

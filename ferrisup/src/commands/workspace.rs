@@ -1,15 +1,14 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{Confirm, Input, Select};
-use std::path::{Path, PathBuf};
+use ferrisup_common::{cargo::*, fs::create_directory};
 use std::fs;
-use ferrisup_common::{fs::create_directory, cargo::*};
-
+use std::path::{Path, PathBuf};
 
 /// Execute the workspace command to manage Cargo workspaces
 pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
     println!("{}", "FerrisUp Workspace Manager".bold().green());
-    
+
     // Get project path
     let project_dir = if let Some(p) = path {
         PathBuf::from(p)
@@ -19,18 +18,18 @@ pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
             .with_prompt("Use current directory?")
             .default(true)
             .interact()?;
-        
+
         if use_current {
             std::env::current_dir()?
         } else {
             let path = Input::<String>::new()
                 .with_prompt("Enter project path")
                 .interact()?;
-            
+
             PathBuf::from(path)
         }
     };
-    
+
     // Get action
     let action_str = if let Some(act) = action {
         act.to_string()
@@ -41,10 +40,10 @@ pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
             .items(&options)
             .default(0)
             .interact()?;
-        
+
         options[selection].to_string()
     };
-    
+
     // Execute the selected action
     match action_str.as_str() {
         "init" => init_workspace(&project_dir)?,
@@ -52,9 +51,13 @@ pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
         "remove" => remove_crate_from_workspace(&project_dir)?,
         "list" => list_workspace_members(&project_dir)?,
         "optimize" => optimize_workspace(&project_dir)?,
-        _ => return Err(anyhow::anyhow!("Invalid action. Use 'init', 'add', 'remove', 'list', or 'optimize'")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid action. Use 'init', 'add', 'remove', 'list', or 'optimize'"
+            ));
+        }
     }
-    
+
     Ok(())
 }
 
@@ -62,45 +65,45 @@ pub fn execute(action: Option<&str>, path: Option<&str>) -> Result<()> {
 fn init_workspace(project_dir: &Path) -> Result<()> {
     // Check if Cargo.toml exists
     let cargo_toml_path = project_dir.join("Cargo.toml");
-    
+
     let workspace_exists = if cargo_toml_path.exists() {
         let content = read_cargo_toml(project_dir)?;
         content.contains("[workspace]")
     } else {
         false
     };
-    
+
     if workspace_exists {
         println!("{}", "Workspace already initialized!".yellow());
         return Ok(());
     }
-    
+
     // Ask for workspace members
     let default_dirs = vec![
         "client/*".to_string(),
         "server/*".to_string(),
         "ferrisup_common/*".to_string(),
     ];
-    
+
     let mut dirs = if !cargo_toml_path.exists() {
         // New workspace from scratch
         default_dirs
     } else {
         // Convert existing project to workspace
         println!("\n{}", "Converting existing project to workspace".green());
-        
+
         let options = vec![
             "Use default workspace structure (client/*, server/*, ferrisup_common/*)",
             "Discover existing crates",
             "Manually specify members",
         ];
-        
+
         let selection = Select::new()
             .with_prompt("How would you like to initialize the workspace?")
             .items(&options)
             .default(0)
             .interact()?;
-        
+
         match selection {
             0 => default_dirs,
             1 => discover_crates(project_dir)?,
@@ -108,15 +111,13 @@ fn init_workspace(project_dir: &Path) -> Result<()> {
                 let input = Input::<String>::new()
                     .with_prompt("Enter comma-separated workspace members (e.g. 'crate1, crate2/*, ferrisup_common/*')")
                     .interact()?;
-                
-                input.split(',')
-                    .map(|s| s.trim().to_string())
-                    .collect()
-            },
+
+                input.split(',').map(|s| s.trim().to_string()).collect()
+            }
             _ => default_dirs,
         }
     };
-    
+
     // Create the workspace Cargo.toml
     let cargo_content = if !cargo_toml_path.exists() {
         // Create new Cargo.toml
@@ -140,35 +141,39 @@ log = "0.4"
     } else {
         // Modify existing Cargo.toml
         let content = read_cargo_toml(project_dir)?;
-        
+
         // Preserve existing content and add workspace section
         if content.contains("[package]") {
             // Convert an application to a workspace root
             // First, move package section to its own crate
             let package_name = extract_package_name(&content).unwrap_or("app".to_string());
-            
+
             // Create app directory for the existing package
             let app_dir = project_dir.join(&package_name);
             if !app_dir.exists() {
                 create_directory(&app_dir)?;
-                
+
                 // Move existing src directory to app directory
                 let src_dir = project_dir.join("src");
                 if src_dir.exists() {
                     let target_dir = app_dir.join("src");
                     fs::rename(&src_dir, &target_dir)?;
                 }
-                
+
                 // Create app Cargo.toml with the package section
                 let app_cargo = app_dir.join("Cargo.toml");
                 fs::write(&app_cargo, extract_package_section(&content))?;
-                
-                println!("{} {}", "Moved existing package to:".green(), app_dir.display());
-                
+
+                println!(
+                    "{} {}",
+                    "Moved existing package to:".green(),
+                    app_dir.display()
+                );
+
                 // Add the new crate to workspace members
                 dirs.push(package_name);
             }
-            
+
             // Create new root Cargo.toml
             format!(
                 r#"[workspace]
@@ -211,13 +216,17 @@ log = "0.4"
             )
         }
     };
-    
+
     // Write the Cargo.toml file
     write_cargo_toml_content(project_dir, &cargo_content)?;
-    
-    println!("{} {}", "Initialized workspace in:".green(), project_dir.display());
+
+    println!(
+        "{} {}",
+        "Initialized workspace in:".green(),
+        project_dir.display()
+    );
     println!("{} {}", "Workspace members:".green(), dirs.join(", "));
-    
+
     // Create default directories if they don't exist
     for dir in &["client", "server", "ferrisup_common"] {
         let path = project_dir.join(dir);
@@ -226,7 +235,7 @@ log = "0.4"
             println!("{} {}", "Created directory:".green(), path.display());
         }
     }
-    
+
     Ok(())
 }
 
@@ -235,9 +244,11 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
     // Verify it's a workspace
     let cargo_content = read_cargo_toml(project_dir)?;
     if !cargo_content.contains("[workspace]") {
-        return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
+        return Err(anyhow::anyhow!(
+            "Not a Cargo workspace (no [workspace] section in Cargo.toml)"
+        ));
     }
-    
+
     // Get crate type
     let crate_types = vec!["client", "server", "ferrisup_common", "custom"];
     let selection = Select::new()
@@ -245,25 +256,27 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
         .items(&crate_types)
         .default(0)
         .interact()?;
-    
+
     let crate_type = crate_types[selection];
-    
+
     // Get crate name
     let crate_name = Input::<String>::new()
         .with_prompt("Enter crate name")
         .interact()?;
-    
+
     // Determine crate path based on type
     let crate_path = match crate_type {
         "client" => project_dir.join("../../../client").join(&crate_name),
         "server" => project_dir.join("server").join(&crate_name),
-        "ferrisup_common" => project_dir.join("../../../ferrisup_common").join(&crate_name),
+        "ferrisup_common" => project_dir
+            .join("../../../ferrisup_common")
+            .join(&crate_name),
         _ => project_dir.join(&crate_name),
     };
-    
+
     // Create crate directory
     create_directory(&crate_path)?;
-    
+
     // Get crate template
     let is_bin = if crate_type == "client" || crate_type == "server" {
         true
@@ -273,15 +286,15 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
             .default(false)
             .interact()?
     };
-    
+
     // Create src directory and main.rs/lib.rs
     let src_dir = crate_path.join("src");
     create_directory(&src_dir)?;
-    
+
     if is_bin {
         fs::write(
             src_dir.join("main.rs"),
-            "fn main() {\n    println!(\"Hello from {}!\");\n}\n".replace("{}", &crate_name)
+            "fn main() {\n    println!(\"Hello from {}!\");\n}\n".replace("{}", &crate_name),
         )?;
     } else {
         fs::write(
@@ -290,34 +303,35 @@ fn add_crate_to_workspace(project_dir: &Path) -> Result<()> {
                 .replace("{}", &crate_name)
         )?;
     }
-    
+
     // Create Cargo.toml for the crate
     let crate_cargo_content = format!(
         r#"[package]
 name = "{}"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 "#,
         if crate_type == "custom" {
             crate_name.clone()
         } else {
-            let project_name = project_dir.file_name()
+            let project_name = project_dir
+                .file_name()
                 .and_then(|name| name.to_str())
                 .map(|s| s.replace('-', "_"))
                 .unwrap_or_else(|| "project".to_string());
             format!("{}-{}", project_name, crate_name)
         }
     );
-    
+
     fs::write(crate_path.join("Cargo.toml"), crate_cargo_content)?;
-    
+
     println!("{} {}", "Created crate:".green(), crate_path.display());
-    
+
     // Update workspace members
     update_workspace_members(project_dir)?;
-    
+
     Ok(())
 }
 
@@ -326,46 +340,48 @@ fn remove_crate_from_workspace(project_dir: &Path) -> Result<()> {
     // Verify it's a workspace
     let cargo_content = read_cargo_toml(project_dir)?;
     if !cargo_content.contains("[workspace]") {
-        return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
+        return Err(anyhow::anyhow!(
+            "Not a Cargo workspace (no [workspace] section in Cargo.toml)"
+        ));
     }
-    
+
     // List workspace members
     let members = list_workspace_crates(project_dir)?;
-    
+
     if members.is_empty() {
         println!("{}", "No workspace members found".yellow());
         return Ok(());
     }
-    
+
     // Let user select a crate to remove
     let selection = Select::new()
         .with_prompt("Select crate to remove from workspace")
         .items(&members)
         .default(0)
         .interact()?;
-    
+
     let crate_path = members[selection].clone();
-    
+
     // Confirm deletion
     let delete_files = Confirm::new()
         .with_prompt(format!("Also delete {} files?", crate_path))
         .default(false)
         .interact()?;
-    
+
     // Remove files if requested
     if delete_files {
         let full_path = project_dir.join(&crate_path);
         fs::remove_dir_all(&full_path)
             .context(format!("Failed to remove {}", full_path.display()))?;
-        
+
         println!("{} {}", "Deleted crate files:".green(), crate_path);
     }
-    
+
     // Update workspace members
     update_workspace_members(project_dir)?;
-    
+
     println!("{} {}", "Removed crate from workspace:".green(), crate_path);
-    
+
     Ok(())
 }
 
@@ -374,14 +390,16 @@ fn list_workspace_members(project_dir: &Path) -> Result<()> {
     // Verify it's a workspace
     let cargo_content = read_cargo_toml(project_dir)?;
     if !cargo_content.contains("[workspace]") {
-        return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
+        return Err(anyhow::anyhow!(
+            "Not a Cargo workspace (no [workspace] section in Cargo.toml)"
+        ));
     }
-    
+
     // Extract workspace members
     let members = extract_workspace_members(&cargo_content);
-    
+
     println!("\n{}", "Workspace Members:".bold());
-    
+
     if members.is_empty() {
         println!("  No members found");
     } else {
@@ -389,12 +407,12 @@ fn list_workspace_members(project_dir: &Path) -> Result<()> {
             println!("  {}. {}", i + 1, member);
         }
     }
-    
+
     // List actual crates found (resolved)
     let crates = list_workspace_crates(project_dir)?;
-    
+
     println!("\n{}", "Found Crates:".bold());
-    
+
     if crates.is_empty() {
         println!("  No crates found");
     } else {
@@ -402,30 +420,32 @@ fn list_workspace_members(project_dir: &Path) -> Result<()> {
             println!("  {}. {}", i + 1, crate_path);
         }
     }
-    
+
     Ok(())
 }
 
 /// Optimize a workspace by identifying and fixing common issues
 fn optimize_workspace(project_dir: &Path) -> Result<()> {
     println!("{}", "Optimizing workspace...".green());
-    
+
     // Verify it's a workspace
     let cargo_content = read_cargo_toml(project_dir)?;
     if !cargo_content.contains("[workspace]") {
-        return Err(anyhow::anyhow!("Not a Cargo workspace (no [workspace] section in Cargo.toml)"));
+        return Err(anyhow::anyhow!(
+            "Not a Cargo workspace (no [workspace] section in Cargo.toml)"
+        ));
     }
-    
+
     // Check for duplicated dependencies
     let mut improvements = Vec::new();
     improvements.push("Checking for dependency issues...".to_string());
-    
+
     // Update workspace members - ensure all crates are included
     let updated = update_workspace_members(project_dir)?;
     if updated {
         improvements.push("✓ Updated workspace members list".to_string());
     }
-    
+
     // Check if workspace.dependencies exists and add if not
     if !cargo_content.contains("[workspace.dependencies]") {
         // Add workspace.dependencies section header only
@@ -436,52 +456,56 @@ fn optimize_workspace(project_dir: &Path) -> Result<()> {
 "#,
             cargo_content
         );
-        
+
         // Write updated Cargo.toml with just the section header
         write_cargo_toml_content(project_dir, &updated_content)?;
-        
+
         // Now add common dependencies using our utility function
         let common_deps = vec![
             ("anyhow".to_string(), "1.0".to_string(), None),
-            ("serde".to_string(), "1.0".to_string(), Some(vec!["derive".to_string()])),
-            ("log".to_string(), "0.4".to_string(), None)
+            (
+                "serde".to_string(),
+                "1.0".to_string(),
+                Some(vec!["derive".to_string()]),
+            ),
+            ("log".to_string(), "0.4".to_string(), None),
         ];
-        
+
         let cargo_path = project_dir.join("Cargo.toml");
         update_cargo_with_dependencies(&cargo_path, common_deps, false)?;
         improvements.push("✓ Added [workspace.dependencies] section".to_string());
     }
-    
+
     // Report improvements
     println!("\n{}", "Workspace Optimization Results:".bold());
     for improvement in improvements {
         println!("  {}", improvement);
     }
-    
+
     println!("\n{}", "Workspace optimized successfully!".green());
-    
+
     Ok(())
 }
 
 /// Helper function to discover crates in a project directory
 fn discover_crates(project_dir: &Path) -> Result<Vec<String>> {
     let mut crates = Vec::new();
-    
+
     // Look for directories with Cargo.toml files
     let walkdir = walkdir::WalkDir::new(project_dir)
         .follow_links(true)
         .max_depth(3) // Don't go too deep
         .into_iter()
         .filter_map(|e| e.ok());
-    
+
     for entry in walkdir {
         let path = entry.path();
-        
+
         // Skip the root directory itself
         if path == project_dir {
             continue;
         }
-        
+
         // Check if it has a Cargo.toml file
         if path.is_dir() && path.join("Cargo.toml").exists() {
             if let Ok(rel_path) = path.strip_prefix(project_dir) {
@@ -490,7 +514,7 @@ fn discover_crates(project_dir: &Path) -> Result<Vec<String>> {
             }
         }
     }
-    
+
     // If nothing found in subdirectories, check for common patterns
     if crates.is_empty() {
         // Check for client/server/ferrisup_common directories
@@ -501,25 +525,25 @@ fn discover_crates(project_dir: &Path) -> Result<Vec<String>> {
             }
         }
     }
-    
+
     Ok(crates)
 }
 
 /// Helper function to list actual crates in a workspace
 fn list_workspace_crates(project_dir: &Path) -> Result<Vec<String>> {
     let mut crates = Vec::new();
-    
+
     // Extract workspace members
     let cargo_content = read_cargo_toml(project_dir)?;
     let members = extract_workspace_members(&cargo_content);
-    
+
     // Resolve glob patterns and check if each member exists
     for member in members {
         if member.contains('*') {
             // Handle glob pattern
             let parts: Vec<&str> = member.split('*').collect();
             let prefix = parts[0];
-            
+
             let prefix_path = project_dir.join(prefix);
             if prefix_path.exists() && prefix_path.is_dir() {
                 if let Ok(entries) = fs::read_dir(&prefix_path) {
@@ -535,19 +559,22 @@ fn list_workspace_crates(project_dir: &Path) -> Result<Vec<String>> {
         } else {
             // Handle direct path
             let member_path = project_dir.join(&member);
-            if member_path.exists() && member_path.is_dir() && member_path.join("Cargo.toml").exists() {
+            if member_path.exists()
+                && member_path.is_dir()
+                && member_path.join("Cargo.toml").exists()
+            {
                 crates.push(member);
             }
         }
     }
-    
+
     Ok(crates)
 }
 
 /// Helper function to extract workspace members from Cargo.toml content
 fn extract_workspace_members(cargo_content: &str) -> Vec<String> {
     let mut members = Vec::new();
-    
+
     // Basic parsing of members array
     if let Some(workspace_section) = cargo_content.split("[workspace]").nth(1) {
         if let Some(members_section) = workspace_section.split("members").nth(1) {
@@ -563,7 +590,7 @@ fn extract_workspace_members(cargo_content: &str) -> Vec<String> {
                                 .unwrap_or("")
                                 .trim()
                                 .trim_end_matches(',');
-                            
+
                             if !member.is_empty() {
                                 members.push(member.to_string());
                             }
@@ -573,7 +600,7 @@ fn extract_workspace_members(cargo_content: &str) -> Vec<String> {
             }
         }
     }
-    
+
     members
 }
 

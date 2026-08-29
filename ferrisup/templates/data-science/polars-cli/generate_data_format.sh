@@ -184,7 +184,7 @@ if [ "$FORMAT" = "parquet" ]; then
 [package]
 name = "csv_to_parquet"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 polars = { version = "0.35.0", features = ["parquet", "csv"] }

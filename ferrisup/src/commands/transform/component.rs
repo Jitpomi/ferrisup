@@ -1,16 +1,19 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use colored::Colorize;
-use std::path::Path;
-use std::fs;
-use ferrisup_common::fs::create_directory;
 use ferrisup_common::cargo;
-use toml_edit::{DocumentMut};
+use ferrisup_common::fs::create_directory;
+use std::fs;
+use std::path::Path;
+use toml_edit::DocumentMut;
 
-use crate::commands::test_mode::is_test_mode;
+use super::constants::{get_component_type_names, get_formatted_component_types};
 use super::project_structure::{analyze_project_structure, map_component_to_template};
-use super::utils::{store_transformation_metadata, store_component_type_in_cargo, make_shared_component_accessible, update_root_file_references, add_component_to_workspace};
 use super::ui::{get_input_with_default, select_option};
-use super::constants::{get_formatted_component_types, get_component_type_names};
+use super::utils::{
+    add_component_to_workspace, make_shared_component_accessible, store_component_type_in_cargo,
+    store_transformation_metadata, update_root_file_references,
+};
+use crate::commands::test_mode::is_test_mode;
 
 // Function to add a component to a workspace
 pub fn add_component(project_dir: &Path) -> Result<()> {
@@ -36,9 +39,9 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
     // Prompt for component name with default based on component type
     let mut component_name = get_input_with_default(
         &format!("Component name [{}]", component_type),
-        component_type
+        component_type,
     )?;
-    
+
     // For shared components, check if the crate name is available on crates.io
     if component_type == "shared" {
         // Keep prompting until we get an available name
@@ -51,22 +54,33 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
                         println!(
                             "{} {}",
                             "Success:".green().bold(),
-                            format!("Crate name '{}' is available on crates.io", component_name).green()
+                            format!("Crate name '{}' is available on crates.io", component_name)
+                                .green()
                         );
                     } else {
                         println!(
                             "{} {}",
                             "Warning:".yellow().bold(),
-                            format!("Crate name '{}' is already taken on crates.io", component_name).yellow()
+                            format!(
+                                "Crate name '{}' is already taken on crates.io",
+                                component_name
+                            )
+                            .yellow()
                         );
-                        
+
                         // Prompt for a different name
                         component_name = get_input_with_default(
                             "Please enter a different name for your shared component",
-                            &format!("{}-common", project_dir.file_name().unwrap_or_default().to_string_lossy())
+                            &format!(
+                                "{}-common",
+                                project_dir
+                                    .file_name()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                            ),
                         )?;
                     }
-                },
+                }
                 Err(e) => {
                     println!(
                         "{} {}",
@@ -162,7 +176,7 @@ pub fn add_component(project_dir: &Path) -> Result<()> {
 
     // Create an empty list for files to keep at root since we're not moving files in this case
     let files_to_keep_at_root: Vec<String> = Vec::new();
-    
+
     // Update references in files kept at the root
     update_root_file_references(project_dir, &component_name, &files_to_keep_at_root)?;
 
@@ -211,7 +225,11 @@ pub fn add_component_without_workspace(project_dir: &Path) -> Result<()> {
     // Add framework-specific dependencies to the project
     if let Some(framework_name) = &framework {
         add_framework_dependencies(project_dir, framework_name)?;
-        println!("{} {}", "Added dependencies for framework:".blue(), framework_name.cyan());
+        println!(
+            "{} {}",
+            "Added dependencies for framework:".blue(),
+            framework_name.cyan()
+        );
     }
 
     println!(
@@ -390,6 +408,6 @@ fn add_framework_dependencies(project_dir: &Path, framework: &str) -> Result<()>
 
     // Write updated Cargo.toml
     fs::write(cargo_path, cargo_doc.to_string())?;
-    
+
     Ok(())
 }

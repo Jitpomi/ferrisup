@@ -22,7 +22,8 @@ pub fn get_component_type_names() -> Vec<&'static str> {
 
 /// Get a list of formatted component types with descriptions for display
 pub fn get_formatted_component_types() -> Vec<String> {
-    COMPONENT_TYPES.iter()
+    COMPONENT_TYPES
+        .iter()
         .map(|(name, desc)| format!("{} - {}", name, desc))
         .collect()
 }

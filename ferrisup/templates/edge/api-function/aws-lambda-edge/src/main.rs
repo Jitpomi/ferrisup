@@ -1,10 +1,6 @@
-use lambda_http::{service_fn, Body, Error, Request, Response, http::StatusCode};
-use lambda_runtime::{tracing, service_fn as lambda_service_fn};
+use lambda_http::{service_fn, tracing, Body, Error, Request, Response, http::StatusCode};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-// Configure the lambda tracing
-tracing::init_default_subscriber();
 
 /// API Response structure for JSON responses
 #[derive(Serialize, Deserialize)]
@@ -32,8 +28,9 @@ struct ErrorResponse {
 /// The main Lambda entry point function for Lambda@Edge
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    tracing::init_default_subscriber();
     // Start the Lambda Runtime
-    lambda_http::run(lambda_service_fn(handler)).await?;
+    lambda_http::run(service_fn(handler)).await?;
     Ok(())
 }
 

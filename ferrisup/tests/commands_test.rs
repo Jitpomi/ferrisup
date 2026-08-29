@@ -1,7 +1,7 @@
 //! Integration tests for FerrisUp commands
 
-use std::process::{Command, Stdio};
 use anyhow::Result;
+use std::process::{Command, Stdio};
 
 mod common;
 
@@ -9,33 +9,24 @@ mod common;
 fn test_preview_command() -> Result<()> {
     // Test the preview command with a specific template
     let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["preview", "--template", "minimal"])
+        .args(["preview", "--component-type", "minimal"])
         .output()?;
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    
+
     // Print output for debugging
     // Preview command executed successfully
     if !stderr.is_empty() {
         // Check stderr if needed
     }
-    
-    // Check that the command executed successfully
-    if !output.status.success() {
-        // Command failed
-        // Continue with the test to see what assertions would fail
-    }
-    
-    // Verify expected content in output - be more lenient with checks
-    // since output format might have changed
-    assert!(stdout.contains("minimal") || stdout.contains("Minimal") || 
-           stderr.contains("minimal") || stderr.contains("Minimal"), 
-           "Output should contain the template name");
-    assert!(stdout.contains("Project") || stdout.contains("Structure") || 
-           stderr.contains("Project") || stderr.contains("Structure"), 
-           "Output should show project structure");
-    
+
+    assert!(output.status.success(), "Preview failed: {stderr}");
+
+    assert!(stdout.contains("Component: minimal"));
+    assert!(stdout.contains("Files:"));
+    assert!(stdout.contains("Cargo.toml"));
+
     Ok(())
 }
 
@@ -45,17 +36,22 @@ fn test_list_command() -> Result<()> {
     let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
         .arg("list")
         .output()?;
-    
-    let _stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
     // Check that the command executed successfully
     assert!(output.status.success(), "List command failed");
-    
+
     // Verify expected content in output
-    assert!(output.status.success(), "Output should confirm listing templates");
-    assert!(output.status.success(), "Output should list 'minimal' template");
-    assert!(output.status.success(), "Output should list 'library' template");
-    
+    assert!(
+        stdout.contains("minimal"),
+        "Output should list 'minimal' template"
+    );
+    assert!(
+        stdout.contains("library"),
+        "Output should list 'library' template"
+    );
+
     Ok(())
 }
 
@@ -64,64 +60,105 @@ fn test_new_command() -> Result<()> {
     // Create a temp directory for the test
     let temp_dir = common::create_test_dir()?;
     let dir_path = temp_dir.path();
-    
+
     // Test the new command with the current command structure
     // Using --component-type instead of --template and adding --no-interactive
     let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "test_project", "--component-type", "minimal", "--no-interactive"])
+        .args(&[
+            "new",
+            "test_project",
+            "--component-type",
+            "minimal",
+            "--no-interactive",
+        ])
         .current_dir(dir_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()?;
-    
-    let _stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    
+
     // Print output for debugging
     // New command executed
     if !stderr.is_empty() {
         // Check stderr if needed
     }
-    
-    // Check if the command executed successfully
-    if !output.status.success() {
-        // Command failed
-        // Continue with the test to see what assertions would fail
-    }
-    
+
+    assert!(
+        output.status.success(),
+        "New command failed: {stderr}\n{stdout}"
+    );
+
     // Check that the project directory was created
     let project_path = dir_path.join("test_project");
     // Verify project was created correctly
-    
-    // Skip assertions if the directory wasn't created
-    if project_path.exists() {
-        // Project directory exists
-        
-        // Check for Cargo.toml
-        if project_path.join("Cargo.toml").exists() {
-            // Cargo.toml exists
-        } else {
-            // Cargo.toml missing
-        }
-        
-        // Check for src directory
-        if project_path.join("src").exists() {
-            // src directory exists
-            
-            // Check for main.rs
-            if project_path.join("src").join("main.rs").exists() {
-                // main.rs exists
-            } else {
-                // main.rs missing
-            }
-        } else {
-            // src directory missing
-        }
-    } else {
-        // Project directory missing
-    }
-    
+
+    assert!(project_path.is_dir(), "Project directory was not created");
+    assert!(
+        project_path.join("Cargo.toml").is_file(),
+        "Cargo.toml is missing"
+    );
+    assert!(
+        project_path.join("src/main.rs").is_file(),
+        "src/main.rs is missing"
+    );
+
     common::cleanup_test_dir(temp_dir)?;
+    Ok(())
+}
+
+#[test]
+fn test_new_command_refuses_existing_destination() -> Result<()> {
+    let temp_dir = common::create_test_dir()?;
+    let project_path = temp_dir.path().join("existing_project");
+    std::fs::create_dir(&project_path)?;
+    let sentinel = project_path.join("keep.txt");
+    std::fs::write(&sentinel, "do not overwrite")?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
+        .args([
+            "new",
+            "existing_project",
+            "--component-type",
+            "minimal",
+            "--no-interactive",
+        ])
+        .current_dir(temp_dir.path())
+        .output()?;
+
+    assert!(!output.status.success());
+    assert_eq!(std::fs::read_to_string(sentinel)?, "do not overwrite");
+    Ok(())
+}
+
+#[test]
+fn test_new_command_rejects_path_as_name() -> Result<()> {
+    let temp_dir = common::create_test_dir()?;
+    let escaped_name = format!(
+        "../escaped-{}",
+        temp_dir.path().file_name().unwrap().to_string_lossy()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
+        .args([
+            "new",
+            &escaped_name,
+            "--component-type",
+            "minimal",
+            "--no-interactive",
+        ])
+        .current_dir(temp_dir.path())
+        .output()?;
+
+    assert!(!output.status.success());
+    assert!(
+        !temp_dir
+            .path()
+            .parent()
+            .unwrap()
+            .join(escaped_name.trim_start_matches("../"))
+            .exists()
+    );
     Ok(())
 }
 
@@ -130,7 +167,7 @@ fn test_workspace_command() -> Result<()> {
     // Create a temp directory for the test
     let temp_dir = common::create_test_dir()?;
     let dir_path = temp_dir.path();
-    
+
     // Initialize a workspace
     let init_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
         .args(&["workspace", "--action", "init", "--path", "."])
@@ -138,73 +175,39 @@ fn test_workspace_command() -> Result<()> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()?;
-    
+
     let _init_stdout = String::from_utf8_lossy(&init_output.stdout).to_string();
     let init_stderr = String::from_utf8_lossy(&init_output.stderr).to_string();
-    
+
     // Print output for debugging
     // Workspace init completed
     if !init_stderr.is_empty() {
         // Check stderr if needed
     }
-    
-    // Continue even if initialization failed
-    if !init_output.status.success() {
-        // Workspace init failed
-    }
-    
+
+    assert!(
+        init_output.status.success(),
+        "Workspace init failed: {init_stderr}"
+    );
+
     // Verify workspace file was created
     // Verify workspace Cargo.toml
-    if dir_path.join("Cargo.toml").exists() {
-        // Workspace Cargo.toml exists
-    } else {
-        // Workspace Cargo.toml missing
-    }
-    
-    // Test adding members to the workspace - treat each command independently
-    // Create first workspace member
-    let _member1_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "member1", "--component-type", "minimal", "--no-interactive"])
-        .current_dir(dir_path)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
-    
-    // Create second workspace member
-    let _member2_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["new", "member2", "--component-type", "library", "--no-interactive"])
-        .current_dir(dir_path)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
-    
-    // Add members to workspace
-    // Add members to workspace
-    let add_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["workspace", "--action", "add", "--path", "."])
-        .current_dir(dir_path)
-        .output()?;
-    
-    let _add_stdout = String::from_utf8_lossy(&add_output.stdout).to_string();
-    let add_stderr = String::from_utf8_lossy(&add_output.stderr).to_string();
-    
-    // Print output for debugging
-    if !add_stderr.is_empty() {
-        // Workspace add completed
-    }
-    
+    assert!(
+        dir_path.join("Cargo.toml").is_file(),
+        "Workspace Cargo.toml is missing"
+    );
+
     // List workspace members
     // List workspace members
     let list_output = Command::new(env!("CARGO_BIN_EXE_ferrisup"))
-        .args(&["workspace", "--action", "list", "--path", "."])
+        .args(["workspace", "--action", "list", "--path", "."])
         .current_dir(dir_path)
         .output()?;
-    
-    let _list_stdout = String::from_utf8_lossy(&list_output.stdout).to_string();
-    
-    // Print output for debugging
-    // Verify workspace list output
-    
+
+    let list_stdout = String::from_utf8_lossy(&list_output.stdout).to_string();
+    assert!(list_output.status.success(), "Workspace list failed");
+    assert!(list_stdout.contains("client/*"));
+
     common::cleanup_test_dir(temp_dir)?;
     Ok(())
 }

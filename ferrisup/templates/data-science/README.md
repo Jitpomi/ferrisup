@@ -1,41 +1,17 @@
-# FerrisUp Data Science Templates
+# FerrisUp data-science templates
 
-This directory contains various templates for data science and machine learning projects in Rust.
+FerrisUp currently includes two data-science paths:
 
-## Available Templates
+- `polars-cli` for command-line data processing with Polars, including CSV, JSON, and Parquet variants;
+- Linfa examples for classification and other traditional machine-learning workflows.
 
-### Data Analysis with Polars
-- Located in `polars-cli/`
-- Fast data processing and analysis using the Polars DataFrame library
-- Support for CSV, JSON, and Parquet files
-- Includes visualizations with plotters
+Create a project through the component interface:
 
-### Machine Learning with Linfa
-- Located in `linfa-examples/` and `linfa-lab/`
-- Statistical analysis and machine learning with Rust's Linfa ecosystem
-- Classification, clustering, and regression models
-- Includes datasets and examples
-
-### Deep Learning with Burn
-- Located in `burn-image-recognition/` and `burn-image-classifier/`
-- Neural network training and inference using Burn
-- Support for image processing, text processing, and numerical data
-- Includes models for MNIST and CIFAR-10 datasets
-
-## Getting Started
-
-Select a template using FerrisUp:
-
-```
-ferrisup new my-project --template data-science
+```bash
+ferrisup new analysis --component-type data-science --framework polars
+ferrisup new classifier --component-type data-science --framework linfa
 ```
 
-Then follow the prompts to select a specific data science approach and configuration options.
+If a required choice is omitted, FerrisUp prompts for it. Generated projects use the stable Rust toolchain, but native dependencies, large datasets, and optional visualization or linear-algebra backends can add platform-specific requirements. Review the generated manifest and README before building.
 
-## Dependencies
-
-Most templates require:
-- Rust stable (1.68.0+)
-- wasm32-unknown-unknown target (for web visualizations)
-
-Specific templates may have additional dependencies, which will be installed automatically or prompted during setup.
+The templates are working foundations rather than complete analytical products. Validate numerical assumptions, dataset licensing, reproducibility, and model quality for the intended use case.

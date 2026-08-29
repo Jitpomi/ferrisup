@@ -2,16 +2,16 @@
 
 This project is a high-performance Rust WebAssembly component specifically designed for Node.js environments. It provides an optimized data processing library that can be seamlessly integrated into Node.js applications.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance data processing powered by Rust and WebAssembly
-- 🔄 Bidirectional data exchange between JavaScript and Rust
-- 🧠 Efficient in-memory cache with configurable size
-- 🔍 Data filtering and aggregation capabilities
-- 📊 Statistical analysis of numerical data
-- 🧩 Callback support for reactive programming patterns
+- High-performance data processing powered by Rust and WebAssembly
+- Bidirectional data exchange between JavaScript and Rust
+- Efficient in-memory cache with configurable size
+- Data filtering and aggregation capabilities
+- Statistical analysis of numerical data
+- Callback support for reactive programming patterns
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -32,19 +32,19 @@ Before you begin, ensure you have the following installed:
 2. Use in your project:
    ```javascript
    const component = require('./');
-   
+
    async function main() {
      await component.initialize();
-     
+
      // Create a component instance
      const processor = component.createComponent({
        name: "MyProcessor",
        debug: true
      });
-     
+
      console.log(processor.info());
    }
-   
+
    main().catch(console.error);
    ```
 
@@ -58,7 +58,7 @@ node index.js
 
 This will run a demonstration that creates a component, adds data, processes it, and displays the results.
 
-## 📖 API Documentation
+## API Documentation
 
 ### Component Creation
 
@@ -118,7 +118,7 @@ const info = processor.info();
 // Returns: { name, version, debug, cache_size, current_items, engine }
 ```
 
-## 🔧 Customization
+## Customization
 
 ### Modifying the Rust Code
 
@@ -155,7 +155,7 @@ For maximum performance:
 
 3. Process data in batches rather than individual items for best throughput.
 
-## 📊 Performance Considerations
+## Performance Considerations
 
 ### Memory Management
 
@@ -172,7 +172,7 @@ When passing large data structures between JavaScript and Rust, there is seriali
 2. Keep data in the WebAssembly module as long as possible
 3. Only return the results you need, not entire datasets
 
-## 🧪 Testing
+## Testing
 
 The project includes a basic test script:
 
@@ -193,7 +193,7 @@ test('should process data correctly', async () => {
   const processor = component.createComponent();
   const data = component.createBatchData(10, 1.0, "test");
   processor.add_data(data);
-  
+
   const result = processor.process_data();
   expect(result.success).toBe(true);
   expect(result.count).toBe(10);
@@ -201,7 +201,7 @@ test('should process data correctly', async () => {
 });
 ```
 
-## 📚 Resources
+## Resources
 
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)
 - [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/)

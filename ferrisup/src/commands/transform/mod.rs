@@ -1,21 +1,17 @@
+use crate::commands::test_mode::is_test_mode;
 use anyhow::Result;
 use colored::Colorize;
-use std::path::Path;
 use dialoguer::Select;
-use crate::commands::test_mode::is_test_mode;
-
-// Re-export component functions for backward compatibility
-pub use self::component::add_component;
-pub use self::component::add_component_without_workspace;
+use std::path::Path;
 
 // Declare submodules
-pub mod project_structure;
-pub mod workspace;
 pub mod component;
-pub mod utils;
-pub mod ui;
-pub mod workspace_utils;
 pub mod constants;
+pub mod project_structure;
+pub mod ui;
+pub mod utils;
+pub mod workspace;
+pub mod workspace_utils;
 
 pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Result<()> {
     ui::print_banner();
@@ -26,7 +22,7 @@ pub fn execute(project_path: Option<&str>, template_name: Option<&str>) -> Resul
     } else {
         std::env::current_dir()?
     };
-    
+
     let path_str = project_path_buf.to_string_lossy().to_string();
     let project_dir = Path::new(&path_str);
 

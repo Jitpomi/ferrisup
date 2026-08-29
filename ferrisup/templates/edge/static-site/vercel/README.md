@@ -2,15 +2,15 @@
 
 This project is a static website built with Rust and WebAssembly, designed to be deployed on Vercel. It provides a foundation for building interactive web applications with native-like performance.
 
-## 📋 Features
+## Features
 
-- ⚡️ High-performance WebAssembly compiled from Rust
-- 🎨 Modern, responsive design with fluid layouts
-- 🌐 Ready for deployment on Vercel's global edge network
-- 🧩 Component-based architecture for easy customization
-- 🔄 Interactive UI elements powered by Rust
+- High-performance WebAssembly compiled from Rust
+- Modern, responsive design with fluid layouts
+- Ready for deployment on Vercel's global edge network
+- Component-based architecture for easy customization
+- Interactive UI elements powered by Rust
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -36,12 +36,12 @@ Before you begin, ensure you have the following installed:
    ```
    vercel dev
    ```
-   
+
    Alternatively, you can use any static file server:
    ```
    # If you have Python installed
    python -m http.server
-   
+
    # If you have Node.js installed
    npx serve
    ```
@@ -65,7 +65,7 @@ Before you begin, ensure you have the following installed:
    vercel --prod
    ```
 
-## 🔧 Customization
+## Customization
 
 ### Project Structure
 
@@ -109,7 +109,7 @@ The CSS styles are embedded directly in `index.html`. The stylesheet is organize
 
 You can modify these styles to match your branding and design preferences.
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### Adding Pages
 
@@ -165,12 +165,12 @@ To fetch data from external APIs:
        let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
        let resp: Response = resp_value.dyn_into()?;
        let json = JsFuture::from(resp.json()?).await?;
-       
+
        Ok(json)
    }
    ```
 
-## 📦 Optimizing for Production
+## Optimizing for Production
 
 ### Bundle Size Optimization
 
@@ -197,7 +197,7 @@ For best performance:
 2. Batch updates to minimize reflows and repaints
 3. Use `web-sys` directly for DOM operations when possible
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -214,7 +214,7 @@ For best performance:
    - Check Vercel build logs
    - Ensure `vercel.json` is properly configured
 
-## 📖 Resources
+## Resources
 
 - [Rust and WebAssembly](https://rustwasm.github.io/docs/book/)
 - [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/)

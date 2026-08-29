@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use http_body_util::BodyExt;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use vercel_runtime::{run, Body, Error, Request, Response, StatusCode};
+use vercel_runtime::{run, service_fn, Error, Request, Response, ResponseBody};
 
 /// Event input structure for the Vercel Function
 #[derive(Deserialize)]
@@ -12,17 +13,17 @@ struct RequestBody {
 
 /// Response structure for the Vercel Function
 #[derive(Serialize)]
-struct ResponseBody {
+struct ApiResponse {
     message: String,
     request_id: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    run(handler).await
+    run(service_fn(handler)).await
 }
 
-async fn handler(req: Request) -> Result<Response<Body>, Error> {
+async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     // Initialize the tracing subscriber for logging
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -32,10 +33,10 @@ async fn handler(req: Request) -> Result<Response<Body>, Error> {
     info!("FerrisUp Vercel Function starting");
     
     // Parse the request body
-    let request_body = match req.body() {
-        Body::Text(text) => serde_json::from_str::<RequestBody>(text).unwrap_or(RequestBody { name: "".to_string() }),
-        _ => RequestBody { name: "".to_string() },
-    };
+    let (parts, body) = req.into_parts();
+    let body = body.collect().await?.to_bytes();
+    let request_body = serde_json::from_slice::<RequestBody>(&body)
+        .unwrap_or(RequestBody { name: String::new() });
     
     // Create a response with a greeting using the name from the request or a default
     let name = if request_body.name.is_empty() {
@@ -47,13 +48,13 @@ async fn handler(req: Request) -> Result<Response<Body>, Error> {
     let message = format!("Hello, {}! Welcome to your FerrisUp serverless function.", name);
     
     // Return the formatted response
-    let response_body = ResponseBody {
+    let response_body = ApiResponse {
         message,
-        request_id: req.headers().get("x-vercel-id").map_or("unknown", |v| v.to_str().unwrap_or("unknown")).to_string(),
+        request_id: parts.headers.get("x-vercel-id").map_or("unknown", |v| v.to_str().unwrap_or("unknown")).to_string(),
     };
     
     Ok(Response::builder()
-        .status(StatusCode::OK)
+        .status(http::StatusCode::OK)
         .header("Content-Type", "application/json")
-        .body(Body::from(serde_json::to_string(&response_body)?))?)
+        .body(ResponseBody::from(serde_json::to_string(&response_body)?))?)
 }

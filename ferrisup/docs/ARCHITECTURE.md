@@ -28,7 +28,7 @@ For projects that should be created using external CLI tools (like Embassy, Diox
 
 ```
 ┌───────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ FerrisUp CLI  │────▶│ CLI Handler      │────▶│ External CLI Tool│
+│ FerrisUp CLI  │────│ CLI Handler      │────│ External CLI Tool│
 └───────────────┘     │ - Detection      │     │ (cargo-embassy,  │
                       │ - Installation    │     │  dioxus-cli,     │
                       │ - Arg mapping     │     │  cargo-tauri)    │
@@ -46,7 +46,7 @@ For projects created from FerrisUp templates, the system uses its template engin
 
 ```
 ┌───────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ FerrisUp CLI  │────▶│ Template Handler │────▶│ Template Manager │
+│ FerrisUp CLI  │────│ Template Handler │────│ Template Manager │
 └───────────────┘     │ - Template match │     │ - File copying   │
                       │ - Variable setup │     │ - Substitution   │
                       │ - Next steps     │     │ - Post-processing│

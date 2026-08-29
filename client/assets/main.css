@@ -2,7 +2,26 @@
 body {
     background-color: #101828;
     color: #ffffff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
     margin: 0;
     padding: 0;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    letter-spacing: -0.025em;
+}
+
+code,
+pre {
+    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    font-variant-ligatures: none;
 }

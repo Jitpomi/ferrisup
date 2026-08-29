@@ -1,16 +1,15 @@
 // Export commands modules
-pub mod new;
-pub mod list;
-pub mod preview;
-pub mod transform;
-pub mod config;
-pub mod workspace;
 pub mod component;
+pub mod config;
 pub mod dependency;
-pub mod unused_features;
 pub mod import_fixer;
+pub mod list;
+pub mod new;
+pub mod preview;
 pub mod test_mode;
-// Removed reference to unused module
+pub mod transform;
+pub mod unused_features;
+pub mod workspace;
 
 // Re-export the Commands enum for the CLI
 use clap::{Subcommand, ValueEnum};
@@ -56,15 +55,15 @@ pub enum Commands {
         /// Component type to use (optional, will prompt if not provided)
         #[arg(short, long)]
         component_type: Option<ComponentType>,
-        
+
         /// Framework to use for client, server, or embedded components
         #[arg(long)]
         framework: Option<String>,
-        
+
         /// Cloud provider for serverless components
         #[arg(long)]
         provider: Option<String>,
-        
+
         /// Application type for edge components
         #[arg(long)]
         application_type: Option<String>,
@@ -101,7 +100,7 @@ pub enum Commands {
     List,
 
     /// Preview a component type without creating files
-    /// 
+    ///
     /// NOTE: This command is a work in progress and has several limitations:
     /// - Not all template variables are properly replaced
     /// - Some framework-specific features may not be accurately displayed
@@ -112,15 +111,15 @@ pub enum Commands {
         /// Component type to preview (optional, will prompt if not provided)
         #[arg(short, long)]
         component_type: Option<ComponentType>,
-        
+
         /// Framework to use for client, server, or embedded components
         #[arg(long)]
         framework: Option<String>,
-        
+
         /// Cloud provider for serverless components
         #[arg(long)]
         provider: Option<String>,
-        
+
         /// Application type for edge components
         #[arg(long)]
         application_type: Option<String>,
@@ -168,7 +167,7 @@ pub enum Commands {
         #[arg(short, long)]
         path: Option<String>,
     },
-    
+
     /// Manage project dependencies
     #[cfg(not(feature = "workspace_test"))]
     Dependency(dependency::DependencyArgs),

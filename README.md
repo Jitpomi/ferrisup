@@ -1,115 +1,129 @@
-![FerrisUp - A powerful Rust project bootstrapping tool](https://raw.githubusercontent.com/Jitpomi/ferrisup/main/ferrisup/img.png)
+# FerrisUp
 
-# FerrisUp: Rust Project Bootstrapping Tool
+FerrisUp is a command-line tool for starting Rust projects and evolving them as their architecture changes.
 
-[![Crates.io](https://img.shields.io/crates/v/ferrisup.svg)](https://crates.io/crates/ferrisup)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+It creates projects from bundled, inspectable templates; adds components to existing projects; converts a crate into a Cargo workspace; and assists with workspace and dependency maintenance. FerrisUp is not an AI framework and it does not generate application logic. It provides the predictable repository structure on which developers and coding agents can work.
 
-> **Start Anywhere, Scale Anywhere**
+## Why FerrisUp matters now
 
-FerrisUp is a versatile Rust project bootstrapping tool that enables developers to create, transform, and scale Rust projects with ease. Unlike other project generators, FerrisUp supports the entire project lifecycle from simple beginnings to complex architectures.
+AI can produce code quickly, but speed does not guarantee a coherent codebase. Agents are more effective when package boundaries, framework choices, build commands, and workspace conventions are explicit. FerrisUp makes those decisions concrete in files that can be reviewed, compiled, versioned, and changed normally.
 
-## 🚀 Quick Links
+That gives a team:
 
-- [**Detailed Documentation**](./ferrisup/README.md) - Complete usage guide and examples
-- [**Installation Guide**](#-installation) - How to install FerrisUp
-- [**Changelog**](./ferrisup/CHANGELOG.md) - Recent updates and version history
-- [**Contributing**](#-contributing) - How to contribute to FerrisUp
-- [**License**](#-license) - License information
+- repeatable Rust project foundations instead of one-off generated layouts;
+- less setup ambiguity for both people and coding agents;
+- local templates whose dependencies and source code remain visible;
+- a path from one crate to a multi-component Cargo workspace;
+- automation-friendly project creation through non-interactive options.
 
-## 🌟 Key Features
+FerrisUp complements AI-assisted development. It supplies structure and guardrails; the developer remains responsible for architecture, security, testing, and production readiness.
 
-- **Project Transformation** - Convert single-crate projects to workspaces as they grow
-- **Component-Based Architecture** - Specialized components for different use cases
-- **Domain-Specific Components** - Optimized components for web, data science, embedded, and more
-- **Smart Dependency Management** - Interactive dependency handling with feature selection
-- **Framework Support** - Direct support for popular Rust frameworks per component type.
-- **Cloud Provider Integration** - Optimized configurations for major cloud providers
+## What it supports
 
-## 🔍 What Makes FerrisUp Different?
+The current CLI exposes these component types:
 
-Unlike traditional template generators like cargo-generate, FerrisUp focuses on project evolution. Start with a simple project and transform it as your needs grow, without having to recreate your project structure from scratch.
+- `minimal`: a small Rust binary;
+- `library`: a Rust library crate;
+- `embedded`: embedded project foundations;
+- `server`: Axum, Actix Web, or Poem servers;
+- `client`: Leptos projects plus delegated Dioxus and Tauri setup;
+- `serverless`: provider-oriented function templates;
+- `data-science`: Polars and Linfa-oriented projects;
+- `edge`: static sites, API functions, and WebAssembly components;
+- `shared`: a library intended for reuse inside a workspace.
 
-## 📦 Workspace Structure
+Framework and provider availability varies by component. Run `ferrisup list`, use `ferrisup --help`, and preview a selection before generating it. Some specialized templates remain experimental and may require provider CLIs, target toolchains, or manual configuration.
 
-This repository is organized as a Rust workspace with the following components:
+## Install
 
-- [`ferrisup`](./ferrisup/) - The main CLI tool and all its functionality
-
-## 💻 Installation
+Install the published crate:
 
 ```bash
-# Install from crates.io
 cargo install ferrisup
+```
 
-# Or install from source
+Or install this checkout:
+
+```bash
 git clone https://github.com/Jitpomi/ferrisup.git
 cd ferrisup
-cargo install --path ./ferrisup
+cargo install --path ferrisup
 ```
 
-## 🚀 Quick Start
+FerrisUp follows the stable Rust toolchain and its templates target Rust 2024 where their ecosystems support it. External frameworks and deployment targets may have additional requirements.
+
+## Start a project
+
+Use the interactive flow:
 
 ```bash
-# Create a new project (interactive mode)
 ferrisup new
-
-# Create a specific type of project
-ferrisup new my_app --component-type server --framework axum
-
-# Transform an existing project
-ferrisup transform
 ```
 
-For complete documentation and examples, see the [detailed README](./ferrisup/README.md).
-
-## 🧪 Development
-
-To build all components in the workspace:
+Or make the selection explicit:
 
 ```bash
-cargo build
+ferrisup new api --component-type server --framework axum --git
+ferrisup new core --component-type library --no-interactive
+ferrisup new analysis --component-type data-science --framework polars
 ```
 
-To run tests for all components:
+FerrisUp refuses unsafe project names and will not generate over an existing destination.
+
+Inspect a component without writing project files:
 
 ```bash
-cargo test
+ferrisup preview --component-type server --framework axum
 ```
 
-To add a new component to the workspace:
+Preview is intentionally a summary. Complex framework output can differ from the final generated project.
+
+## Evolve an existing project
+
+Run the transformation flow from a Rust project or pass its path:
 
 ```bash
 ferrisup transform
+ferrisup transform --project ./my-project
 ```
 
-## 💖 Support FerrisUp
+The interactive workflow can convert a crate to a Cargo workspace, add a component, add a related project without converting to a workspace, update FerrisUp metadata, or show next steps. Commit or back up important work before structural transformations and review the resulting diff afterward.
 
-If FerrisUp helps you build amazing Rust projects, consider supporting its development:
+Other maintenance commands include:
 
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/Jitpomi?style=for-the-badge&logo=github&logoColor=white&label=Sponsor&color=EA4AAA)](https://github.com/sponsors/Jitpomi)
+```bash
+ferrisup component --help
+ferrisup workspace --help
+ferrisup dependency --help
+ferrisup config --help
+ferrisup unused-features --help
+```
 
-Your support helps:
-- 🚀 **Accelerate Development** - More time for new features and improvements
-- 🐛 **Better Bug Fixes** - Faster response to issues and community needs  
-- 📚 **Enhanced Documentation** - Comprehensive guides and tutorials
-- 🌟 **New Templates** - Support for emerging Rust frameworks and tools
+The CLI help is the source of truth for flags:
 
-## 🤝 Contributing
+```bash
+ferrisup --help
+ferrisup new --help
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Repository layout
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- `ferrisup/`: the CLI, embedded templates, integration tests, and detailed command documentation;
+- `ferrisup_common/`: shared Cargo and filesystem utilities;
+- `client/`: the optional Dioxus web client.
 
-## 📄 License
+See [the CLI guide](./ferrisup/README.md), [template authoring guide](./ferrisup/docs/TEMPLATE_AUTHORING_GUIDE.md), [architecture notes](./ferrisup/docs/ARCHITECTURE.md), and [contribution guide](./ferrisup/CONTRIBUTING.md).
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/Jitpomi/ferrisup/blob/main/LICENSE) file for details.
+## Develop
 
----
+```bash
+cargo fmt --all --check
+cargo test --workspace --all-targets
+cargo clippy --workspace --all-targets
+```
 
-<p align="center">Built with ❤️ by <a href="https://github.com/Jitpomi">Jitpomi</a></p>
+Some transformation integration tests are ignored because they exercise interactive or destructive filesystem workflows. See [testing guidance](./ferrisup/TESTING.md).
+
+## License
+
+FerrisUp is available under the [MIT License](./LICENSE).

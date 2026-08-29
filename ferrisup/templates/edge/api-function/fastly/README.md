@@ -2,14 +2,14 @@
 
 This project is a Rust application built for Fastly's Compute@Edge platform. It leverages WebAssembly for high-performance edge computing with global deployment capabilities.
 
-## 📋 Features
+## Features
 
-- ⚡️ Blazing-fast performance with Rust compiled to WebAssembly
-- 🌐 Global deployment across Fastly's edge network
-- 🧩 Simple API routing with request and response handling
-- 🔄 JSON serialization and deserialization
-- 📦 Cache control demonstration
-- 💨 Low latency for end-users worldwide
+- Blazing-fast performance with Rust compiled to WebAssembly
+- Global deployment across Fastly's edge network
+- Simple API routing with request and response handling
+- JSON serialization and deserialization
+- Cache control demonstration
+- Low latency for end-users worldwide
 
 ## Development Options
 
@@ -17,7 +17,7 @@ This template provides two ways to develop your Fastly Compute@Edge application:
 
 ### Option 1: Using Docker (Recommended)
 
-The Docker environment comes pre-configured with Rust 1.69.0 and all necessary tools, providing a consistent development experience regardless of your local Rust version.
+The Docker environment provides the Rust and Fastly tooling used by the helper scripts. Rebuild the image after dependency or toolchain changes.
 
 #### Prerequisites
 - [Docker](https://docs.docker.com/get-docker/)
@@ -44,7 +44,7 @@ The Docker environment comes pre-configured with Rust 1.69.0 and all necessary t
    ```bash
    ./deploy.sh
    ```
-   
+
 5. To stop the development environment:
    ```bash
    ./stop.sh
@@ -54,51 +54,35 @@ The Docker environment comes pre-configured with Rust 1.69.0 and all necessary t
 
 If you prefer to develop without Docker, you can use your local Rust installation.
 
-## Important Compatibility Note
-
-Due to dependency compatibility issues between the `fastly` crate and modern Rust versions, this template works best with **Rust 1.69.0**. If you encounter build errors, try using this specific Rust version:
-
-```bash
-rustup install 1.69.0
-rustup override set 1.69.0
-```
-
 ## Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install) - Version 1.69.0 recommended
-- [wasm32-wasi target](https://doc.rust-lang.org/nightly/rustc/platform-support/wasm32-wasi.html) (`rustup target add wasm32-wasi`)
+- [Rust](https://www.rust-lang.org/tools/install) stable
+- The WebAssembly target required by the current Fastly CLI; recent Rust toolchains provide `wasm32-wasip1`
 - [Fastly CLI](https://developer.fastly.com/learning/tools/cli)
 
 ## Getting Started
 
-1. Install the recommended Rust version (if needed):
-
-```bash
-rustup install 1.69.0
-rustup override set 1.69.0
-```
-
-2. Install the Fastly CLI if you haven't already:
+1. Install the Fastly CLI if you haven't already:
    ```
    brew install fastly/tap/fastly
    ```
 
-3. Login to your Fastly account:
+2. Log in to your Fastly account:
    ```
    fastly profile create
    ```
 
-4. Build the project:
+3. Build the project:
    ```
    fastly compute build
    ```
 
-5. Start the local development server:
+4. Start the local development server:
    ```
    fastly compute serve
    ```
 
-6. Your application will be available at `http://127.0.0.1:7676`
+5. Your application will be available at `http://127.0.0.1:7676`
 
 ## Deployment
 
@@ -114,7 +98,7 @@ rustup override set 1.69.0
 
 3. Your application will be available at the provided Fastly domain (e.g., `https://your-service.edgecompute.app`)
 
-## 📖 API Documentation
+## API Documentation
 
 ### Available Endpoints
 
@@ -136,7 +120,7 @@ curl -X GET "https://your-service.edgecompute.app/api/echo?message=hello-world"
 curl -X GET "https://your-service.edgecompute.app/api/cache" -v
 ```
 
-## 🔧 Customization
+## Customization
 
 ### Adding New Routes
 
@@ -145,7 +129,7 @@ Modify the `main` function in `src/main.rs` to add new routes:
 ```rust
 match (method, path) {
     // Existing routes...
-    
+
     // Add your new route here
     (&Method::GET, "/api/new-endpoint") => {
         // Your handler code
@@ -161,7 +145,7 @@ match (method, path) {
             .with_status(StatusCode::OK)
             .with_content_type("application/json"))
     },
-    
+
     // Default 404 handler
     _ => { /* ... */ }
 }
@@ -182,7 +166,7 @@ Fastly Compute@Edge can interact with origin servers and other backends. To conf
    ```rust
    let backend_req = Request::get("https://api.example.com/data")
        .with_backend("my_api");
-   
+
    let resp = backend_req.send("my_api")?;
    ```
 
@@ -200,7 +184,7 @@ if let Some(api_key) = settings.get("api_key") {
 }
 ```
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### Edge Dictionaries
 
@@ -233,7 +217,7 @@ if let Some(api_key) = secrets.get("api_key") {
 }
 ```
 
-## 📖 Resources
+## Resources
 
 - [Fastly Compute@Edge Documentation](https://developer.fastly.com/learning/compute/)
 - [Fastly Rust SDK Documentation](https://docs.rs/fastly/latest/fastly/)

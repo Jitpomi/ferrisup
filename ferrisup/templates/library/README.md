@@ -93,7 +93,7 @@ Prepare your library for publishing:
    name = "{{project_name}}"
    version = "0.1.0"
    authors = ["Your Name <your.email@example.com>"]
-   edition = "2021"
+   edition = "2024"
    description = "A brief description of your library"
    repository = "https://github.com/yourusername/{{project_name}}"
    license = "MIT OR Apache-2.0"

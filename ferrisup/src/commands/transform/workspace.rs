@@ -1,23 +1,20 @@
-use anyhow::{Result};
+use anyhow::Result;
 use colored::Colorize;
-use std::fs;
-use std::path::Path;
 use dialoguer::Confirm;
 use ferrisup_common::cargo;
-// Removed unused import: use toml_edit::DocumentMut;
+use std::fs;
+use std::path::Path;
 
-use crate::commands::test_mode::{is_test_mode, test_mode_or};
 use super::project_structure::{analyze_project_structure, detect_framework};
-use super::utils::{store_transformation_metadata, store_component_type_in_cargo, update_source_imports};
 use super::ui::get_input_with_default;
+use super::utils::{
+    store_component_type_in_cargo, store_transformation_metadata, update_source_imports,
+};
+use crate::commands::test_mode::{is_test_mode, test_mode_or};
 
 use super::workspace_utils::{
-    select_files_to_keep_at_root, 
-    move_files_to_component, 
-    update_component_cargo_toml,
-    create_workspace_cargo_toml,
-    finalize_workspace_setup,
-    categorize_files
+    categorize_files, create_workspace_cargo_toml, finalize_workspace_setup,
+    move_files_to_component, select_files_to_keep_at_root, update_component_cargo_toml,
 };
 use ferrisup_common::fs::create_directory;
 
@@ -30,20 +27,27 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     // Ensure .ferrisup directory exists
     let ferrisup_dir = project_dir.join(".ferrisup");
     create_directory(&ferrisup_dir)?;
-    
+
     // Use the original project name as the default component name
     let default_name = project_name;
-    
+
     // Prompt for component name with default based on component type
     let mut component_name = test_mode_or(default_name.to_string(), || {
         get_input_with_default(
-            &format!("What would you like to name the first component? [{}]", default_name),
-            default_name
+            &format!(
+                "What would you like to name the first component? [{}]",
+                default_name
+            ),
+            default_name,
         )
     })?;
-    
+
     // If the component name indicates it's a shared component, check if the crate name is available on crates.io
-    if component_name == "ferrisup_common" || component_name == "shared" || component_name.ends_with("-common") || component_name.ends_with("_common") {
+    if component_name == "ferrisup_common"
+        || component_name == "shared"
+        || component_name.ends_with("-common")
+        || component_name.ends_with("_common")
+    {
         if !is_test_mode() {
             // Keep prompting until we get an available name
             let mut is_available = false;
@@ -55,22 +59,30 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
                             println!(
                                 "{} {}",
                                 "Success:".green().bold(),
-                                format!("Crate name '{}' is available on crates.io", component_name).green()
+                                format!(
+                                    "Crate name '{}' is available on crates.io",
+                                    component_name
+                                )
+                                .green()
                             );
                         } else {
                             println!(
                                 "{} {}",
                                 "Warning:".yellow().bold(),
-                                format!("Crate name '{}' is already taken on crates.io", component_name).yellow()
+                                format!(
+                                    "Crate name '{}' is already taken on crates.io",
+                                    component_name
+                                )
+                                .yellow()
                             );
-                            
+
                             // Prompt for a different name
                             component_name = get_input_with_default(
                                 "Please enter a different name for your shared component",
-                                &format!("{}-common", project_name)
+                                &format!("{}-common", project_name),
                             )?;
                         }
-                    },
+                    }
                     Err(e) => {
                         println!(
                             "{} {}",
@@ -92,7 +104,7 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
 
     // Select files to keep at root
     let files_to_keep_at_root = select_files_to_keep_at_root(project_dir, &component_name)?;
-    
+
     // These files will always be skipped during move
     let always_skip_filenames = vec![
         "Cargo.toml".to_string(),
@@ -103,46 +115,56 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
     ];
 
     // Categorize files for display
-    let (critical_files_to_move, other_files_to_move, files_kept_at_root, _workspace_files) = 
+    let (critical_files_to_move, other_files_to_move, files_kept_at_root, _workspace_files) =
         categorize_files(project_dir, &component_name, &files_to_keep_at_root)?;
-    
+
     // Display categorized files
     if !critical_files_to_move.is_empty() {
-        println!("{}", "\nCritical files that MUST move to component:".yellow().bold());
+        println!(
+            "{}",
+            "\nCritical files that MUST move to component:"
+                .yellow()
+                .bold()
+        );
         for file in &critical_files_to_move {
             println!("  → {} (required for component functionality)", file.cyan());
         }
     }
-    
+
     if !other_files_to_move.is_empty() {
         println!("{}", "\nOther files that will move to component:".yellow());
         for file in &other_files_to_move {
             println!("  → {}", file.green());
         }
     }
-    
+
     if !files_kept_at_root.is_empty() {
         println!("{}", "\nFiles that will stay at the root:".yellow());
         for file in &files_kept_at_root {
             println!("  → {}", file.blue());
         }
     }
-    
+
     // Confirm with user before proceeding
     if !is_test_mode() {
         let proceed = Confirm::new()
             .with_prompt("\nProceed with these file movements?")
             .default(true)
             .interact()?;
-            
+
         if !proceed {
             println!("{}", "Workspace transformation cancelled.".red());
             return Ok(());
         }
     }
-    
+
     // Move files to component directory
-    move_files_to_component(project_dir, &component_dir, &files_to_keep_at_root, &always_skip_filenames)?;
+    move_files_to_component(
+        project_dir,
+        &component_dir,
+        &files_to_keep_at_root,
+        &always_skip_filenames,
+    )?;
 
     // Copy the original Cargo.toml to the component directory
     let original_cargo_path = project_dir.join("Cargo.toml");
@@ -181,17 +203,22 @@ pub fn convert_to_workspace(project_dir: &Path) -> Result<()> {
 
     // Store transformation metadata
     store_transformation_metadata(
-        project_dir, 
-        &component_name, 
-        template, 
-        detected_framework.as_deref()
+        project_dir,
+        &component_name,
+        template,
+        detected_framework.as_deref(),
     )?;
 
     // Store component type in component's Cargo.toml metadata
     store_component_type_in_cargo(&component_dir, template)?;
 
     // Finalize workspace setup
-    finalize_workspace_setup(project_dir, &component_dir, &component_name, &files_to_keep_at_root)?;
+    finalize_workspace_setup(
+        project_dir,
+        &component_dir,
+        &component_name,
+        &files_to_keep_at_root,
+    )?;
 
     // Print framework-specific instructions only for reference
     if let Some(framework) = detected_framework {

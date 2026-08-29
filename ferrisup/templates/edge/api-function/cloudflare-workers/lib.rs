@@ -39,7 +39,7 @@ pub async fn main(mut req: Request, env: Env, _ctx: worker::Context) -> Result<R
         
         ("/api", Method::Post) => {
             // Echo back JSON data
-            let data = req.json().await?;
+            let data: serde_json::Value = req.json().await?;
             Response::from_json(&data)
         },
         

@@ -1,9 +1,7 @@
 pub mod buttons;
-pub mod home;
-pub mod hero;
-pub mod feature_card;
-pub mod features;
 pub mod cta;
-pub mod community;
+pub mod features;
 pub mod footer;
+pub mod hero;
+pub mod home;
 pub mod lazy_sections;

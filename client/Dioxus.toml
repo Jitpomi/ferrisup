@@ -1,6 +1,6 @@
 [application]
-asset_dir = "assets"     # Directory for static assets; copied during build/serve
-out_dir = "dist"        # <-- New: sets build output directory
+asset_dir = "assets"
+out_dir = "dist"
 default_platform = "web"
 
 [web.app]
@@ -11,7 +11,7 @@ watch_path = ["src", "assets"]
 index_on_404 = true
 
 # HTML title tag content
-title = "FerrisUp - Rust Project Bootstrapping Tool"
+title = "FerrisUp — Rust Project Foundations"
 
 # include `assets` in web platform
 [web.resource]
@@ -27,5 +27,4 @@ script = []
 # Javascript code file
 # serve: [dev-server] only
 script = []
-
 
