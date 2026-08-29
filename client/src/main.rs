@@ -52,15 +52,6 @@ fn App() -> Element {
         document::Meta { name: "theme-color", content: "#fbbf24" }
         document::Meta { name: "color-scheme", content: "dark" }
 
-        // Performance hints
-        document::Meta { http_equiv: "x-dns-prefetch-control", content: "on" }
-        document::Link { rel: "dns-prefetch", href: "//fonts.googleapis.com" }
-        document::Link { rel: "dns-prefetch", href: "//github.com" }
-        document::Link { rel: "dns-prefetch", href: "//crates.io" }
-        document::Link { rel: "preconnect", href: "https://fonts.googleapis.com" }
-        document::Link { rel: "preconnect", href: "https://fonts.gstatic.com" }
-        document::Link { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:opsz,wght@8..60,400;8..60,500;8..60,600&family=Space+Grotesk:wght@500;600;700&display=swap" }
-
         // Open Graph meta tags
         document::Meta { property: "og:title", content: "FerrisUp" }
         document::Meta { property: "og:description", content: "Start Anywhere, Scale Anywhere with FerrisUp" }
