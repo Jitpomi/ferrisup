@@ -4,20 +4,19 @@ out_dir = "dist"
 default_platform = "web"
 
 [web.app]
+# HTML title shown before the WebAssembly application initializes.
+title = "FerrisUp — Rust Project Foundations"
 
 [web.watcher]
 reload_html = true
 watch_path = ["src", "assets"]
 index_on_404 = true
 
-# HTML title tag content
-title = "FerrisUp — Rust Project Foundations"
-
 # include `assets` in web platform
 [web.resource]
-
-# Additional CSS style files
-style = []
+# Render-blocking stylesheets are emitted into the initial HTML so the page is
+# styled before the WebAssembly application starts.
+style = ["assets/tailwind.css", "assets/main.css"]
 
 # Additional JavaScript files
 script = []
@@ -27,4 +26,3 @@ script = []
 # Javascript code file
 # serve: [dev-server] only
 script = []
-

@@ -18,10 +18,6 @@ const FAVICON: Asset = asset!("assets/favicon.ico");
 const FERRISUP_LOGO: Asset = asset!("assets/ferrisup-logo.png");
 const FERRISUP_MARK: Asset = asset!("assets/ferrisup-mark.png");
 
-const TAILWIND_CSS: Asset = asset!("assets/tailwind.css");
-
-const MAIN_CSS: Asset = asset!("/assets/main.css");
-
 fn main() {
     dioxus::launch(App);
 }
@@ -90,73 +86,6 @@ fn App() -> Element {
         // Favicon and critical CSS
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "apple-touch-icon", href: FERRISUP_MARK }
-
-        // Critical inline CSS for FCP optimization
-        style {
-            {format!(r#"
-                body {{
-                    background-color: #101828;
-                    color: #ffffff;
-                    font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    line-height: 1.5;
-                }}
-                h1, h2, h3, h4, h5, h6 {{
-                    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-                    letter-spacing: -0.025em;
-                }}
-                button, a {{
-                    font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
-                }}
-                code, pre {{
-                    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-                    font-variant-ligatures: none;
-                }}
-                .hero-container {{
-                    background-color: #111827;
-                    min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    text-align: center;
-                    padding: 2rem 1rem;
-                }}
-                .hero-title {{
-                    font-size: 3rem;
-                    font-weight: 700;
-                    color: white;
-                    margin-bottom: 1rem;
-                    line-height: 1.2;
-                }}
-                .hero-subtitle {{
-                    font-size: 1.5rem;
-                    color: #fbbf24;
-                    margin-bottom: 1.5rem;
-                }}
-                .hero-logo {{
-                    width: 240px;
-                    height: 240px;
-                    border-radius: 50%;
-                    margin-bottom: 2rem;
-                }}
-                @media (max-width: 768px) {{
-                    .hero-title {{ font-size: 2rem; }}
-                    .hero-subtitle {{ font-size: 1.25rem; }}
-                    .hero-logo {{ width: 180px; height: 180px; }}
-                }}
-            "#)}
-        }
-
-        // Preload critical assets
-
-        // Defer non-critical CSS
-        document::Link { rel: "preload", href: TAILWIND_CSS, r#as: "style", onload: "this.onload=null;this.rel='stylesheet'" }
-        noscript {
-            document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        }
-        document::Link { rel: "stylesheet", href: MAIN_CSS, media: "print", onload: "this.media='all'" }
 
         Router::<Route> {}
     }
