@@ -1,4 +1,4 @@
-/// FerrisUp - A versatile Rust project bootstrapping tool
+/// FerrisUp creates and evolves coherent, inspectable Rust project foundations.
 ///
 /// This crate provides a CLI tool for bootstrapping and managing Rust projects
 /// with various templates and configurations.

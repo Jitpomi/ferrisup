@@ -2,7 +2,7 @@
 name = "ferrisup"
 version = "0.2.5"
 edition = "2024"
-description = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere"
+description = "Inspect, create, and evolve coherent Rust project foundations"
 authors = ["Jitpomi <info@jitpomi.com>"]
 license = "MIT"
 repository = "https://github.com/Jitpomi/ferrisup"

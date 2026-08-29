@@ -10,7 +10,7 @@ use ferrisup::commands;
     name = "ferrisup",
     author,
     version,
-    about = "A versatile Rust project bootstrapping tool - start anywhere, scale anywhere",
+    about = "Inspect, create, and evolve coherent Rust project foundations",
     long_about = "FerrisUp is a powerful CLI tool for bootstrapping Rust projects with various templates ranging from minimal binaries to full-stack applications with AI, edge computing, and embedded systems support."
 )]
 struct Cli {

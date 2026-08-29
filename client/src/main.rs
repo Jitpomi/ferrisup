@@ -28,7 +28,7 @@ fn main() {
 fn App() -> Element {
     rsx! {
         // Explicitly set the document title
-        document::Title { "FerrisUp - Rust Project Bootstrapping Tool" }
+        document::Title { "FerrisUp — Rust Project Foundations" }
 
         // Meta tags for SEO
         document::Meta { charset: "utf-8" }
