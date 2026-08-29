@@ -116,7 +116,7 @@ ferrisup new --help
 
 - `ferrisup/`: the CLI, embedded templates, integration tests, and detailed command documentation;
 - `ferrisup_common/`: shared Cargo and filesystem utilities;
-- `client/`: the optional Dioxus web client.
+- `client/`: the static FerrisUp website deployed to Cloudflare Pages.
 
 Visit the [FerrisUp website](https://ferrisup.jitpomi.com), or see [the CLI guide](./ferrisup/README.md), [template authoring guide](./ferrisup/docs/TEMPLATE_AUTHORING_GUIDE.md), [architecture notes](./ferrisup/docs/ARCHITECTURE.md), and [contribution guide](./ferrisup/CONTRIBUTING.md).
 

@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "ferrisup",
-    "client",
     "ferrisup_common"
 ]
 resolver = "2"
@@ -26,10 +25,3 @@ version = "0.2.6"
 opt-level = 3
 lto = true
 strip = true
-
-[profile.wasm-dev]
-inherits = "dev"
-opt-level = 1
-
-[profile.server-dev]
-inherits = "dev"

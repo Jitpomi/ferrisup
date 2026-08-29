@@ -1,27 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#121212">
-        <title>{app_title}</title>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FerrisUp — Rust Project Foundations</title>
+  <meta name="description" content="FerrisUp creates inspectable Rust project foundations and helps single crates grow into clear Cargo workspaces for human and AI-assisted development.">
+  <meta name="keywords" content="rust, ferrisup, cli, project generator, cargo workspace, rust templates, AI-assisted development">
+  <meta name="author" content="JITPOMI"><meta name="robots" content="index, follow"><meta name="theme-color" content="#121212"><meta name="color-scheme" content="dark">
+  <meta property="og:title" content="FerrisUp — Rust Project Foundations"><meta property="og:description" content="Inspectable Rust project foundations for codebases that need room to grow."><meta property="og:type" content="website"><meta property="og:url" content="https://ferrisup.jitpomi.com/"><meta property="og:image" content="https://ferrisup.jitpomi.com/assets/ferrisup-logo.png"><meta property="og:image:alt" content="FerrisUp crab logo and wordmark">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://ferrisup.jitpomi.com/assets/ferrisup-logo.png">
+  <link rel="canonical" href="https://ferrisup.jitpomi.com/"><link rel="icon" href="/assets/favicon.ico"><link rel="apple-touch-icon" href="/assets/ferrisup-mark.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Source+Sans+3:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="/assets/tailwind.css"><link rel="stylesheet" href="/assets/main.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"FerrisUp","description":"Rust project foundations and Cargo workspace evolution for human and AI-assisted development","url":"https://ferrisup.jitpomi.com","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","programmingLanguage":"Rust","author":{"@type":"Organization","name":"JITPOMI","url":"https://jitpomi.com"},"downloadUrl":"https://crates.io/crates/ferrisup","codeRepository":"https://github.com/Jitpomi/ferrisup","license":"MIT"}</script>
+</head>
+<body>
+<main class="min-h-screen">
+  <header class="px-6 py-24 text-center max-w-6xl mx-auto">
+    <img class="brand-logo mx-auto" src="/assets/ferrisup-logo.png" alt="FerrisUp" width="320" height="320" fetchpriority="high">
+    <p class="text-amber-400 font-semibold tracking-wide uppercase">Rust project foundations</p>
+    <h1 class="mt-4 text-5xl sm:text-7xl font-bold text-white">Structure that keeps up.</h1>
+    <p class="mt-6 text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">FerrisUp starts Rust projects from inspectable templates and helps them grow into clear Cargo workspaces. It gives developers and coding agents the same explicit package boundaries, framework choices, and build commands.</p>
+    <nav class="mt-10 flex flex-col sm:flex-row gap-4 justify-center" aria-label="Primary links"><a class="button button-primary button-lg" href="https://crates.io/crates/ferrisup" target="_blank" rel="noopener noreferrer">Install FerrisUp</a><a class="button button-outline button-lg" href="https://github.com/Jitpomi/ferrisup" target="_blank" rel="noopener noreferrer">Read the source</a></nav>
+    <pre class="mt-14 max-w-3xl mx-auto p-6 rounded-xl bg-gray-950 border border-gray-800 text-left overflow-x-auto"><code class="text-sm text-gray-200">cargo install ferrisup
 
-        <style>
-            html, body {
-                margin: 0;
-                background: #121212;
-                color: #ffffff;
-            }
-        </style>
-
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Source+Sans+3:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
-
-        {style_include}
-    </head>
-    <body>
-        <div id="main"></div>
-    </body>
+ferrisup new api --component-type server --framework axum --git
+ferrisup preview --component-type server --framework axum
+ferrisup transform --project ./my-project</code></pre>
+  </header>
+  <section class="px-6 py-20 max-w-6xl mx-auto" id="value">
+    <h2 class="text-4xl font-bold text-white">Built for codebases, not demos</h2><p class="mt-4 text-lg text-gray-400 max-w-3xl">FerrisUp does not generate product logic or replace engineering judgment. It establishes a coherent starting structure that people and agents can extend using normal Rust tooling.</p>
+    <div class="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">Repeatable foundations</h3><p class="mt-3 text-gray-300 leading-relaxed">Generate ordinary Rust files from bundled templates that remain visible, reviewable, and version-controlled.</p></article>
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">A path to workspaces</h3><p class="mt-3 text-gray-300 leading-relaxed">Convert a single Cargo package into a workspace and add focused client, server, shared, edge, embedded, or data components.</p></article>
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">Agent-readable structure</h3><p class="mt-3 text-gray-300 leading-relaxed">Make package boundaries and build expectations concrete so AI coding tools spend less time guessing how the repository is organized.</p></article>
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">Current ecosystem choices</h3><p class="mt-3 text-gray-300 leading-relaxed">Start with maintained Rust editions and current framework lines while keeping every dependency in your own Cargo manifests.</p></article>
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">Safer generation</h3><p class="mt-3 text-gray-300 leading-relaxed">Reject unsafe names and existing destinations instead of silently overwriting files or accepting path-like input.</p></article>
+      <article class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="text-xl font-semibold text-amber-400">Useful maintenance tools</h3><p class="mt-3 text-gray-300 leading-relaxed">Preview bundled templates and assist with components, workspaces, dependencies, configuration, and feature inspection.</p></article>
+    </div>
+  </section>
+  <section class="px-6 py-20 border-y border-gray-800 bg-gray-950"><div class="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+    <div><h2 class="text-4xl font-bold text-white">Why this matters in an AI workflow</h2><p class="mt-5 text-lg text-gray-300 leading-relaxed">AI can write code quickly. FerrisUp addresses a different problem: making the repository shape explicit before that code accumulates. The result is less ambiguity, smaller architectural drift, and a baseline every contributor can inspect.</p><p class="mt-4 text-gray-400">FerrisUp is a structural tool, not an AI framework. You keep the source, manifests, tests, and responsibility for the result.</p></div>
+    <div class="p-7 rounded-xl bg-gray-900 border border-gray-800"><h3 class="font-semibold text-white">A practical workflow</h3><ol class="mt-4 list-decimal list-inside space-y-3 text-gray-300"><li>Choose a component and framework explicitly.</li><li>Generate and commit the baseline.</li><li>Give the agent the manifests and acceptance criteria.</li><li>Require formatting, linting, and tests.</li><li>Review security and deployment decisions.</li></ol><div class="mt-7"><a class="button button-primary" href="https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/README.md" target="_blank" rel="noopener noreferrer">Open the CLI guide</a></div></div>
+  </div></section>
+</main>
+<footer class="px-6 py-12 bg-gray-950"><div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 justify-between"><div><p class="font-semibold text-white">FerrisUp</p><p class="mt-2 text-gray-400">Inspectable Rust foundations for projects that need room to grow.</p></div><nav class="flex flex-wrap gap-6 text-gray-300" aria-label="Project links"><a href="https://github.com/Jitpomi/ferrisup" target="_blank" rel="noopener noreferrer">Source</a><a href="https://github.com/Jitpomi/ferrisup/blob/main/ferrisup/README.md" target="_blank" rel="noopener noreferrer">Documentation</a><a href="https://crates.io/crates/ferrisup" target="_blank" rel="noopener noreferrer">Crates.io</a><a href="https://github.com/Jitpomi/ferrisup/issues" target="_blank" rel="noopener noreferrer">Issues</a></nav></div></footer>
+</body>
 </html>
