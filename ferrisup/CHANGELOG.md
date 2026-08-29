@@ -5,6 +5,20 @@ All notable changes to FerrisUp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-08-29
+
+### Changed
+
+- Modernized the workspace, CLI dependencies, and bundled templates for current stable Rust and Rust 2024.
+- Reworked project creation and transformation safety, validation, and error handling.
+- Replaced legacy and duplicate template infrastructure with one inspectable template path.
+- Rewrote the documentation around FerrisUp's role as a dependable structural foundation for developers and coding agents.
+- Rebuilt the website and published it at [ferrisup.jitpomi.com](https://ferrisup.jitpomi.com).
+
+### Removed
+
+- Removed obsolete templates, scripts, documentation artifacts, and unused media.
+
 ## [0.2.5] - 2025-01-05
 
 ### Added

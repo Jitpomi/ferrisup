@@ -1,6 +1,6 @@
 [package]
 name = "ferrisup"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2024"
 description = "Inspect, create, and evolve coherent Rust project foundations"
 authors = ["Jitpomi <info@jitpomi.com>"]

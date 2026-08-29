@@ -15,6 +15,8 @@ enum Route {
 }
 
 const FAVICON: Asset = asset!("assets/favicon.ico");
+const FERRISUP_LOGO: Asset = asset!("assets/ferrisup-logo.png");
+const FERRISUP_MARK: Asset = asset!("assets/ferrisup-mark.png");
 
 const TAILWIND_CSS: Asset = asset!("assets/tailwind.css");
 
@@ -54,9 +56,12 @@ fn App() -> Element {
         document::Meta { property: "og:description", content: "Start Anywhere, Scale Anywhere with FerrisUp" }
         document::Meta { property: "og:type", content: "website" }
         document::Meta { property: "og:url", content: "https://ferrisup.jitpomi.com/" }
+        document::Meta { property: "og:image", content: format!("https://ferrisup.jitpomi.com{}", FERRISUP_LOGO) }
+        document::Meta { property: "og:image:alt", content: "FerrisUp crab logo and wordmark" }
 
         // Twitter Card meta tags
         document::Meta { name: "twitter:card", content: "summary_large_image" }
+        document::Meta { name: "twitter:image", content: format!("https://ferrisup.jitpomi.com{}", FERRISUP_LOGO) }
 
         // Structured data for SEO
         script {
@@ -84,6 +89,7 @@ fn App() -> Element {
 
         // Favicon and critical CSS
         document::Link { rel: "icon", href: FAVICON }
+        document::Link { rel: "apple-touch-icon", href: FERRISUP_MARK }
 
         // Critical inline CSS for FCP optimization
         style {

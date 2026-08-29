@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/ferrisup-logo.png" alt="FerrisUp logo" width="320">
+</p>
+
 # FerrisUp CLI guide
 
 FerrisUp creates and restructures Rust projects. It combines local templates, framework-specific setup, Cargo workspace operations, and dependency utilities behind one CLI.

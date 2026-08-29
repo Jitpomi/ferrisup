@@ -20,7 +20,6 @@ struct Cli {
 
 fn main() -> Result<()> {
     // High-quality ASCII art of Ferris (Rust mascot)
-    // Convert img.png to ASCII art using image-to-ascii library
 
     println!(
         "{}",

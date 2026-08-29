@@ -1,11 +1,20 @@
 use crate::components::buttons::Button;
 use dioxus::prelude::*;
 
+const FERRISUP_LOGO: Asset = asset!("assets/ferrisup-logo.png");
+
 #[component]
 pub fn Hero() -> Element {
     rsx! {
         header {
             class: "px-6 py-24 text-center max-w-6xl mx-auto",
+            img {
+                class: "brand-logo mx-auto",
+                src: FERRISUP_LOGO,
+                alt: "FerrisUp",
+                width: "320",
+                height: "320",
+            }
             p { class: "text-amber-400 font-semibold tracking-wide uppercase", "Rust project foundations" }
             h1 { class: "mt-4 text-5xl sm:text-7xl font-bold text-white", "Structure that keeps up." }
             p {

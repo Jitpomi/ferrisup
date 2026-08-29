@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="client/assets/ferrisup-logo.png" alt="FerrisUp logo" width="320">
+</p>
+
 # FerrisUp
 
 FerrisUp is a command-line tool for starting Rust projects and evolving them as their architecture changes.

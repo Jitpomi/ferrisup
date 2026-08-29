@@ -25,3 +25,10 @@ pre {
     font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
     font-variant-ligatures: none;
 }
+
+.brand-logo {
+    width: min(20rem, 70vw);
+    height: auto;
+    margin-bottom: 1.5rem;
+    border-radius: 1.25rem;
+}
