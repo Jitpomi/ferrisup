@@ -2,6 +2,8 @@
 
 FerrisUp creates and restructures Rust projects. It combines local templates, framework-specific setup, Cargo workspace operations, and dependency utilities behind one CLI.
 
+Website: [ferrisup.jitpomi.com](https://ferrisup.jitpomi.com)
+
 FerrisUp is most useful as a structural layer. It makes a project's initial conventions explicit and gives a growing project a supported route toward multiple components. In AI-assisted workflows, that consistency gives coding agents clearer package boundaries and repeatable build instructions. FerrisUp does not replace engineering judgment, code review, tests, or deployment hardening.
 
 ## Installation

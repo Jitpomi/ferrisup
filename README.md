@@ -2,6 +2,8 @@
 
 FerrisUp is a command-line tool for starting Rust projects and evolving them as their architecture changes.
 
+Website: [ferrisup.jitpomi.com](https://ferrisup.jitpomi.com)
+
 It creates projects from bundled, inspectable templates; adds components to existing projects; converts a crate into a Cargo workspace; and assists with workspace and dependency maintenance. FerrisUp is not an AI framework and it does not generate application logic. It provides the predictable repository structure on which developers and coding agents can work.
 
 ## Why FerrisUp matters now
@@ -112,7 +114,7 @@ ferrisup new --help
 - `ferrisup_common/`: shared Cargo and filesystem utilities;
 - `client/`: the optional Dioxus web client.
 
-See [the CLI guide](./ferrisup/README.md), [template authoring guide](./ferrisup/docs/TEMPLATE_AUTHORING_GUIDE.md), [architecture notes](./ferrisup/docs/ARCHITECTURE.md), and [contribution guide](./ferrisup/CONTRIBUTING.md).
+Visit the [FerrisUp website](https://ferrisup.jitpomi.com), or see [the CLI guide](./ferrisup/README.md), [template authoring guide](./ferrisup/docs/TEMPLATE_AUTHORING_GUIDE.md), [architecture notes](./ferrisup/docs/ARCHITECTURE.md), and [contribution guide](./ferrisup/CONTRIBUTING.md).
 
 ## Develop
 

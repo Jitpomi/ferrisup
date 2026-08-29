@@ -8,7 +8,7 @@ license = "MIT"
 repository = "https://github.com/Jitpomi/ferrisup"
 documentation = "https://github.com/Jitpomi/ferrisup#readme"
 readme = "README.md"
-homepage = "https://github.com/Jitpomi/ferrisup"
+homepage = "https://ferrisup.jitpomi.com"
 keywords = ["cli", "bootstrap", "template", "project", "generator"]
 categories = ["command-line-utilities", "development-tools"]
 
